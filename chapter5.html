@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第5章：NAND、NOR 与扩散共享</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter4.html">← 上一章</a><a href="chapter6.html">下一章 →</a></nav>
+  <h1>第 5 章　NAND、NOR 与扩散共享</h1>
+  <p class="subtitle">从串并联网络走到 Euler 路，而不是背“最紧凑版图”</p>
+
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>独立推导 NAND2、NOR2 的 PUN/PDN 和正确晶体管网表。</li>
+      <li>判断两只相邻 MOS 能否共享扩散，并理解 contact 不能改变这个条件。</li>
+      <li>理解为什么把网络当顶点、晶体管当边会得到 Euler 放置问题。</li>
+    </ul>
+  </div>
+
+  <h2>5.1 NAND2：先设计下拉网络</h2>
+  <p>NAND2 只在 <code>A=1 且 B=1</code> 时输出 0。因此 PDN 中两只 NMOS 串联；PUN 是其对偶，两只 PMOS 并联。</p>
+  <table>
+    <thead><tr><th>A</th><th>B</th><th>PDN</th><th>PUN</th><th>Y</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>0</td><td>断</td><td>两支导通</td><td>1</td></tr>
+      <tr><td>0</td><td>1</td><td>断</td><td>A 支导通</td><td>1</td></tr>
+      <tr><td>1</td><td>0</td><td>断</td><td>B 支导通</td><td>1</td></tr>
+      <tr><td>1</td><td>1</td><td>通</td><td>断</td><td>0</td></tr>
+    </tbody>
+  </table>
+  <pre><code>.subckt NAND2X1 A B Y VDD VSS
+MPA  Y A VDD VDD pmos W=1u   L=0.15u
+MPB  Y B VDD VDD pmos W=1u   L=0.15u
+MNA  Y A X   VSS nmos W=0.5u L=0.15u
+MNB  X B VSS VSS nmos W=0.5u L=0.15u
+.ends NAND2X1</code></pre>
+  <p><code>X</code> 是两只串联 NMOS 的内部网络。上面尺寸仍只作语法示意；串联堆叠常需根据目标 slew/load 重新 sizing。</p>
+
+  <h2>5.2 NOR2：把串并联互换</h2>
+  <p>NOR2 在 <code>A=1 或 B=1</code> 时输出 0，所以 PDN 中 NMOS 并联；PUN 中 PMOS 串联。</p>
+  <pre><code>.subckt NOR2X1 A B Y VDD VSS
+MPA  X A VDD VDD pmos W=1u   L=0.15u
+MPB  Y B X   VDD pmos W=1u   L=0.15u
+MNA  Y A VSS VSS nmos W=0.5u L=0.15u
+MNB  Y B VSS VSS nmos W=0.5u L=0.15u
+.ends NOR2X1</code></pre>
+  <div class="callout danger"><strong>不要把 AND2 画成四只晶体管。</strong>四管静态 CMOS 网络直接得到 NAND2。普通静态 CMOS AND2 通常是 NAND2 后接反相器，共 6 只晶体管；OR2 同理通常由 NOR2+INV 构成。</div>
+
+  <h2>5.3 共享扩散的唯一拓扑条件</h2>
+  <p>若把晶体管排成一行，左管右端与右管左端必须属于同一网络，才能消除中间 diffusion break。以 NAND2 为例：</p>
+  <figure class="diagram">
+    <img src="assets/nand2-diffusion.svg" alt="NAND2 的 PMOS 并联与 NMOS 串联扩散序列">
+    <figcaption>Poly 将连续 Active 划分为多个受控的 S/D 片段。接触孔只负责把片段接到金属，不负责切断 Active。</figcaption>
+  </figure>
+
+  <ul>
+    <li>NMOS 串联可排成 <code>Y-[A]-X-[B]-VSS</code>，共享内部网络 X。</li>
+    <li>PMOS 并联可折返成 <code>Y-[A]-VDD-[B]-Y</code>，两管都连接 Y↔VDD。</li>
+  </ul>
+  <p>这也说明“连续 Active 上所有位置都属于同一网络”不成立：每个 gate 下方是受控制的沟道，gate 两侧的扩散片段可以是不同网络。</p>
+
+  <h2>5.4 把晶体管网络转换为图</h2>
+  <p>为了自动寻找共享顺序，定义一个无向多重图：</p>
+  <ul>
+    <li>每个扩散网络是一个<strong>顶点</strong>，如 Y、X、VSS；</li>
+    <li>每只 MOS 是一条<strong>边</strong>，连接其两个 S/D 网络；</li>
+    <li>边标签是栅网络 A、B；同一对顶点之间允许多条边，因此是多重图。</li>
+  </ul>
+  <p>沿一条边走过，相当于在版图中从晶体管一侧扩散跨过 gate 到另一侧。若一条路径恰好使用每条边一次，它就是 Euler trail；它给出一个不重复使用晶体管的连续扩散顺序。</p>
+
+  <div class="callout good">
+    <strong>Euler 路存在条件：</strong>忽略孤立顶点后图必须连通，并且奇数度顶点只能有 0 个或 2 个。0 个时可以形成首尾相接的 Euler circuit；2 个时路径从一个奇点开始，在另一个奇点结束。
+  </div>
+
+  <p>对 CMOS 门还多一个实际约束：PMOS 行与 NMOS 行最好找到<strong>相同或可对齐的栅标签顺序</strong>，这样 A、B 的 Poly 可以垂直贯穿上下两行，减少绕线。各自存在 Euler 路不代表一定存在共同顺序。</p>
+
+  <h2>5.5 找不到共同 Euler 路怎么办</h2>
+  <p>不能为了保持一条 Active 而改变网络。可选策略包括：</p>
+  <ol>
+    <li>交换可交换的输入顺序，枚举另一条 Euler trail；</li>
+    <li>翻转某只 MOS 的源漏方向；</li>
+    <li>在一行中引入 diffusion break；</li>
+    <li>折叠宽晶体管并重新排列 finger；</li>
+    <li>接受多一段局部互连，以换取 pin access、规则和更低拥塞。</li>
+  </ol>
+  <p>最少 diffusion break 不是唯一目标。一个更窄却无法布线或 pin 无法从上层访问的单元并不是更好的单元。</p>
+
+  <h2>5.6 从 NAND/NOR 走向复杂门</h2>
+  <p>例如 AOI21：</p>
+  <pre><code>Y = NOT(A·B + C)
+
+PDN：A 与 B 串联，这一支再与 C 并联
+PUN：对偶网络——A 与 B 并联，这一组再与 C 串联</code></pre>
+  <p>先在逻辑层构造 PDN，再做对偶得到 PUN；随后给每个内部网络命名，转换为图，寻找共同栅顺序。这个过程可推广到 AOI/OAI 等复杂组合门。</p>
+
+  <div class="lab">
+    <strong>纸上实验：为 NOR2 排扩散</strong>
+    <ol>
+      <li>根据本章 NOR2 网表，列出 PMOS 图和 NMOS 图的顶点、边。</li>
+      <li>写出一个连续 PMOS 扩散序列和一个连续 NMOS 扩散序列。</li>
+      <li>检查两行的栅标签能否对齐。</li>
+    </ol>
+    <details><summary>一种答案</summary><p>PMOS 串联可取 <code>VDD-[A]-X-[B]-Y</code>。NMOS 两条并联边可取 <code>VSS-[A]-Y-[B]-VSS</code>，栅顺序均为 A、B。若翻转整行或交换输入，也会有等价序列。</p></details>
+  </div>
+
+  <div class="checkpoint">
+    <strong>本章检查点</strong>
+    <ol>
+      <li>两个 PMOS 共享一块扩散，是否一定串联？为什么？</li>
+      <li>图中的顶点、边、边标签分别对应什么版图对象？</li>
+      <li>共同 Euler 顺序能优化什么，又不能保证什么？</li>
+    </ol>
+    <details><summary>参考答案</summary><p>不一定，串并联由两端网络拓扑决定。顶点是扩散网络，边是 MOS，标签是 gate net。共同顺序有利于扩散连续和上下栅对齐，但不能保证 DRC、最小面积、内部布线、pin access、寄生或时序最优。</p></details>
+  </div>
+
+  <div class="source-note"><strong>阅读依据：</strong>Euler 版图直觉参考 Uehara 与 vanCleemput 的经典 CMOS functional array 方法，以及《CMOS版图设计基础》的 Euler/stick diagram 示例。第 10 章将再区分经典理论与本地 LibreCell 的具体放置器。</div>
+  <nav class="bottom-nav"><a href="chapter4.html">← 第 4 章</a><a href="chapter6.html">第 6 章：一个库要交付哪些视图 →</a></nav>
+  <footer>第 5 章 · NAND、NOR 与扩散共享</footer>
+</main>
+</body>
+</html>

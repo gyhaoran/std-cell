@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 540" role="img" aria-labelledby="title desc">
+  <title id="title">CMOS反相器剖面与层次</title>
+  <desc id="desc">左侧PMOS位于N阱中，右侧NMOS位于P阱中。上方显示多晶硅栅、接触孔和金属一层。</desc>
+  <style>
+    text{font-family:Arial,"Noto Sans SC",sans-serif;fill:#172033} .label{font-size:22px;font-weight:700}.small{font-size:17px}.line{stroke:#172033;stroke-width:3}.dash{stroke:#5c667a;stroke-width:2;stroke-dasharray:9 7}
+  </style>
+  <rect width="1120" height="540" fill="#fff"/>
+  <text x="560" y="38" text-anchor="middle" class="label">剖面图：颜色代表材料/掺杂区域，不代表电路导线</text>
+  <rect x="70" y="305" width="980" height="175" rx="8" fill="#e8d7b5" stroke="#6f5a35" stroke-width="3"/>
+  <text x="560" y="460" text-anchor="middle" class="label">硅衬底</text>
+  <rect x="100" y="245" width="440" height="190" rx="8" fill="#dcecff" stroke="#2457d6" stroke-width="3"/>
+  <text x="320" y="415" text-anchor="middle" class="label">N-Well：PMOS 的体区</text>
+  <rect x="580" y="245" width="440" height="190" rx="8" fill="#ffe8ee" stroke="#bf1e2e" stroke-width="3"/>
+  <text x="800" y="415" text-anchor="middle" class="label">P-Well / P-Sub：NMOS 的体区</text>
+  <rect x="145" y="275" width="120" height="65" fill="#f29ac0" stroke="#8d2b5c" stroke-width="3"/>
+  <rect x="375" y="275" width="120" height="65" fill="#f29ac0" stroke="#8d2b5c" stroke-width="3"/>
+  <text x="205" y="316" text-anchor="middle" class="small">P+ S/D</text><text x="435" y="316" text-anchor="middle" class="small">P+ S/D</text>
+  <rect x="625" y="275" width="120" height="65" fill="#8fc9ff" stroke="#1255a6" stroke-width="3"/>
+  <rect x="855" y="275" width="120" height="65" fill="#8fc9ff" stroke="#1255a6" stroke-width="3"/>
+  <text x="685" y="316" text-anchor="middle" class="small">N+ S/D</text><text x="915" y="316" text-anchor="middle" class="small">N+ S/D</text>
+  <rect x="295" y="218" width="50" height="145" fill="#e762a5" stroke="#7d2455" stroke-width="3"/>
+  <rect x="775" y="218" width="50" height="145" fill="#e762a5" stroke="#7d2455" stroke-width="3"/>
+  <text x="320" y="198" text-anchor="middle" class="small">Poly gate</text><text x="800" y="198" text-anchor="middle" class="small">Poly gate</text>
+  <rect x="170" y="195" width="70" height="52" fill="#6f4d9b" stroke="#42235f" stroke-width="3"/>
+  <rect x="400" y="195" width="70" height="52" fill="#6f4d9b" stroke="#42235f" stroke-width="3"/>
+  <rect x="650" y="195" width="70" height="52" fill="#6f4d9b" stroke="#42235f" stroke-width="3"/>
+  <rect x="880" y="195" width="70" height="52" fill="#6f4d9b" stroke="#42235f" stroke-width="3"/>
+  <text x="1050" y="226" class="small">Contact</text>
+  <line x1="1020" y1="220" x2="952" y2="220" class="dash"/>
+  <rect x="120" y="120" width="400" height="52" rx="5" fill="#e6a23c" stroke="#9a5b00" stroke-width="3"/>
+  <rect x="600" y="120" width="400" height="52" rx="5" fill="#e6a23c" stroke="#9a5b00" stroke-width="3"/>
+  <text x="320" y="154" text-anchor="middle" class="small">Metal1</text><text x="800" y="154" text-anchor="middle" class="small">Metal1</text>
+  <line x1="205" y1="172" x2="205" y2="195" class="line"/><line x1="435" y1="172" x2="435" y2="195" class="line"/>
+  <line x1="685" y1="172" x2="685" y2="195" class="line"/><line x1="915" y1="172" x2="915" y2="195" class="line"/>
+  <line x1="280" y1="350" x2="360" y2="350" class="dash"/><text x="320" y="386" text-anchor="middle" class="small">沟道在 gate 下方</text>
+  <line x1="760" y1="350" x2="840" y2="350" class="dash"/><text x="800" y="386" text-anchor="middle" class="small">沟道在 gate 下方</text>
+  <text x="320" y="82" text-anchor="middle" class="label">PMOS</text><text x="800" y="82" text-anchor="middle" class="label">NMOS</text>
+  <text x="560" y="520" text-anchor="middle" class="small">版图俯视图中的 Active × Poly 交叠，在剖面上就是受栅控制的沟道</text>
+</svg>

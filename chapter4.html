@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第4章：反相器完整读图实验</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter3.html">← 上一章</a><a href="chapter5.html">下一章 →</a></nav>
+  <h1>第 4 章　反相器完整读图实验</h1>
+  <p class="subtitle">让同一个电路依次经过真值表、网表、stick diagram 和版图</p>
+
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>能从零构造 CMOS 反相器，而不是只认一张固定版图。</li>
+      <li>能从版图反向写出二管 SPICE 网表，并检查每个端子网络。</li>
+      <li>理解稳态功能正确之外，还需检查切换、电容、体连接和制造规则。</li>
+    </ul>
+  </div>
+
+  <h2>4.1 第一步：固定逻辑与网络名字</h2>
+  <p>反相器只有一个输入 <span class="trace-net-a">A</span>、一个输出 <span class="trace-net-y">Y</span>、电源 <span class="trace-vdd">VDD</span> 与地 <span class="trace-vss">VSS</span>：</p>
+  <table>
+    <thead><tr><th><span class="trace-net-a">A</span></th><th>应该连通的路径</th><th><span class="trace-net-y">Y</span></th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td><span class="trace-vdd">VDD</span> → PMOS → <span class="trace-net-y">Y</span></td><td>1</td></tr>
+      <tr><td>1</td><td><span class="trace-net-y">Y</span> → NMOS → <span class="trace-vss">VSS</span></td><td>0</td></tr>
+    </tbody>
+  </table>
+
+  <p>由此得到：PMOS 与 NMOS 的栅都接 <span class="trace-net-a">A</span>；两管一侧共同连接 <span class="trace-net-y">Y</span>；PMOS 另一侧接 <span class="trace-vdd">VDD</span>，NMOS 另一侧接 <span class="trace-vss">VSS</span>。</p>
+
+  <h2>4.2 第二步：写出可检查的 SPICE</h2>
+  <pre><code>.subckt INVX1 A Y VDD VSS
+*      D    G  S    B    model  geometry
+MP0    Y    A  VDD  VDD  pmos   W=1u L=0.15u
+MN0    Y    A  VSS  VSS  nmos   W=0.5u L=0.15u
+.ends INVX1</code></pre>
+  <p>MOS 行常见的端子顺序是 <code>D G S B</code>，但导入任何网表前仍要查看该工具/PDK 的语法约定。上面的 W/L 只用于展示语法，不是任何工艺的推荐尺寸。</p>
+
+  <div class="callout warn"><strong>本地 LibreCell 的特殊约定：</strong>提交 <code>f708e3a</code> 中，模型名以字母 <code>n</code> 开头就被识别为 NMOS，其余被识别为 PMOS。这意味着某些 foundry 的完整模型名可能被误分类；迁移时不能只把模型名原样替换进网表。</div>
+
+  <h2>4.3 第三步：先画 stick diagram</h2>
+  <p>Stick diagram 只表达拓扑和相对位置，不表达精确宽度、间距或 enclosure。先用它决定“哪里共享、哪条线跨过哪里”，再由技术规则生成几何。</p>
+  <pre><code>            VDD rail
+               │ contact
+ P-active  VDD ─[ gate A ]─ Y
+                          │ M1 output
+ N-active  VSS ─[ gate A ]─ Y
+               │ contact
+            VSS rail
+
+同一条 gate A 穿过上下两行；上下两个 Y 扩散用金属相连。</code></pre>
+  <p>这一步故意不写尺寸。如果在 stick diagram 阶段就发现一条网络无法连通，改变矩形宽度并不能修复拓扑。</p>
+
+  <h2>4.4 第四步：逐层阅读版图</h2>
+  <figure class="diagram">
+    <img src="assets/inverter-layout.svg" alt="带有五步读图顺序的 CMOS 反相器版图示意">
+    <figcaption>教学图省略了部分 implant、tap 和工艺相关派生层。真实版图必须结合 PDK layer map 与提取规则。</figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li><strong>定位上下排：</strong>上方 Active 位于 N-Well 区，作为 PMOS；下方为 NMOS 区。</li>
+    <li><strong>数交叠：</strong>一条 <span class="trace-net-a">A</span> gate 分别穿过上下 Active，共得到两只 MOS。</li>
+    <li><strong>追左侧扩散：</strong>上左 contact/M1 到 <span class="trace-vdd">VDD</span>；下左到 <span class="trace-vss">VSS</span>。</li>
+    <li><strong>追右侧扩散：</strong>上下右侧 contact 由 M1 合并并引出，故同属 <span class="trace-net-y">Y</span>。</li>
+    <li><strong>补 body：</strong>PMOS body 应归 <span class="trace-vdd">VDD</span>，NMOS body 应归 <span class="trace-vss">VSS</span>；图中未画出的 tap 必须由库架构说明。</li>
+  </ol>
+
+  <p>于是反向提取得到：</p>
+  <table>
+    <thead><tr><th>器件</th><th>G</th><th>两个扩散端</th><th>B</th></tr></thead>
+    <tbody>
+      <tr><td>PMOS</td><td><span class="trace-net-a">A</span></td><td><span class="trace-vdd">VDD</span> ↔ <span class="trace-net-y">Y</span></td><td><span class="trace-vdd">VDD</span></td></tr>
+      <tr><td>NMOS</td><td><span class="trace-net-a">A</span></td><td><span class="trace-net-y">Y</span> ↔ <span class="trace-vss">VSS</span></td><td><span class="trace-vss">VSS</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>4.5 第五步：从几何正确到电路正确</h2>
+  <p>版图验证至少要回答四层问题：</p>
+  <table>
+    <thead><tr><th>层次</th><th>问题</th><th>方法</th></tr></thead>
+    <tbody>
+      <tr><td>几何</td><td>宽度、间距、包围、密度等是否可制造？</td><td>foundry DRC</td></tr>
+      <tr><td>连接</td><td>提取出的器件和网络是否与参考 SPICE/CDL 一致？</td><td>foundry LVS/ERC</td></tr>
+      <tr><td>寄生后功能</td><td>加入 R/C 后逻辑、延迟和功耗是否满足规格？</td><td>PEX + SPICE 表征</td></tr>
+      <tr><td>库集成</td><td>LEF pin 是否可访问、边界能否拼接、各视图是否一致？</td><td>P&amp;R/abutment/一致性回归</td></tr>
+    </tbody>
+  </table>
+
+  <p>DRC 通过不代表没有开路或短路；LVS 通过也不代表 pin 难以访问、延迟太慢或动态功耗太高。验证不是一个绿色勾，而是一组针对不同抽象层的问题。</p>
+
+  <h2>4.6 输入切换时版图里发生了什么</h2>
+  <p><span class="trace-net-y">Y</span> 上存在 NMOS/PMOS 的漏扩散电容、互连电容和后级输入电容。A 从 0 上升时，PMOS 逐渐关断、NMOS 逐渐导通，Y 上的电荷经 NMOS 放到 VSS；A 从 1 下降时则由 PMOS 给 Y 充电。因此版图中的扩散面积、金属长度和接触结构会影响延迟与功耗。</p>
+
+  <div class="lab">
+    <strong>实验：遮层读图</strong>
+    <ol>
+      <li>先只看 Active，数不出 MOS 是正常的。</li>
+      <li>打开 Poly，圈出两个交叠区。</li>
+      <li>打开 well/implant，判定上下器件类型。</li>
+      <li>打开 contact 与 M1，从四个扩散片段追到 VDD、Y、VSS。</li>
+      <li>最后才打开 pin label，检查你的判断是否一致，而不是用文字猜答案。</li>
+    </ol>
+  </div>
+
+  <div class="checkpoint">
+    <strong>故障推理</strong>
+    <ol>
+      <li>若输出 M1 只接到 NMOS 右扩散，没有接 PMOS 右扩散，会发生什么？</li>
+      <li>若上下两条 gate 未真正连接，却都被错误标成 A，为什么肉眼可能被骗过？</li>
+      <li>为什么 PMOS 左端一定叫 source 不是读图的可靠起点？</li>
+    </ol>
+    <details><summary>参考答案</summary><p>第一种情况在 A=0 时 Y 无法由 PMOS 拉高，是开路。第二种情况文字不建立连接，LVS/提取会得到两个栅网。源漏扩散在结构上近似对称，具体命名依工作偏置；读图应先确认两个端子分别连到哪些网络。</p></details>
+  </div>
+
+  <div class="source-note"><strong>本章约定：</strong>所有几何均为概念图，未用于定义任何制造规则。后续第 8 章会在 KLayout 中执行真实语法的 DRC 示例，第 12 章再生成实际 GDS。</div>
+  <nav class="bottom-nav"><a href="chapter3.html">← 第 3 章</a><a href="chapter5.html">第 5 章：NAND、NOR 与扩散共享 →</a></nav>
+  <footer>第 4 章 · 反相器完整读图实验</footer>
+</main>
+</body>
+</html>

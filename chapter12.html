@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第12章：固定版本并生成第一个单元</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter11.html">← 上一章</a><a href="chapter13.html">下一章 →</a></nav>
+  <h1>第 12 章　固定版本并生成第一个单元</h1>
+  <p class="subtitle">先让环境、输入和命令可复现，再讨论新工艺</p>
+
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>固定 LibreCell commit、Python、依赖和随机性。</li>
+      <li>使用本地版本真实存在的 CLI 参数生成 <code>INVX1</code>。</li>
+      <li>检查 GDS、LEF、MAG、日志和内部 LVS，而不是只看退出码。</li>
+    </ul>
+  </div>
+
+  <h2>12.1 本教程的版本基线</h2>
+  <pre><code>Repository: /home/jasper/code/github/librecell
+Branch:     anneal
+Commit:     f708e3a
+Package:    librecell-layout 0.0.9</code></pre>
+  <p>本地 <code>setup.py</code> 约束了 <code>klayout==0.26.*</code>、<code>networkx==2.*</code>、<code>pysmt==0.9.*</code>、<code>z3-solver==4.8.*</code>、<code>numpy==1.*</code> 等旧依赖。它们与现代 Python 的兼容性不能想当然。</p>
+
+  <div class="callout danger"><strong>当前机器的现场状态：</strong>系统是 Python 3.12.3，现有 <code>/home/jasper/.virtualenvs/iCell/bin/lclayout</code> 在导入 <code>smt_placer.py</code> 时因缺少 <code>z3</code> 失败。因此教程不能声称“当前环境已开箱即用”，也不应在这个共享环境中边装边猜。</div>
+
+  <h2>12.2 建立独立、可锁定的环境</h2>
+  <p>推荐为该 commit 创建独立的旧版 Python 环境或容器，并把最终成功的镜像摘要/<code>pip freeze</code> 纳入项目。下面以可用的 CPython 3.8 可执行文件为例；如果你的发行版没有它，使用 conda/pyenv/container 提供同版本，不要覆盖系统 Python。</p>
+  <pre><code>LIBRECELL_ROOT=/home/jasper/code/github/librecell
+python3.8 -m venv "$LIBRECELL_ROOT/.venv-f708e3a"
+source "$LIBRECELL_ROOT/.venv-f708e3a/bin/activate"
+
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e "$LIBRECELL_ROOT/librecell-common"
+python -m pip install -e "$LIBRECELL_ROOT/librecell-layout"
+
+python --version
+python -m pip freeze
+lclayout --help</code></pre>
+  <p>Python 3.8 是对这一代依赖的工程起点，不是项目声明的唯一官方版本；实际验收以依赖能安装、测试能通过且生成结果稳定为准。把安装日志和 freeze 文件保存到你的适配分支。</p>
+
+  <h3>最小环境验收</h3>
+  <pre><code>python -c "import klayout.db, networkx, numpy, z3; print('imports ok')"
+lclayout --help
+git -C /home/jasper/code/github/librecell rev-parse HEAD</code></pre>
+  <p>只有三条都成功，才进入生成实验。若导入失败，先修依赖；不要用 <code>--ignore-lvs</code> 掩盖环境问题。</p>
+
+  <h2>12.3 真实 CLI 参数</h2>
+  <table>
+    <thead><tr><th>参数</th><th>是否必需</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td><code>--cell NAME</code></td><td>是</td><td>选择网表中的一个 <code>.subckt</code></td></tr>
+      <tr><td><code>--netlist FILE</code></td><td>是</td><td>输入晶体管级 SPICE</td></tr>
+      <tr><td><code>--tech FILE</code></td><td>是</td><td>执行并加载 Python 技术文件</td></tr>
+      <tr><td><code>--output-dir DIR</code></td><td>否，默认当前目录</td><td>所有 writer 的输出目录</td></tr>
+      <tr><td><code>--placer</code></td><td>否，默认 <code>meta</code></td><td><code>meta/flat/hierarchical/smt/random/hillclimb/ta</code></td></tr>
+      <tr><td><code>--signal-router</code></td><td>否，默认 <code>dijkstra</code></td><td><code>dijkstra/steiner</code></td></tr>
+      <tr><td><code>--placement-file FILE</code></td><td>否</td><td>文件不存在时保存 placement，存在时加载复用</td></tr>
+      <tr><td><code>--debug-routing-graph</code></td><td>否</td><td>输出路由图而不是正常 wire，用于诊断 terminal/grid</td></tr>
+      <tr><td><code>--debug-smt-solver</code></td><td>否</td><td>显示 SMT 清理相关调试信息</td></tr>
+      <tr><td><code>-v/--verbose</code></td><td>否</td><td>打开 DEBUG 日志；这是布尔开关，<code>-vv</code> 无效</td></tr>
+      <tr><td><code>-q/--quiet</code>、<code>--log FILE</code></td><td>否</td><td>控制日志</td></tr>
+      <tr><td><code>--ignore-lvs</code></td><td>否</td><td>LVS 失败仍写输出，仅限诊断，不是验收方式</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>本版本没有</strong> <code>--all-cells</code>、通用 <code>--debug</code>、<code>--routing-graph-file</code> 或 <code>-vv</code>。批量生成必须自己循环明确存在的 subckt，并保留每个单元的退出码与日志。</div>
+
+  <h2>12.4 生成第一个 <code>INVX1</code></h2>
+  <pre><code>LIBRECELL_ROOT=/home/jasper/code/github/librecell
+TUTORIAL_OUT=/tmp/librecell-tutorial-invx1
+mkdir -p "$TUTORIAL_OUT"
+cd "$LIBRECELL_ROOT/librecell-layout"
+
+PYTHONHASHSEED=42 lclayout \
+  --cell INVX1 \
+  --netlist examples/cells.sp \
+  --tech examples/dummy_tech.py \
+  --output-dir "$TUTORIAL_OUT" \
+  --placement-file "$TUTORIAL_OUT/INVX1-placement.json" \
+  --placer meta \
+  --signal-router dijkstra \
+  --log "$TUTORIAL_OUT/INVX1.log" \
+  --verbose</code></pre>
+  <p>固定 <code>PYTHONHASHSEED=42</code> 是项目 README 给出的非确定性 workaround。它不证明所有算法完全确定；还应比较输出 hash、placement JSON 和关键指标。</p>
+
+  <h2>12.5 输出应当有什么</h2>
+  <pre><code>ls -lh "$TUTORIAL_OUT"
+rg "Placement engine|routing|LVS result|Write GDS|Write LEF|Done" \
+  "$TUTORIAL_OUT/INVX1.log"
+
+klayout "$TUTORIAL_OUT/INVX1.gds"</code></pre>
+  <table>
+    <thead><tr><th>文件</th><th>检查内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>INVX1.gds</code></td><td>top cell、DBU、层号、2 只 MOS、VDD/VSS、A/Y、via/contact 与边界</td></tr>
+      <tr><td><code>INVX1.lef</code></td><td>macro size、site、pin port；同时记录 direction/use 与 OBS 的已知缺陷</td></tr>
+      <tr><td><code>INVX1.mag</code></td><td>Magic tech 名、矩形和 port；这是 dummy writer 的第三种输出</td></tr>
+      <tr><td><code>INVX1-placement.json</code></td><td>晶体管名称、slot 坐标、翻转后的 source/gate/drain</td></tr>
+      <tr><td><code>INVX1.log</code></td><td>placer/router、迭代、内部 LVS SUCCESS、writer 路径和总耗时</td></tr>
+    </tbody>
+  </table>
+
+  <h2>12.6 把同一 placement 用于可比实验</h2>
+  <p><code>--placement-file</code> 已存在时会直接加载，因此可以只比较 router/technology 改动，避免 placement 变化干扰：</p>
+  <pre><code>mkdir -p /tmp/librecell-tutorial-steiner
+
+PYTHONHASHSEED=42 lclayout \
+  --cell INVX1 \
+  --netlist examples/cells.sp \
+  --tech examples/dummy_tech.py \
+  --output-dir /tmp/librecell-tutorial-steiner \
+  --placement-file /tmp/librecell-tutorial-invx1/INVX1-placement.json \
+  --signal-router steiner \
+  --verbose</code></pre>
+  <p>反过来比较 placer 时，应给每个 placer 一个新的 placement 路径；否则它会加载旧 JSON，导致你误以为切换 placer 没有效果。</p>
+
+  <h2>12.7 常见失败的定位顺序</h2>
+  <table>
+    <thead><tr><th>现象</th><th>先检查</th></tr></thead>
+    <tbody>
+      <tr><td><code>ModuleNotFoundError: z3</code></td><td>是否进入正确 venv，依赖是否按 lock 安装</td></tr>
+      <tr><td><code>No such circuit</code></td><td><code>--cell</code> 与 <code>.subckt</code> 名称；KLayout 解析会转大写</td></tr>
+      <tr><td>找不到 supply/ground</td><td>端口是否使用代码识别的 vdd/vcc/vpwr 与 gnd/vss/vgnd/0</td></tr>
+      <tr><td>model 类型反了</td><td>本地规则是模型名以 n 开头→NMOS，其余→PMOS</td></tr>
+      <tr><td>net 没有 routing terminal</td><td>用 <code>--debug-routing-graph</code> 检查 grid、offset、enclosure 和端子</td></tr>
+      <tr><td><code>Failed to route</code></td><td>合法图是否有通路、冲突是否过密，再比较 router/cost</td></tr>
+      <tr><td>LVS failed</td><td>先查端口/器件类型/开短路；<code>--ignore-lvs</code> 只输出诊断版图</td></tr>
+    </tbody>
+  </table>
+
+  <div class="lab">
+    <strong>首次运行验收记录</strong>
+    <p>保存 commit、Python version、<code>pip freeze</code>、完整命令、退出码、日志、输出 hash 和一张逐层标注截图。只有这份记录完整，后续“改技术文件前后比较”才有可信基线。</p>
+  </div>
+
+  <div class="checkpoint">
+    <strong>本章检查点</strong>
+    <ol>
+      <li>为什么不能在已有 placement JSON 时比较 placer？</li>
+      <li>为什么 <code>--ignore-lvs</code> 不能出现在发布流水线？</li>
+      <li>本地 dummy tech 实际写出哪三种物理文件？</li>
+    </ol>
+    <details><summary>参考答案</summary><p>已有 JSON 会绕过放置器并直接加载。ignore-lvs 会让不匹配版图继续输出，破坏正确性门禁。当前配置写 GDS、LEF 和 MAG。</p></details>
+  </div>
+
+  <nav class="bottom-nav"><a href="chapter11.html">← 第 11 章</a><a href="chapter13.html">第 13 章：技术文件逐字段拆解 →</a></nav>
+  <footer>第 12 章 · 固定版本并生成第一个单元</footer>
+</main>
+</body>
+</html>

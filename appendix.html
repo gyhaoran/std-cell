@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>附录：术语、排错树、清单与延伸资源</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter16.html">← 第 16 章</a><a href="tutorial_index.html">总目录</a></nav>
+  <h1>附录　术语、排错树、清单与延伸资源</h1>
+  <p class="subtitle">查术语、找源码、定位失败和复核项目交付</p>
+
+  <h2>A.1 版图与器件术语</h2>
+  <table>
+    <thead><tr><th>术语</th><th>本教程中的精确定义</th></tr></thead>
+    <tbody>
+      <tr><td>Active / OD</td><td>允许形成器件有源区域的层/层组；结合 well/implant/gate 才确定器件和 S/D。</td></tr>
+      <tr><td>Diffusion</td><td>历史上常泛指有源/掺杂源漏区域；本地 LibreCell 直接区分 <code>ndiffusion/pdiffusion</code> 内部层。</td></tr>
+      <tr><td>Implant / Select</td><td>选择掺杂或器件类型的层；不是导线。</td></tr>
+      <tr><td>Well / Body</td><td>NMOS/PMOS 所在体区及 MOS 第四端 B；需通过 tap 接到规定网络。</td></tr>
+      <tr><td>Poly / Gate</td><td>穿过 Active 的有效交叠形成受控沟道；离开 Active 的 Poly 可作为局部连接。</td></tr>
+      <tr><td>Contact</td><td>Active/Poly 到局部金属的垂直连接；不会切断 Active。</td></tr>
+      <tr><td>Via</td><td>相邻金属层间的垂直连接；两个金属层只重叠而无 via 通常不导通。</td></tr>
+      <tr><td>W / L</td><td>L 沿源漏电流方向量 gate 的短尺寸；W 是与电流方向垂直的沟道宽度。</td></tr>
+      <tr><td>Finger</td><td>把一只宽 MOS 折成多条并联 gate；总有效 W、寄生和端部效应需按 PDK 计算。</td></tr>
+      <tr><td>Tap</td><td>把 well/substrate 接到 VDD/VSS 或 body-bias 网络的结构/专用单元。</td></tr>
+      <tr><td>Abutment</td><td>标准单元紧邻放置后的边界拼接；需在所有合法 orientation 下验证。</td></tr>
+      <tr><td>Pin access</td><td>上层路由器能在合法规则下落 via 并接入 pin 的位置，不等于 pin 形状存在。</td></tr>
+    </tbody>
+  </table>
+
+  <h2>A.2 库与验证术语</h2>
+  <table>
+    <thead><tr><th>术语</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>PDK</td><td>工艺设计套件：规则、层、器件、模型、deck、工具配置和参考资料的集合。</td></tr>
+      <tr><td>DRM</td><td>设计规则手册，用于理解 rule intent/condition；不等同于签核 deck。</td></tr>
+      <tr><td>DBU</td><td>database unit，版图整数坐标的物理长度。</td></tr>
+      <tr><td>GDS/OASIS</td><td>保存制造相关层几何和层次的版图交换格式。</td></tr>
+      <tr><td>LEF</td><td>给 P&amp;R 的物理抽象：boundary/size、site、pin port、OBS 等。</td></tr>
+      <tr><td>CDL/SPICE</td><td>晶体管/器件网表，包含端子、模型和参数。</td></tr>
+      <tr><td>Liberty</td><td>逻辑、时序约束、延迟、transition、功耗和 PVT 模型。</td></tr>
+      <tr><td>DRC</td><td>版图几何对设计规则的检查。</td></tr>
+      <tr><td>ERC</td><td>对提取网络的电气规则检查，如 well、电压、悬空网络。</td></tr>
+      <tr><td>LVS</td><td>版图提取网表与参考网表的器件/网络/参数比较。</td></tr>
+      <tr><td>PEX</td><td>从版图抽取互连/器件寄生 R/C 等，供 post-layout 仿真。</td></tr>
+      <tr><td>PVT</td><td>process、voltage、temperature 条件组合。</td></tr>
+      <tr><td>Slew / Load</td><td>输入转换快慢与输出负载；Liberty 表常以二者作为索引。</td></tr>
+      <tr><td>Timing arc</td><td>某 related pin 变化对目标 pin delay/transition/constraint 的关系。</td></tr>
+      <tr><td>Filler</td><td>填补空站点并保持 well/implant/power 等连续的物理单元。</td></tr>
+      <tr><td>Endcap</td><td>处理 row/井/implant 边缘规则的物理单元。</td></tr>
+      <tr><td>Tap cell</td><td>在 tapless 架构中周期性提供 well/substrate 连接的单元。</td></tr>
+    </tbody>
+  </table>
+
+  <h2>A.3 算法术语</h2>
+  <table>
+    <thead><tr><th>术语</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>MultiGraph</td><td>允许同一对顶点间多条边，适合表示并联 MOS。</td></tr>
+      <tr><td>Connected component</td><td>内部任意两点可达的最大子图；本地 hierarchical partition 的核心。</td></tr>
+      <tr><td>Euler trail/circuit</td><td>每条边恰好使用一次；用于连续 diffusion 晶体管顺序。</td></tr>
+      <tr><td>Dijkstra</td><td>在非负权图上求最短路径；本地用于逐步连接多端 net。</td></tr>
+      <tr><td>Steiner tree</td><td>连接指定 terminals 并允许额外分叉点；精确问题一般 NP-hard。</td></tr>
+      <tr><td>PathFinder</td><td>通过 present/history cost 反复 rip-up/reroute 协商多 net 拥塞。</td></tr>
+      <tr><td>HPWL/bbox proxy</td><td>用网络端点包围盒估计线长；便宜但不等于实际 routed wirelength。</td></tr>
+      <tr><td>SMT</td><td>可满足性模理论，把整数、布尔和优化约束交给 solver。</td></tr>
+    </tbody>
+  </table>
+
+  <h2>A.4 本地 LibreCell 源码地图</h2>
+  <table>
+    <thead><tr><th>问题</th><th>入口</th></tr></thead>
+    <tbody>
+      <tr><td>CLI 与整条流水线</td><td><code>librecell-layout/lclayout/standalone.py</code></td></tr>
+      <tr><td>SPICE 读取、model/power/pin 识别</td><td><code>librecell-common/lccommon/net_util.py</code></td></tr>
+      <tr><td>内部层与 via connectivity</td><td><code>librecell-layout/lclayout/layout/layers.py</code></td></tr>
+      <tr><td>单个 MOS 几何</td><td><code>librecell-layout/lclayout/layout/transistor.py</code></td></tr>
+      <tr><td>Euler/hierarchical placement</td><td><code>librecell-layout/lclayout/place/euler_placer.py</code></td></tr>
+      <tr><td>Meta 选择</td><td><code>librecell-layout/lclayout/place/meta_placer.py</code></td></tr>
+      <tr><td>Supply-split partition</td><td><code>librecell-layout/lclayout/place/partition.py</code></td></tr>
+      <tr><td>SMT/随机/局部搜索</td><td><code>place/smt_placer.py</code>、<code>place/anneal_placer.py</code></td></tr>
+      <tr><td>基础路由图与 terminal</td><td><code>librecell-layout/lclayout/routing_graph.py</code></td></tr>
+      <tr><td>PathFinder</td><td><code>librecell-layout/lclayout/graphrouter/pathfinder.py</code></td></tr>
+      <tr><td>Dijkstra/Steiner 单 net</td><td><code>librecell-layout/lclayout/graphrouter/signal_router.py</code></td></tr>
+      <tr><td>转弯 penalty</td><td><code>librecell-layout/lclayout/graphrouter/hv_router.py</code></td></tr>
+      <tr><td>内部 LVS</td><td><code>librecell-layout/lclayout/lvs/lvs.py</code></td></tr>
+      <tr><td>GDS/LEF/MAG</td><td><code>librecell-layout/lclayout/writer/</code></td></tr>
+      <tr><td>真实技术接口示例</td><td><code>librecell-layout/examples/dummy_tech.py</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>A.5 CLI 速查（提交 f708e3a）</h2>
+  <pre><code>lclayout --cell NAME --netlist FILE --tech FILE [options]
+
+--output-dir DIR
+--placer meta|flat|hierarchical|smt|random|hillclimb|ta
+--signal-router dijkstra|steiner
+--placement-file FILE
+--debug-routing-graph
+--debug-smt-solver
+--ignore-lvs
+-v | --verbose
+-q | --quiet
+--log FILE</code></pre>
+  <p>不存在：<code>--all-cells</code>、通用 <code>--debug</code>、<code>--routing-graph-file</code>、<code>-vv</code>。</p>
+
+  <h2>A.6 排错决策树</h2>
+  <pre><code>lclayout 还未进入 main？
+├─ import/module error → 激活正确 venv，核对 Python/lock/z3/klayout
+└─ 已开始读取输入
+   ├─ 找不到 subckt → cell 名、netlist path、大小写
+   ├─ 找不到 power/ground → 端口命名与唯一性
+   ├─ MOS 类型/尺寸异常 → model mapping、W/L 单位、DBU、sizing clamp
+   └─ 已开始 placement
+      ├─ 放置爆炸/很慢 → placer、Euler 候选、hierarchical 分区
+      └─ 已构建 routing graph
+         ├─ no terminal → grid pitch/offset、terminal、via enclosure、spacing
+         ├─ graph disconnected → routing_layers、via graph、被删除的非法边
+         ├─ Failed to route → 资源/冲突/placement，再比较 router/cost
+         └─ 已画完 layout
+            ├─ 内部 LVS fail → pin/device/open/short；外部 LVS 进一步确认
+            ├─ 外部 DRC fail → 按 rule ID 聚类并追到生成字段/模块
+            ├─ 外部 LVS fail → body/model/layer derivation/端口/参数
+            ├─ LEF/P&amp;R fail → size/site/pin/use/OBS/pin access
+            └─ 表征异常 → PVT/model/bench/PEX/单位/timing arc</code></pre>
+
+  <h2>A.7 最常见的错误认知</h2>
+  <table>
+    <thead><tr><th>错误说法</th><th>正确说法</th></tr></thead>
+    <tbody>
+      <tr><td>绿色一定是 Active</td><td>颜色是显示配置，必须查 layer map。</td></tr>
+      <tr><td>Contact 可以切断扩散</td><td>Contact 建立垂直连接，不切断 Active。</td></tr>
+      <tr><td>并联 MOS 必须分开画</td><td>只要网络顺序允许，也可折返共享 diffusion。</td></tr>
+      <tr><td>数字 MOS 只经过截止和线性区</td><td>切换时会经过不同工作区，包括饱和区。</td></tr>
+      <tr><td>反相器任何时刻只有一只管导通</td><td>稳态近似如此；切换期间可能同时部分导通。</td></tr>
+      <tr><td>四管可以实现普通静态 CMOS AND2</td><td>四管得到 NAND2；AND2 通常 NAND2+INV，共 6T。</td></tr>
+      <tr><td>内部 LVS pass 就是 foundry LVS pass</td><td>本地内部 LVS 忽略 body 且层能力有限。</td></tr>
+      <tr><td>生成 GDS/LEF 就完成了库</td><td>还缺外部签核、PEX、Liberty/Verilog/CDL、一致性和 P&amp;R QA。</td></tr>
+      <tr><td>PDF 描述的算法就是 LibreCell</td><td>PDF 是独立的 2003 年 gridless/river-routing 工具；当前源码是 grid graph/PathFinder。</td></tr>
+    </tbody>
+  </table>
+
+  <h2>A.8 推荐阅读路线</h2>
+  <table>
+    <thead><tr><th>资料</th><th>建议章节</th><th>配合教程</th></tr></thead>
+    <tbody>
+      <tr><td>R. Jacob Baker, <em>CMOS: Circuit Design, Layout, and Simulation</em>, 4e</td><td>Ch.1–7、10–15</td><td>第 2–5、7–8 章：MOS、层、工艺、静态门和版图实例</td></tr>
+      <tr><td>Dan Clein, <em>CMOS IC Layout</em></td><td>Ch.2–3、5、7–8、10</td><td>零基础读图、标准单元、寄生、工艺约束和 CAD</td></tr>
+      <tr><td>Lienig &amp; Scheible, <em>Fundamentals of Layout Design for Electronic Circuits</em></td><td>Ch.2–5、7</td><td>工艺接口、版图数据、DRC/LVS 和可靠性</td></tr>
+      <tr><td>Kahng et al., <em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em></td><td>§1.7、Ch.2、4–6、8</td><td>第 9–11、16 章：图、划分、放置、路由、时序闭环</td></tr>
+      <tr><td>Uehara &amp; vanCleemput, “Optimal Layout of CMOS Functional Arrays”</td><td>全文 8 页</td><td>第 5、10 章：经典连续 diffusion/Euler 思路</td></tr>
+      <tr><td><a href="std-cell-generator.pdf"><em>A Parameterizable Standard Cell Generator</em></a></td><td>放置与 routing 章节</td><td>作为 2003 年历史工具与 LibreCell 的对照</td></tr>
+      <tr><td>《CMOS集成电路后端设计与实战》</td><td>Ch.3–9</td><td>标准单元电路/版图、LEF、抽取和表征</td></tr>
+      <tr><td>《CMOS版图设计基础》</td><td>工艺层、W/L、stick/Euler、标准单元</td><td>第 3–5 章的图形练习</td></tr>
+      <tr><td><code>EDA_routing.pdf</code></td><td>全局/详细 routing 章节</td><td>第 9、11 章通用算法背景</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>资料管理：</strong>厂商/受限手册只在授权环境内用于查漏和签核，不复制到公开教程或输出其工艺表格。书籍用于理解并用自己的图和语言重建教程，不做大段摘录。</div>
+
+  <h2>A.9 开放在线资源</h2>
+  <ul>
+    <li><a href="https://www.klayout.de/doc/manual/basic.html">KLayout Basics</a>：打开版图、层列表、层次、测量和 marker browser。</li>
+    <li><a href="https://www.klayout.de/doc/manual/drc_basic.html">KLayout DRC Basics</a>：官方 DRC DSL、GUI 与 batch 运行。</li>
+    <li><a href="https://skywater-pdk.readthedocs.io/en/main/rules.html">SKY130 Process Design Rules</a>：学习开放 PDK 的层、规则、器件和提取资料如何组织。</li>
+    <li><a href="https://nptel.ac.in/courses/108107129">NPTEL: CMOS Digital VLSI Design</a>：IIT Roorkee 的系统 CMOS 数字 VLSI 课程。</li>
+  </ul>
+  <p>视频只作为建立直觉的补充。涉及本教程命令、规则或代码结论时，仍回到本地源码和官方 PDK/工具文档。</p>
+
+  <h2>A.10 项目最终清单</h2>
+  <div class="cards">
+    <article class="card"><h3>输入</h3><ul><li>PDK/deck/tool 版本</li><li>cell/architecture/PVT 规格</li><li>受控 SPICE/CDL</li><li>环境 lock/digest</li></ul></article>
+    <article class="card"><h3>实现</h3><ul><li>capability matrix</li><li>tech schema/map</li><li>最小源码 patch</li><li>unit/negative tests</li></ul></article>
+    <article class="card"><h3>物理</h3><ul><li>coupon 与 cell DRC/LVS/ERC</li><li>PEX</li><li>abutment/multi-row</li><li>antenna/density/EM/IR</li></ul></article>
+    <article class="card"><h3>库</h3><ul><li>GDS/LEF/CDL/Verilog/Liberty</li><li>视图一致性</li><li>pin access/P&amp;R/STA</li><li>manifest 与已知限制</li></ul></article>
+  </div>
+
+  <nav class="bottom-nav"><a href="chapter16.html">← 第 16 章</a><a href="tutorial_index.html">返回总目录 →</a></nav>
+  <footer>附录 · 术语、排错树、清单与延伸资源</footer>
+</main>
+</body>
+</html>

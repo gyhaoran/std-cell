@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第14章：沿源码走完整流水线</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter13.html">← 上一章</a><a href="chapter15.html">下一章 →</a></nav>
+  <h1>第 14 章　沿源码走完整流水线</h1>
+  <p class="subtitle">知道每个中间状态在哪里，才有能力修改而不靠猜</p>
+
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>从 CLI 入口追到 netlist、placement、geometry、routing、post-process、LVS 和 writer。</li>
+      <li>理解每一步的输入/输出、不变量与失败模式。</li>
+      <li>建立“改代码→单元测试→小单元→整库→外部签核”的修改纪律。</li>
+    </ul>
+  </div>
+
+  <figure class="diagram">
+    <img src="assets/librecell-pipeline.svg" alt="本地 LibreCell 从 SPICE 和技术文件到 GDS LEF MAG 的真实流水线">
+    <figcaption>内部 LVS 位于 layout synthesis 之后、writer 之前；后处理只覆盖 notch/min-area 等有限问题。</figcaption>
+  </figure>
+
+  <h2>14.1 入口：<code>standalone.main</code></h2>
+  <ol class="steps">
+    <li><code>argparse</code> 解析真实 CLI，按 <code>-v/-q/--log</code> 配置日志。</li>
+    <li><code>load_tech_file</code> 执行 Python 技术文件。</li>
+    <li>由字典把 <code>--placer</code> 和 <code>--signal-router</code> 变成对象。</li>
+    <li>组合 <code>HVGraphRouter(PathFinderGraphRouter(signal_router))</code>。</li>
+    <li>构造 <code>LcLayout</code> 并调用 <code>create_cell_layout</code>。</li>
+    <li>运行内部 LVS；通过后遍历 <code>output_writers</code>。</li>
+  </ol>
+  <p>源码入口：<code>librecell-layout/lclayout/standalone.py</code>。第一次阅读不要从文件顶部逐行滚动，先找 <code>main</code>、<code>create_cell_layout</code> 和编号方法。</p>
+
+  <h2>14.2 00–01：校验技术与读取网表</h2>
+  <p><code>_00_00_check_tech</code> 当前只做很少的检查，例如 <code>multi_via</code> 层对顺序；<code>_00_01_prepare_tech</code> 把 spacing 字典变成无向图。</p>
+  <p><code>_01_load_netlist</code>：</p>
+  <ul>
+    <li>通过 KLayout SPICE reader 查找 subckt；</li>
+    <li>用模型名首字母判断 NMOS/PMOS；</li>
+    <li>识别唯一 supply 与 ground，非电源端口作为 I/O pin；</li>
+    <li>把 SPICE W 转为 DBU，乘全局 sizing factor，并夹到器件最小宽度。</li>
+  </ul>
+  <p>这里是新工艺模型名、器件参数和 body 语义最早需要扩展的位置。建议把“模型名→ChannelType”从隐式字符串规则改为技术文件中的显式 mapping/callback，并为未知模型报错。</p>
+
+  <h2>14.3 02–03：内部版图与抽象放置</h2>
+  <p><code>_02_setup_layout</code> 创建 top cell，并按固定内部 <code>layermap</code> 为每个语义层建立 shapes 容器。开启 routing graph debug 时还会创建 debug-purpose 层。</p>
+  <p><code>_03_place_transistors</code> 调用选定 placer，得到两行 slot cell。若传入 placement path：</p>
+  <ul>
+    <li>文件存在：校验 cell、晶体管名、网络和位置后加载；</li>
+    <li>文件不存在：运行 placer 后保存 JSON。</li>
+  </ul>
+  <p>这是保证 A/B 实验可比的接口，也意味着 stale placement 会绕过新 placer。</p>
+
+  <h2>14.4 04–05：画晶体管和单元模板</h2>
+  <p><code>DefaultTransistorLayout</code> 用抽象 slot 与技术参数生成：</p>
+  <ul>
+    <li>NMOS/PMOS 对应的 diffusion；</li>
+    <li>gate Poly、well enclosure；</li>
+    <li>带 <code>net</code> property 的 source/drain/gate shapes；</li>
+    <li>off-grid terminal nodes，供后续路由接入。</li>
+  </ul>
+  <p><code>_05_draw_cell_template</code> 计算 cell width，画模板、VDD/VSS rail 和 power pin shapes。若新工艺需要 implant、tap、特殊 gate cut 或 Fin quantization，仅调 GDS map 无法解决，应在 transistor/template abstraction 层增加显式生成逻辑。</p>
+
+  <h2>14.5 06–08：构图、路由和绘制</h2>
+  <p><code>_06_route</code> 包含了构图和实际多 net 路由：</p>
+  <ol>
+    <li>创建 <code>Grid2D</code> 与基础 layer-coordinate graph；</li>
+    <li>删除与已有几何冲突或已预布的边；</li>
+    <li>提取/嵌入 terminals，创建 virtual terminal/pin；</li>
+    <li>建立 spacing conflict 与 reserved node 集合；</li>
+    <li>调用 HV/PathFinder/signal-router stack。</li>
+  </ol>
+  <p><code>_08_draw_routes</code> 把 routing tree 画成 wire/via 并合并同层多边形。没有另一个 river routing 方法。</p>
+
+  <h2>14.6 09：有限的后处理</h2>
+  <p><code>_09_post_process</code> 的核心工作：</p>
+  <ul>
+    <li>对配置了 <code>minimum_notch</code> 的层填凹槽，连续做两次；</li>
+    <li>只有 <code>connectable_layers</code> 可在全层 region 上填充并潜在合并 shape；其他层逐 polygon 处理以避免短接不同网络；</li>
+    <li>调用 SMT-based cleaner 修复配置的 <code>min_area</code>；</li>
+    <li>从 virtual pin 邻接路由点注册 pin geometry，画 pin/label。</li>
+  </ul>
+  <div class="callout danger"><strong>它不是完整 DRC 修复器。</strong>它不保证修复所有 width/space/EOL/density/antenna/implant/well 规则，也不能宣称会普遍“平滑扩散”或“自动扩 N-Well”。结果必须运行外部 deck。</div>
+
+  <h2>14.7 内部 LVS 与 writer</h2>
+  <p><code>create_cell_layout</code> 返回后，<code>main</code> 才读取参考网表、把 MOS4 转为 MOS3、从 layout 提取网表并比较。失败且未使用 debug/<code>--ignore-lvs</code> 时退出，不写最终文件。</p>
+  <p>通过后依次调用 writer：</p>
+  <ul>
+    <li>GDS writer：remap internal layers、设置 GDS DBU、写 <code>CELL.gds</code>；</li>
+    <li>LEF writer：由 pin geometries 生成 macro，但当前 direction/use/OBS 有明显 TODO；</li>
+    <li>Magic writer：按自己的层名和 scale factor 写 <code>.mag</code>。</li>
+  </ul>
+
+  <h2>14.8 从需求判断修改落点</h2>
+  <table>
+    <thead><tr><th>需求</th><th>首要修改点</th><th>必须联动的验证</th></tr></thead>
+    <tbody>
+      <tr><td>改变基本尺寸/权重</td><td>tech 文件</td><td>unit tests、routing、外部 DRC、metrics</td></tr>
+      <tr><td>显式模型映射</td><td><code>lccommon/net_util.py</code> + tech API</td><td>NMOS/PMOS/未知模型解析测试、外部 LVS</td></tr>
+      <tr><td>增加内部层/via stack</td><td><code>layout/layers.py</code></td><td>transistor/template、routing graph、draw route、LVS、writer 全链路</td></tr>
+      <tr><td>增加 implant/Vt marker</td><td>transistor/template drawing + output map</td><td>device extraction、DRC、边界拼接</td></tr>
+      <tr><td>修 LEF pin direction/use</td><td><code>writer/lef_writer.py</code> 与 pin metadata</td><td>LEF parser、GDS/LEF overlay、P&amp;R smoke</td></tr>
+      <tr><td>增加 OBS</td><td>LEF writer 的内部 obstruction 生成</td><td>pin access 与芯片级 detailed routing</td></tr>
+      <tr><td>完整 body/tap</td><td>器件/模板、端口和 LVS 提取</td><td>foundry LVS/ERC、latch-up/tap spacing</td></tr>
+    </tbody>
+  </table>
+
+  <h2>14.9 一次安全的源码修改流程</h2>
+  <ol class="steps">
+    <li><strong>写需求和不变量：</strong>例如“未知模型必须报错，原 nmos/pmos 行为不变”。</li>
+    <li><strong>先写最小测试：</strong>一个正例、一个边界例、一个失败例。</li>
+    <li><strong>只改最小接口：</strong>避免同时改层、单位和算法。</li>
+    <li><strong>跑 INV/NAND/NOR：</strong>检查 placement、route、内部 LVS、GDS/LEF。</li>
+    <li><strong>跑压力 corpus：</strong>AOI/OAI、MUX/XOR、宽器件、无共同 Euler。</li>
+    <li><strong>跑外部 PDK 闭环：</strong>DRC/LVS/PEX、abutment、P&amp;R、表征。</li>
+    <li><strong>记录差异：</strong>输出 hash、面积、wire/via、违规分类、timing/power。</li>
+  </ol>
+
+  <h2>14.10 高效导航源码</h2>
+  <pre><code>cd /home/jasper/code/github/librecell
+
+rg -n "def create_cell_layout|def _0[0-9]_" librecell-layout/lclayout
+rg -n "tech\." librecell-layout/lclayout
+rg -n "l_metal2|via_layers" librecell-layout/lclayout
+rg -n "TODO|NotImplemented" librecell-layout/lclayout
+rg -n "class .*Writer|write_layout" librecell-layout/lclayout/writer</code></pre>
+  <p>对一个技术字段，既要找 <code>tech.field</code> 的读取点，也要找它间接进入的字典/图属性。对一个内部层名，则追到生成、路由、后处理、提取和输出五个方向。</p>
+
+  <div class="lab">
+    <strong>毕业前的最小源码练习</strong>
+    <p>把“模型名首字母判断”重构成技术文件显式 mapping 的设计方案：定义 API、未知模型错误、向后兼容策略和测试，不必立刻编码。若方案没有覆盖外部 LVS，仍不完整。</p>
+  </div>
+
+  <div class="checkpoint">
+    <strong>本章检查点</strong>
+    <ol>
+      <li>内部 LVS 在 writer 前还是后？</li>
+      <li>增加 M3 为什么至少会影响五个模块？</li>
+      <li>notch fill 为什么只允许部分层跨 shape 合并？</li>
+    </ol>
+    <details><summary>参考答案</summary><p>LVS 在 writer 前。M3 影响内部层/via graph、路由、几何绘制、提取和输出。不同 net 的金属 shape 若被全局填凹槽合并会短路，只有 nwell 等明确 connectable 层才允许。</p></details>
+  </div>
+
+  <nav class="bottom-nav"><a href="chapter13.html">← 第 13 章</a><a href="chapter15.html">第 15 章：新工艺迁移毕业项目 →</a></nav>
+  <footer>第 14 章 · 沿源码走完整流水线</footer>
+</main>
+</body>
+</html>

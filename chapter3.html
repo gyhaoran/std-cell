@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第3章：版图如何变成晶体管</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter2.html">← 上一章</a><a href="chapter4.html">下一章 →</a></nav>
+  <h1>第 3 章　版图如何变成晶体管</h1>
+  <p class="subtitle">掌握一套不依赖配色的逐层读图法</p>
+
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>知道 Active、Poly、implant、well、contact、via 和 metal 分别表达什么。</li>
+      <li>看到 <code>Active × Poly</code> 就能定位沟道，并数出晶体管。</li>
+      <li>沿扩散、接触孔和金属追踪网络，写出每只 MOS 的 G/D/S/B。</li>
+    </ul>
+  </div>
+
+  <h2>3.1 版图是俯视的几何数据库</h2>
+  <p>GDS/OASIS 保存的是层号、datatype、polygon/path/text 等几何对象。版图工具把不同层叠加显示，好像多张透明胶片。颜色和填充图案只是显示配置，不是 GDS 的电气含义；换一个 PDK 或 layer-properties 文件，同一层可能完全变色。</p>
+  <p>版图也不是晶圆剖面的照片。俯视图中的矩形往往表达“在这个平面范围执行某道工艺或形成某种材料”，制造后会变成有厚度、掺杂浓度和三维形貌的结构。</p>
+
+  <div class="callout warn"><strong>第一条读图纪律：</strong>先查看目标 PDK 的 layer map 和显示文件，再解释颜色。不要说“绿色永远是有源区、红色永远是 Poly”。教程配色只为保持教学图一致。</div>
+
+  <h2>3.2 新手必须认识的层</h2>
+  <table>
+    <thead><tr><th>层或层组</th><th>几何作用</th><th>电气含义/注意事项</th></tr></thead>
+    <tbody>
+      <tr><td>Well</td><td>定义 N-Well、P-Well 等体区</td><td>决定器件体区和隔离；需通过 tap 连接 body 网络。</td></tr>
+      <tr><td>Active / OD / diffusion</td><td>允许形成器件有源区域</td><td>单独出现不一定就是某种 S/D；通常还要结合 well 与 implant。</td></tr>
+      <tr><td>N/P implant 或 select</td><td>选择掺杂类型</td><td>Active+N implant 常形成 N+，Active+P implant 常形成 P+；实际派生规则以 PDK 为准。</td></tr>
+      <tr><td>Poly / gate</td><td>形成栅或局部连接</td><td>穿过 Active 的部分控制沟道；离开 Active 的 poly 不会凭空形成 MOS。</td></tr>
+      <tr><td>Contact / cut</td><td>在 Active/Poly 与 M1 之间建立垂直连接</td><td>必须同时满足 cut 大小、间距及上下层 enclosure。</td></tr>
+      <tr><td>Metal1, Metal2…</td><td>同层内的导电互连</td><td>相交不等于跨层连接；跨层通常需要相应 via。</td></tr>
+      <tr><td>Via1, Via2…</td><td>连接相邻金属层</td><td>例如 Via1 通常连接 M1↔M2；名称与堆栈由 PDK 定义。</td></tr>
+      <tr><td>Pin / label / boundary</td><td>给工具标记端口和单元边界</td><td>有些是非制造层；文字重叠金属也不一定自动建立电气连接。</td></tr>
+    </tbody>
+  </table>
+
+  <figure class="diagram">
+    <img src="assets/cmos-cross-section.svg" alt="CMOS 的井、有源区、源漏、栅、接触孔和金属剖面示意">
+    <figcaption>把剖面与俯视图联系起来：Poly 横跨 Active 的位置是沟道；两侧掺杂区域是源/漏扩散。</figcaption>
+  </figure>
+
+  <h2>3.3 识别一只 MOS：寻找 Active × Poly</h2>
+  <ol class="steps">
+    <li><strong>找 Active。</strong>先只显示 Active/OD，观察连续条带和岛状区域。</li>
+    <li><strong>叠加 Poly。</strong>每一处 gate-poly 穿过 Active 的有效交叠，通常对应一只 MOS 或一个 finger。</li>
+    <li><strong>判断类型。</strong>结合 well、implant/select 和 PDK 的器件提取规则，确定 NMOS/PMOS。</li>
+    <li><strong>标出两侧扩散。</strong>Poly 两侧分别是这只器件的两个 S/D 端；不要先入为主认定左边是 S。</li>
+    <li><strong>找到栅网络。</strong>沿 Poly 或 poly contact→M1 追到输入 pin。</li>
+    <li><strong>找到 body。</strong>沿 well/substrate 和 tap 追到电源，或确认该库采用外置 tap-cell 架构。</li>
+  </ol>
+
+  <p>一条 Active 被两条 Poly 依次穿过时，可以按下面的序列读：</p>
+  <pre><code>扩散网络 N0 ─[栅 A]─ 扩散网络 N1 ─[栅 B]─ 扩散网络 N2
+
+它表示两只晶体管共享中间扩散 N1。
+若 N0=Y、N1=X、N2=VSS，则电气路径是 Y → MOS(A) → X → MOS(B) → VSS。</code></pre>
+
+  <h2>3.4 Contact 不会“切断”Active</h2>
+  <p>Contact 的作用是建立垂直连接：把下方扩散或 Poly 接到上方金属。它不会把一条 Active 切成两个互相绝缘的区域。要让相邻晶体管无缝共享扩散，连接条件必须本来就满足：</p>
+  <pre><code>左边晶体管的右侧网络 == 右边晶体管的左侧网络</code></pre>
+  <p>如果两侧应属于不同网络，常见做法是分开 Active、调整晶体管顺序，或依照 PDK 使用专门的 diffusion break 结构；绝不是“放一个 contact 把它切开”。</p>
+
+  <div class="callout danger"><strong>另外两个常见误判：</strong>两个不同金属层的矩形上下重叠但没有 via，电气上不连接；一个 pin label 压在金属附近，也必须确认 pin purpose/port shape 的定义，不能仅凭文字位置判定连接。</div>
+
+  <h2>3.5 固定的六步追线法</h2>
+  <p>面对任何陌生标准单元，按以下顺序做，不要一开始就试图猜逻辑门名称。</p>
+  <ol class="steps">
+    <li><strong>确认图层语义：</strong>从 PDK layer map 得到 well、active、implant、poly、cut、metal、via、pin。</li>
+    <li><strong>定位电源和体区：</strong>找 VDD/VSS rail、N-Well/P-Well 及 tap。</li>
+    <li><strong>数晶体管：</strong>只数有效的 Active×gate 交叠，并记录 NMOS/PMOS。</li>
+    <li><strong>给扩散片段编号：</strong>每条 gate 的两侧先写临时名 <code>N0</code>、<code>N1</code>，再沿 contact/metal 合并同一网络。</li>
+    <li><strong>给栅编号：</strong>沿 poly/contact/metal 找到 A、B 等 pin；同一条输入可能驱动一只 PMOS 和一只 NMOS。</li>
+    <li><strong>写网表并验逻辑：</strong>逐只写 <code>M D G S B model</code>，再检查 PUN/PDN 是否互补、真值表是否成立。</li>
+  </ol>
+
+  <table>
+    <thead><tr><th>版图观察</th><th>可得出的电路结论</th><th>仍不能武断得出的结论</th></tr></thead>
+    <tbody>
+      <tr><td>一条 Poly 穿过一条 Active</td><td>存在一个受该栅控制的沟道</td><td>器件类型、W/L 和端子网络仍需更多层信息</td></tr>
+      <tr><td>两只 MOS 共用一片栅间扩散</td><td>它们有一个共同 S/D 网络</td><td>仅凭外观不能说串联或并联，需看另两端网络</td></tr>
+      <tr><td>两个 M1 图形接触/重叠</td><td>通常属于同一个几何连通体</td><td>仍需排除 purpose、slot/cut 等 PDK 特例</td></tr>
+      <tr><td>M1 与 M2 重叠</td><td>空间位置重叠</td><td>没有 Via1 就不能认为电气连接</td></tr>
+      <tr><td>扩散位于 N-Well 内</td><td>它可能是 PMOS 区域的一部分</td><td>仍需 implant/select 和器件提取规则确认</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3.6 串联、并联在版图里怎么看</h2>
+  <p><strong>串联</strong>看网络拓扑：两只晶体管仅共享一个中间网络 X，外端分别接 Y 与 VSS。<strong>并联</strong>则要求两只晶体管的两端分别属于同一对网络，例如都连接 VDD↔Y。并联器件也可以用一条折返的连续 Active 实现为 <code>Y-[A]-VDD-[B]-Y</code>，因此“并联晶体管必须分开画”也是错误的。</p>
+
+  <h2>3.7 第一次纸上读图实验</h2>
+  <div class="lab">
+    <strong>实验：从几何序列还原网络</strong>
+    <p>给定 NMOS 行 <code>Y-[A]-X-[B]-VSS</code>，PMOS 行 <code>VDD-[A]-Y-[B]-VDD</code>：</p>
+    <ol>
+      <li>列出四只 MOS 的两个扩散端与栅。</li>
+      <li>判断 NMOS 行与 PMOS 行分别是串联还是并联。</li>
+      <li>写出输出逻辑。</li>
+    </ol>
+    <details><summary>参考答案</summary><p>NMOS：A 管连接 Y↔X，B 管连接 X↔VSS，为串联；PMOS：A、B 管都连接 VDD↔Y，为并联。PDN 仅在 A=B=1 时连通，因此 <code>Y=NOT(A AND B)</code>，是 NAND2。</p></details>
+  </div>
+
+  <div class="checkpoint">
+    <strong>本章必须能回答</strong>
+    <ol>
+      <li>为什么不能根据颜色直接认层？</li>
+      <li>为什么 Contact 不能用于切断扩散？</li>
+      <li>如何证明两个看起来分开的 Active 岛其实是同一网络？</li>
+    </ol>
+  </div>
+
+  <div class="source-note"><strong>阅读依据：</strong><em>Fundamentals of Layout Design for Electronic Circuits</em> §3.2 “How to Read a Layout View”、§6.3；《CMOS版图设计基础》的基本工艺层、串并联 MOS 和标准单元图例。</div>
+  <nav class="bottom-nav"><a href="chapter2.html">← 第 2 章</a><a href="chapter4.html">第 4 章：反相器完整读图实验 →</a></nav>
+  <footer>第 3 章 · 版图如何变成晶体管</footer>
+</main>
+</body>
+</html>

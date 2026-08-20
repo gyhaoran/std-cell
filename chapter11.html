@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第11章：单元内部布线</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter10.html">← 上一章</a><a href="chapter12.html">下一章 →</a></nav>
+  <h1>第 11 章　单元内部布线</h1>
+  <p class="subtitle">从三维路由图到 PathFinder 协商拥塞</p>
+
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>理解 <code>(layer, x, y)</code> 节点、同层边和 via 边如何对应版图资源。</li>
+      <li>说清 HVGraphRouter、PathFinderGraphRouter 与单 net router 的嵌套关系。</li>
+      <li>准确区分 2003 年 PDF 的 gridless/river routing 与本地 LibreCell 的网格图路由。</li>
+    </ul>
+  </div>
+
+  <h2>11.1 从几何空间构造路由图</h2>
+  <p>本地 <code>routing_graph.create_routing_graph_base</code> 在每个可路由层和每个网格点创建节点：</p>
+  <pre><code>node = (layer, (x, y))
+
+同层水平边：(M1,x,y) ── (M1,x+pitch_x,y)
+同层垂直边：(M2,x,y) │  (M2,x,y+pitch_y)
+跨层 via 边：(M1,x,y) ──via1── (M2,x,y)</code></pre>
+  <p><code>routing_layers</code> 中的 <code>h</code>/<code>v</code> 决定该层允许建立哪些方向的同层边。边权由水平/垂直单位权重乘长度得到；via 边使用 <code>via_weights</code>，并记录 via layer 和 <code>multi_via</code>。</p>
+
+  <h2>11.2 不是所有网格边都合法</h2>
+  <ol class="steps">
+    <li>根据 <code>min_spacing</code> 构造层间 spacing graph。</li>
+    <li>检查候选 wire/via 边是否与已经存在的器件和几何冲突，删除非法边。</li>
+    <li>删除已被预布线图形占用的边。</li>
+    <li>从带 <code>net</code> 属性的 shapes 中提取 terminal 可接入节点。</li>
+    <li>把晶体管端子嵌入路由图，并为 pin/端子创建 virtual nodes。</li>
+    <li>反复删除非 terminal 的度 0/1 节点，确认剩余图连通。</li>
+  </ol>
+  <p>如果某个网络没有合法 terminal，代码会提示使用 <code>--debug-routing-graph</code>。这通常不是“Dijkstra 坏了”，而是 grid offset、pitch、enclosure、spacing 或端子几何让图上没有可接入点。</p>
+
+  <h2>11.3 实际 router 是三层包装</h2>
+  <pre><code>HVGraphRouter(
+  PathFinderGraphRouter(
+    DijkstraRouter()          # --signal-router dijkstra
+    或 ApproxSteinerTreeRouter() # --signal-router steiner
+  ),
+  orientation_change_penalty=tech.orientation_change_penalty
+)</code></pre>
+  <table>
+    <thead><tr><th>层</th><th>职责</th></tr></thead>
+    <tbody>
+      <tr><td>单 net router</td><td>给定当前成本，把该 net 的所有 terminals 连成一棵树</td></tr>
+      <tr><td>PathFinderGraphRouter</td><td>多 net 反复 rip-up/reroute，更新当前占用成本和历史拥塞成本</td></tr>
+      <tr><td>HVGraphRouter</td><td>把不同方向的边拆到虚拟节点，通过虚拟边对转弯收取 penalty，减少 zig-zag</td></tr>
+    </tbody>
+  </table>
+
+  <h2>11.4 Dijkstra 与近似 Steiner 选项</h2>
+  <p><code>DijkstraRouter</code> 的 <code>spanning_subtree</code> 从第一个 terminal 建树，每轮从当前树的所有节点出发，寻找通向尚未连接 terminal 的最低成本路径，再把路径加入树。源码注释称其基于 PathFinder 与 Prim 思想。</p>
+  <p><code>ApproxSteinerTreeRouter</code> 把 node cost 和 edge cost 合并为图权重，再调用 NetworkX 的 Steiner tree approximation。它可能得到更好的多端共享拓扑，但通常更慢；CLI 帮助也把 dijkstra 标为快但不稳定、steiner 标为慢但结果更好。这是当前作者对实现的说明，不是对所有输入的数学保证。</p>
+
+  <h2>11.5 PathFinder 如何协商拥塞</h2>
+  <p>第一轮每个 net 都倾向于走便宜路径，可能互相抢同一资源。PathFinder 不立即永久锁死先到者，而是迭代提高冲突位置代价：</p>
+  <pre><code>route all nets with current costs
+        │
+        ├─ no collision → finish
+        │
+        └─ collision → increase history cost at congested nodes
+                       recompute net order / costs
+                       rip up and reroute all nets</code></pre>
+  <p>本地实现同时考虑：</p>
+  <ul>
+    <li><strong>base cost：</strong>层、长度、via 等固有成本；</li>
+    <li><strong>present sharing cost：</strong>本轮已有多少 net 使用冲突资源；</li>
+    <li><strong>history cost：</strong>某位置在过去迭代反复冲突的惩罚；</li>
+    <li><strong>reserved nodes：</strong>某 net 的端子及其 spacing 邻域不能被其他 net 占用；</li>
+    <li><strong>node conflict：</strong>即使不是同一个节点，距离过近的不同层/同层节点也不能同时用。</li>
+  </ul>
+  <p>最多迭代 1000 次仍冲突就抛出 <code>Failed to route</code>。成功后还会逐 net 在避开其他已布网络的图上做一次优化。</p>
+
+  <h2>11.6 从 routing tree 画回版图</h2>
+  <p>每条同层边变为相应层的线段，跨层边变为 via/cut 和必要 enclosure。绘制完成后同层多边形合并。随后流水线才进入 notch/min-area 后处理、内部 LVS 和 writer；这些不是一个独立的“river detailed router”。</p>
+
+  <h2>11.7 2003 PDF 与 LibreCell 不能混讲</h2>
+  <table>
+    <thead><tr><th>维度</th><th><code>std-cell-generator.pdf</code></th><th>本地 LibreCell</th></tr></thead>
+    <tbody>
+      <tr><td>年代与工具</td><td>2003 年的独立参数化生成器</td><td>本地提交 f708e3a 的 Python 项目</td></tr>
+      <tr><td>路由模型</td><td>gridless、modified unreserved layer model</td><td>由 pitch/offset 建立的 grid routing graph</td></tr>
+      <tr><td>全局路由</td><td>整数规划/启发式、Prim、Lagrange 等</td><td>PathFinder 协商拥塞 + Dijkstra/近似 Steiner 单 net tree</td></tr>
+      <tr><td>详细路由</td><td>单独的 river routing 阶段</td><td>直接把图上的层/坐标路径画成几何，没有 river router 类</td></tr>
+      <tr><td>可借鉴之处</td><td>问题分解、成本和历史视角</td><td>必须按源码、技术接口和当前限制学习</td></tr>
+    </tbody>
+  </table>
+  <p>LibreCell 日志中有“Start global routing”，这是类内部对多 net 图路由的称呼；不要因此推断它随后一定还有传统芯片级 detailed routing。</p>
+
+  <h2>11.8 调试 routing failure 的顺序</h2>
+  <ol>
+    <li>先用 <code>--debug-routing-graph</code> 输出路由图，检查 terminal 是否落在图上。</li>
+    <li>核对 grid pitch/offset、cell width/height、transistor offset。</li>
+    <li>核对 wire/via width、enclosure 和 spacing 是否把大量边删掉。</li>
+    <li>检查 routing layer 的 h/v、via connectivity 和 weight 字典是否完整。</li>
+    <li>比较 dijkstra 与 steiner；如果只有某算法成功，保存 placement 和日志分析。</li>
+    <li>最后才调整 cost；成本不能创造本来不存在的合法路径。</li>
+  </ol>
+
+  <div class="lab">
+    <strong>纸上 PathFinder 实验</strong>
+    <p>画一个 5×5 网格，让 net A 与 net B 的最短路都经过中心点。第一轮标出冲突，给中心点加 history cost，再分别画第二轮路径。思考：若网格上只有这一条通道，无论怎样加 cost 为什么都不会成功？</p>
+  </div>
+
+  <div class="checkpoint">
+    <strong>本章检查点</strong>
+    <ol>
+      <li>一个路由节点为什么必须包含 layer？</li>
+      <li>PathFinder 的 history cost 与 present cost 有什么不同？</li>
+      <li>为什么不能称 LibreCell 使用 PDF 中的 river routing？</li>
+    </ol>
+    <details><summary>参考答案</summary><p>同一坐标在不同层是不同导体，只能通过 via 边连接。present cost 反映当前迭代共享，history cost 记忆过去反复拥塞。当前源码中没有 river router，图路径已经落到具体层和坐标并直接绘制。</p></details>
+  </div>
+
+  <div class="source-note"><strong>阅读依据：</strong><em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em>第 5～6 章和 <code>EDA_routing.pdf</code>用于通用路由背景；实现描述来自 <code>routing_graph.py</code>、<code>graphrouter/</code> 和 <code>standalone.py</code>。</div>
+  <nav class="bottom-nav"><a href="chapter10.html">← 第 10 章</a><a href="chapter12.html">第 12 章：生成第一个单元 →</a></nav>
+  <footer>第 11 章 · 单元内部布线</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第2章：从 MOS 到 CMOS 逻辑</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav"><a href="chapter1.html">← 上一章</a><a href="chapter3.html">下一章 →</a></nav>
+  <h1>第 2 章　从 MOS 到 CMOS 逻辑</h1>
+  <p class="subtitle">版图不是彩色矩形拼图，而是四端器件组成的电路</p>
+
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>认识 MOS 的 G、D、S、B 四个端子及 NMOS/PMOS 的导通条件。</li>
+      <li>正确理解版图中的 W 和 L，不再把 poly 的长边误认为沟道长度。</li>
+      <li>从上拉/下拉网络推导 INV、NAND、NOR，而不是背版图形状。</li>
+    </ul>
+  </div>
+
+  <h2>2.1 MOS 是受电压控制的四端器件</h2>
+  <table>
+    <thead><tr><th>端子</th><th>英文</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td>G</td><td>Gate</td><td>栅极电压控制沟道是否形成。</td></tr>
+      <tr><td>D</td><td>Drain</td><td>沟道一侧的扩散端。数字版图中左右两端常可交换，名称由偏置和网络定义。</td></tr>
+      <tr><td>S</td><td>Source</td><td>沟道另一侧的扩散端。</td></tr>
+      <tr><td>B</td><td>Body/Bulk</td><td>体端，影响阈值并形成寄生 PN 结；不能在真实工艺中凭空忽略。</td></tr>
+    </tbody>
+  </table>
+
+  <p>入门时可把 MOS 暂时看作“由栅电压控制的开关”，但它不是理想开关。NMOS 通常在 <code>VGS &gt; VTH</code> 时形成沟道，擅长把节点拉低；PMOS 通常在栅相对源足够低时形成沟道，擅长把节点拉高。</p>
+  <table>
+    <thead><tr><th>器件</th><th>栅输入为 0</th><th>栅输入为 1</th><th>在 CMOS 门中的典型位置</th></tr></thead>
+    <tbody>
+      <tr><td>NMOS</td><td>关</td><td>开</td><td>输出与 VSS 之间的下拉网络</td></tr>
+      <tr><td>PMOS</td><td>开</td><td>关</td><td>VDD 与输出之间的上拉网络</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn"><strong>“开”和“关”只是一阶模型。</strong>真实 MOS 有截止、弱反型、线性区和饱和区。数字门在稳定的 0/1 状态可用开关模型分析逻辑，但切换过程中器件会经过不同工作区，反相器的 NMOS 和 PMOS 也会有一段时间同时导通，产生短路电流。</div>
+
+  <h2>2.2 体端、井与 tap 为什么不能省略</h2>
+  <p>在常见 bulk CMOS 中，PMOS 位于 N-Well，NMOS 位于 P-Well 或 P 型衬底。通常把 PMOS body 接 VDD，把 NMOS body 接 VSS，使体二极管保持反偏并稳定阈值。版图中的 well/substrate tap 就是把井或衬底可靠接到电源的结构。</p>
+
+  <figure class="diagram">
+    <img src="assets/cmos-cross-section.svg" alt="PMOS 和 NMOS 的剖面、井、栅、源漏、接触孔与金属">
+    <figcaption>这是一张教学剖面图，不是具体 PDK 的 mask stack。俯视版图中的 Active × Poly 交叠，对应剖面中栅下的沟道。</figcaption>
+  </figure>
+
+  <p>某些标准单元库采用 tapless 架构：普通逻辑单元内部不放 tap，而是在芯片行中周期性插入专用 tap cell。无论哪一种，body 网络都必须在库架构和外部 LVS 中明确。LibreCell 本地内部 LVS 为兼容缺少 tap 的单元会忽略第四端，因此它只能作早期连通性检查。</p>
+
+  <h2>2.3 从俯视版图正确理解 W/L</h2>
+  <p>当一条 Poly 穿过 Active 时形成一个 MOS。假设电流从交叠区左侧扩散流向右侧扩散：</p>
+  <ul>
+    <li><strong>L（沟道长度）</strong>是沿源到漏方向，栅覆盖沟道的短尺寸；在常见图形里往往接近那条细 Poly 的线宽。</li>
+    <li><strong>W（沟道宽度）</strong>是与源漏电流方向垂直的 Active×Poly 交叠长度；通常沿 Poly 的长方向量。</li>
+  </ul>
+  <pre><code>               ↑ W：交叠的长方向
+Source  ───────┃───────  Drain
+               ┃ Poly
+          ← L →            电流方向：Source → Drain
+
+注意：L 不是整条 Poly 的长度；W 也不是 Active 矩形的总宽度。</code></pre>
+
+  <p>减小 L 通常可增强驱动但受工艺规则和器件模型限制；增大 W 通常降低导通电阻，却增加栅/扩散电容和面积。宽器件可以折成多个 finger：多个栅条并联控制多个窄沟道，总有效宽度近似为各 finger 宽度之和，但寄生和端部效应需要抽取确认。</p>
+
+  <h2>2.4 CMOS 反相器：两个互补网络</h2>
+  <pre><code> VDD
+  │
+ PMOS  gate=A
+  │
+  Y
+  │
+ NMOS  gate=A
+  │
+ VSS</code></pre>
+  <table>
+    <thead><tr><th>A</th><th>PMOS</th><th>NMOS</th><th>Y</th></tr></thead>
+    <tbody><tr><td>0</td><td>导通</td><td>截止</td><td>1（被拉到 VDD）</td></tr><tr><td>1</td><td>截止</td><td>导通</td><td>0（被拉到 VSS）</td></tr></tbody>
+  </table>
+
+  <p>静态 CMOS 组合门由两个互补网络构成：</p>
+  <ul>
+    <li><strong>PDN（pull-down network）</strong>由 NMOS 构成，在输出应为 0 的输入组合下连通 Y→VSS。</li>
+    <li><strong>PUN（pull-up network）</strong>由 PMOS 构成，是 PDN 的对偶，在输出应为 1 时连通 VDD→Y。</li>
+  </ul>
+  <p>理想稳态下不应同时存在 VDD→VSS 的直流通路；切换期间则可能短暂同时导通。</p>
+
+  <h2>2.5 串联表示 AND，并联表示 OR——但要先说明“导通条件”</h2>
+  <p>两个开关串联时必须都导通，路径才连通；并联时任一支路导通即可。因此：</p>
+  <table>
+    <thead><tr><th>NMOS 下拉网络</th><th>何时 Y 被拉低</th><th>得到的门</th></tr></thead>
+    <tbody>
+      <tr><td>A、B 串联</td><td><code>A=1 AND B=1</code></td><td><code>Y = NOT(A AND B)</code>，即 NAND</td></tr>
+      <tr><td>A、B 并联</td><td><code>A=1 OR B=1</code></td><td><code>Y = NOT(A OR B)</code>，即 NOR</td></tr>
+    </tbody>
+  </table>
+  <p>PUN 使用 PMOS，控制极性相反，同时把串联和并联对调。这个“对偶”关系比死记每个门的晶体管图更可靠。</p>
+
+  <h2>2.6 晶体管尺寸不是“越大越好”</h2>
+  <p>电子迁移率通常高于空穴迁移率，因此要获得近似对称的上升/下降能力，PMOS 往往需要比 NMOS 更宽；具体比例由目标工艺模型和负载仿真决定，不能套一个跨工艺常数。串联堆叠的器件等效电阻更大，也常需要增宽。</p>
+  <p>标准单元尺寸设计是多目标折中：</p>
+  <ul>
+    <li>输出驱动和延迟；</li>
+    <li>输入电容和前级负担；</li>
+    <li>动态功耗、短路功耗和漏电；</li>
+    <li>单元面积、内部可布线性与 pin access；</li>
+    <li>制造规则、可靠性以及 PVT 变化。</li>
+  </ul>
+
+  <div class="checkpoint">
+    <strong>本章检查点</strong>
+    <ol>
+      <li>版图中一条竖直 Poly 穿过一条水平 Active，哪个方向通常是 L，哪个方向是 W？</li>
+      <li>为什么反相器切换时不能说“任何时刻只有一个管导通”？</li>
+      <li>若 NMOS 下拉网络是 A、B 并联，输出逻辑是什么？对应 PMOS 如何连接？</li>
+    </ol>
+    <details><summary>参考答案</summary><p>L 是沿水平源漏电流方向的 Poly 短尺寸，W 是交叠区沿竖直 Poly 的长度。输入经过中间电压时两管可能同时部分导通。并联 NMOS 在 A 或 B 为 1 时拉低，得到 NOR；对应两个 PMOS 串联。</p></details>
+  </div>
+
+  <div class="source-note"><strong>阅读依据：</strong><em>Fundamentals of Layout Design for Electronic Circuits</em> §2.9、§3.2 与 §6.3；《CMOS版图设计基础》关于基本工艺层和 FET 尺寸的图例。具体器件参数仍以目标 PDK 模型和设计手册为准。</div>
+  <nav class="bottom-nav"><a href="chapter1.html">← 第 1 章</a><a href="chapter3.html">第 3 章：版图如何变成晶体管 →</a></nav>
+  <footer>第 2 章 · 从 MOS 到 CMOS 逻辑</footer>
+</main>
+</body>
+</html>

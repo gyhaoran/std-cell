@@ -1,0 +1,26 @@
+# Educational checks for LibreCell examples/dummy_tech.py only.
+# These layer numbers and rule values are NOT foundry design rules.
+
+raise "Pass -rd input=path/to/layout.gds" unless $input
+$report ||= "dummy_tech_checks.lyrdb"
+
+source($input)
+report("LibreCell dummy-tech teaching checks", $report)
+
+ndiff = input(1, 0)
+pdiff = input(1, 7)
+poly   = input(3, 0)
+metal1 = input(6, 0)
+via1   = input(7, 0)
+metal2 = input(8, 0)
+
+active = ndiff | pdiff
+gate = active & poly
+
+gate.width(50.nm).output("gate.width", "Gate length below dummy-tech minimum")
+poly.width(50.nm).output("poly.width", "Poly width below dummy-tech minimum")
+metal1.width(100.nm).output("m1.width", "M1 width below dummy-tech minimum")
+metal1.space(50.nm).output("m1.space", "M1 spacing below dummy-tech minimum")
+metal2.width(100.nm).output("m2.width", "M2 width below dummy-tech minimum")
+metal2.space(100.nm).output("m2.space", "M2 spacing below dummy-tech minimum")
+via1.width(100.nm).output("via1.width", "Via1 width below dummy-tech minimum")
