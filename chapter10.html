@@ -3,51 +3,51 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第10章：晶体管放置</title>
+  <title>第10章：晶体管布局</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
   <nav class="top-nav"><a href="chapter9.html">← 上一章</a><a href="chapter11.html">下一章 →</a></nav>
-  <h1>第 10 章　晶体管放置</h1>
+  <h1>第 10 章　晶体管布局</h1>
   <p class="subtitle">经典 Euler 思想与本地 LibreCell 实现逐行对齐</p>
 
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>说清晶体管放置的硬约束、质量目标与输出形式。</li>
+      <li>说清晶体管布局的硬约束、质量目标与输出形式。</li>
       <li>理解本地 EulerPlacer、HierarchicalPlacer 和 MetaTransistorPlacer 实际做了什么。</li>
       <li>能识别“理论上可能的算法”和“当前代码已经实现的算法”之间的差别。</li>
     </ul>
   </div>
 
-  <h2>10.1 放置器的输入与输出</h2>
-  <p>输入是一组带有器件类型、gate net、两个 diffusion net 和尺寸的晶体管。输出不是最终纳米坐标，而是一个抽象的 <strong>2×N slot grid</strong>：</p>
+  <h2>10.1 布局器的输入与输出</h2>
+  <p>输入是一组带有器件类型、栅网络、两个扩散网络和尺寸的晶体管。输出不是最终纳米坐标，而是一个抽象的 <strong>2×N 槽位网格（slot grid）</strong>：</p>
   <pre><code>upper row: PMOS  [ MP? ][ MP? ][ gap ][ MP? ]
 lower row: NMOS  [ MN? ][ MN? ][ gap ][ MN? ]
                     x=0    x=1    x=2    x=3</code></pre>
-  <p>每只器件还能翻转 source/drain。后续几何阶段再用 gate pitch、cell height、transistor offset 和器件宽度等技术参数把抽象 slot 转为图形。</p>
+  <p>每只器件还能交换源/漏方向。后续几何阶段再用栅间距、单元高度、晶体管偏移和器件宽度等技术参数把抽象槽位转为图形。</p>
 
   <h2>10.2 硬约束和优化目标要分开</h2>
   <table>
     <thead><tr><th>类型</th><th>例子</th><th>违反后的含义</th></tr></thead>
     <tbody>
-      <tr><td>硬约束</td><td>NMOS/PMOS 分行、slot 不重叠、相邻扩散网络匹配</td><td>版图物理或电气不合法</td></tr>
-      <tr><td>主要目标</td><td>减少 diffusion gap 与总宽度</td><td>面积可能更大</td></tr>
-      <tr><td>次级目标</td><td>上下 gate 对齐、估计线长、I/O 顺序</td><td>路由更难或线更长</td></tr>
-      <tr><td>当前未充分建模</td><td>真实 DRC、pin access、寄生、时序、整库边界</td><td>放置分数好仍可能无法生成好单元</td></tr>
+      <tr><td>硬约束</td><td>NMOS/PMOS 分行、槽位不重叠、相邻扩散网络匹配</td><td>版图物理或电气不合法</td></tr>
+      <tr><td>主要目标</td><td>减少扩散间断（diffusion gap）与总宽度</td><td>面积可能更大</td></tr>
+      <tr><td>次级目标</td><td>上下栅对齐、估计线长、输入/输出顺序</td><td>布线更难或线更长</td></tr>
+      <tr><td>当前未充分建模</td><td>真实 DRC、引脚可接入性、寄生、时序、整库边界</td><td>布局评分好仍可能无法生成好单元</td></tr>
     </tbody>
   </table>
 
-  <h2>10.3 Euler 放置的理论骨架</h2>
+  <h2>10.3 Euler 布局的理论骨架</h2>
   <ol class="steps">
     <li>把 NMOS 与 PMOS 分开，各自建立“扩散网络为顶点、晶体管为边”的多重图。</li>
-    <li>找一条覆盖所有晶体管边的 Euler trail；必要时通过虚边/分段处理非 Euler 图。</li>
-    <li>把 trail 的边顺序变成晶体管行，沿路径方向决定器件是否翻转。</li>
-    <li>从候选 NMOS/PMOS 行中寻找 gate 标签尽量对齐的组合。</li>
+    <li>找一条覆盖所有晶体管边的 Euler 迹（Euler trail）；必要时通过虚边或分段处理非 Euler 图。</li>
+    <li>把 Euler 迹的边顺序变成晶体管行，沿路径方向决定器件是否翻转。</li>
+    <li>从候选 NMOS/PMOS 行中寻找栅标签尽量对齐的组合。</li>
     <li>用估计线长、I/O 位置等进一步排序。</li>
   </ol>
-  <p>经典文献的主要洞察是：Euler 路把“连续使用每只晶体管一次”和“相邻边共享顶点网络”统一起来。它并不自动解决现代 pin-access、复杂 cut/coloring 或寄生优化。</p>
+  <p>经典文献的主要洞察是：Euler 迹把“连续使用每只晶体管一次”和“相邻边共享顶点网络”统一起来。它并不自动解决现代引脚可接入、复杂切割/多重图形化或寄生优化问题。</p>
 
   <h2>10.4 本地 <code>EulerPlacer</code> 真实流程</h2>
   <p>入口位于 <code>lclayout/place/euler_placer.py</code>。本地版本的流程是：</p>
@@ -59,7 +59,7 @@ lower row: NMOS  [ MN? ][ MN? ][ gap ][ MN? ]
     <li>再取 <code>wiring_length_bbox</code> 最小者。</li>
     <li>最后用 I/O ordering cost 过滤，仍并列时取第一个。</li>
   </ol>
-  <p>当前代码中的 <code>output_nets</code> 被设为空集合，并有待完善输出网络提取。因此不要把 I/O ordering 理解为成熟的工业 pin-placement 优化。</p>
+  <p>当前代码中的 <code>output_nets</code> 被设为空集合，并有待完善输出网络提取。因此不要把 I/O 顺序优化理解为成熟的工业引脚布局优化。</p>
 
   <div class="callout warn"><strong>组合爆炸仍然存在。</strong>若 NMOS 候选数×PMOS 候选数超过 100000，代码只打印“HierarchicalPlacer 可能更合适”的提示；它不会在 <code>EulerPlacer</code> 内自动切换。</div>
 
@@ -71,21 +71,21 @@ lower row: NMOS  [ MN? ][ MN? ][ gap ][ MN? ]
     <li>在变换后的图上调用 NetworkX <code>connected_components</code>；</li>
     <li>把临时 supply 名映射回原网络。</li>
   </ol>
-  <p>这样多个只通过 VDD/VSS 相连的逻辑分支会成为独立子图。每个子图内部仍找最优宽度的单行放置，再附加 diffusion gap；随后把子图抽象成带宽度和非电源网络集合的 <code>SubCell</code>，枚举上下行子单元排列并用网络 bounding-box 估计优化。</p>
+  <p>这样多个只通过 VDD/VSS 相连的逻辑分支会成为独立子图。每个子图内部仍找最优宽度的单行布局，再附加扩散间隔；随后把子图抽象成带宽度和非电源网络集合的 <code>SubCell</code>，枚举上下行子单元排列并用网络包围盒估计优化。</p>
 
   <div class="callout danger"><strong>它不是 min-cut，也不是“从输出 DFS 分类 CMOS 门”。</strong>当前分区逻辑只是“拆开 supply 节点后取连通分量”。教程讨论更先进的图划分只能作为改进方向，不能写成现有实现。</div>
 
-  <h2>10.6 <code>MetaTransistorPlacer</code> 并不试跑全部放置器</h2>
+  <h2>10.6 <code>MetaTransistorPlacer</code> 并不试跑全部布局器</h2>
   <p><code>meta_placer.py</code> 只在 <code>EulerPlacer</code> 与 <code>HierarchicalPlacer</code> 之间做启发式选择：</p>
   <ol>
-    <li>构造 NMOS/PMOS 的 even-degree graph 候选；任一侧超过 20 个就选 hierarchical。</li>
-    <li>每个 even-degree graph 最多枚举 200 条 Euler tour。</li>
+    <li>构造 NMOS/PMOS 的全偶度图候选；任一侧超过 20 个就选层次布局。</li>
+    <li>每个全偶度图最多枚举 200 条 Euler 回路。</li>
     <li>以 <code>num_tours_n × num_tours_p</code> 估计复杂度。</li>
-    <li>小于 400000 选 Euler，否则选 hierarchical。</li>
+    <li>小于 400000 选 Euler 布局，否则选层次布局。</li>
   </ol>
-  <p>这些阈值是源码中的经验值。类 docstring 也称其为“extremely rough heuristics”。它没有运行 random、SMT、hillclimb 等放置器并比较真实版图质量。</p>
+  <p>这些阈值是源码中的经验值。类文档字符串也称其为“极其粗略的启发式”。它没有运行 random、SMT、hillclimb 等布局器并比较真实版图质量。</p>
 
-  <h2>10.7 CLI 中可显式选择的放置器</h2>
+  <h2>10.7 CLI 中可显式选择的布局器</h2>
   <table>
     <thead><tr><th><code>--placer</code></th><th>类</th><th>用途/特点</th></tr></thead>
     <tbody>
@@ -93,23 +93,23 @@ lower row: NMOS  [ MN? ][ MN? ][ gap ][ MN? ]
       <tr><td><code>flat</code></td><td>EulerPlacer</td><td>枚举行候选，适合较小图</td></tr>
       <tr><td><code>hierarchical</code></td><td>HierarchicalPlacer</td><td>先按供电拆分连通子图</td></tr>
       <tr><td><code>smt</code></td><td>SMTPlacer</td><td>用 Z3 表达位置、翻转、合法相邻和优化</td></tr>
-      <tr><td><code>random</code></td><td>RandomPlacer</td><td>固定随机种子后打乱并 legalization，适合作基线</td></tr>
+      <tr><td><code>random</code></td><td>RandomPlacer</td><td>固定随机种子后打乱并执行合法化（legalization），适合作基线</td></tr>
       <tr><td><code>hillclimb</code></td><td>HillClimbPlacer</td><td>通过交换/翻转邻域做局部改进</td></tr>
       <tr><td><code>ta</code></td><td>ThresholdAcceptancePlacer</td><td>允许一定阈值内的变差以逃离局部最优</td></tr>
     </tbody>
   </table>
 
-  <h2>10.8 如何评价和改进一个放置器</h2>
-  <p>不要只记录 cell width。建议输出多目标指标：</p>
+  <h2>10.8 如何评价和改进一个布局器</h2>
+  <p>不要只记录单元宽度。建议输出多目标指标：</p>
   <ul>
-    <li>slot 数、diffusion break 数、上下 gate match 数；</li>
-    <li>估计 HPWL 与实际 routed wirelength/via 数；</li>
-    <li>路由是否成功、PathFinder 迭代数；</li>
-    <li>外部 DRC 分类计数、pin access 数；</li>
-    <li>PEX 后 input cap、delay、transition、internal power；</li>
+    <li>槽位数、扩散间断数、上下栅匹配数；</li>
+    <li>估计半周长线长（HPWL）与实际布线线长/通孔数；</li>
+    <li>布线是否成功、PathFinder 迭代数；</li>
+    <li>外部 DRC 分类计数、合法引脚接入点数；</li>
+    <li>PEX 后的输入电容、延迟、转换时间和内部功耗；</li>
     <li>运行时间和结果可复现性。</li>
   </ul>
-  <p>改动启发式后，用一个覆盖 INV、NAND/NOR、AOI/OAI、MUX/XOR、宽器件和无共同 Euler 的固定 corpus 做回归。否则一个门变好可能让另一类门不可布。</p>
+  <p>改动启发式后，用一个覆盖 INV、NAND/NOR、AOI/OAI、MUX/XOR、宽器件和无共同 Euler 顺序的固定用例集做回归。否则一个门变好可能让另一类门不可布。</p>
 
   <div class="lab">
     <strong>源码阅读实验</strong>
@@ -117,23 +117,23 @@ lower row: NMOS  [ MN? ][ MN? ][ gap ][ MN? ]
       <li>从 <code>standalone.py</code> 的 <code>placers</code> 字典找到 CLI 名称与类。</li>
       <li>在 <code>MetaTransistorPlacer.get_placer</code> 中标出 20、200、400000 三个阈值。</li>
       <li>在 <code>EulerPlacer.place</code> 中按顺序标出 gate match、wiring bbox、I/O cost。</li>
-      <li>说明如果要加入 pin-access proxy，应在哪个候选过滤阶段插入以及如何回归。</li>
+      <li>说明如果要加入引脚可接入性的估计指标，应在哪个候选过滤阶段插入以及如何回归。</li>
     </ol>
   </div>
 
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li><code>meta</code> 是否会比较七种放置器的最终版图？</li>
+      <li><code>meta</code> 是否会比较七种布局器的最终版图？</li>
       <li>HierarchicalPlacer 的分区是否是 min-cut？</li>
       <li>为什么共同 Euler 顺序仍不能保证可布线？</li>
     </ol>
-    <details><summary>参考答案</summary><p>不会，只在 Euler 与 hierarchical 中启发式选一个。分区只是拆 supply 后的 connected components。共同 Euler 只优化扩散连续和 gate 对齐，未建模有限轨道、障碍、via、spacing conflict 与 pin access。</p></details>
+    <details><summary>参考答案</summary><p>不会，只在 Euler 布局与层次布局中启发式选一个。分区只是拆开供电节点后求连通分量。共同 Euler 顺序只优化扩散连续和栅对齐，未建模有限轨道、障碍、通孔、间距冲突与引脚可接入性。</p></details>
   </div>
 
-  <div class="source-note"><strong>理论与实现：</strong><em>Optimal Layout of CMOS Functional Arrays</em>用于理解经典连续 diffusion 布局；<em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em>用于通用放置/划分背景。所有“当前代码”描述以本地提交 <code>f708e3a</code> 为准。</div>
+  <div class="source-note"><strong>理论与实现：</strong><em>Optimal Layout of CMOS Functional Arrays</em>用于理解经典连续扩散区布局；<em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em>用于通用布局/划分背景。所有“当前代码”描述以本地提交 <code>f708e3a</code> 为准。</div>
   <nav class="bottom-nav"><a href="chapter9.html">← 第 9 章</a><a href="chapter11.html">第 11 章：单元内部布线 →</a></nav>
-  <footer>第 10 章 · 晶体管放置</footer>
+  <footer>第 10 章 · 晶体管布局</footer>
 </main>
 </body>
 </html>

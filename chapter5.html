@@ -17,7 +17,7 @@
     <ul>
       <li>独立推导 NAND2、NOR2 的 PUN/PDN 和正确晶体管网表。</li>
       <li>判断两只相邻 MOS 能否共享扩散，并理解 contact 不能改变这个条件。</li>
-      <li>理解为什么把网络当顶点、晶体管当边会得到 Euler 放置问题。</li>
+      <li>理解为什么把网络当顶点、晶体管当边会得到 Euler 布局问题。</li>
     </ul>
   </div>
 
@@ -38,7 +38,7 @@ MPB  Y B VDD VDD pmos W=1u   L=0.15u
 MNA  Y A X   VSS nmos W=0.5u L=0.15u
 MNB  X B VSS VSS nmos W=0.5u L=0.15u
 .ends NAND2X1</code></pre>
-  <p><code>X</code> 是两只串联 NMOS 的内部网络。上面尺寸仍只作语法示意；串联堆叠常需根据目标 slew/load 重新 sizing。</p>
+  <p><code>X</code> 是两只串联 NMOS 的内部网络。上面尺寸仍只作语法示意；串联堆叠常需根据目标输入转换时间和输出负载重新调整尺寸。</p>
 
   <h2>5.2 NOR2：把串并联互换</h2>
   <p>NOR2 在 <code>A=1 或 B=1</code> 时输出 0，所以 PDN 中 NMOS 并联；PUN 中 PMOS 串联。</p>
@@ -85,7 +85,7 @@ MNB  Y B VSS VSS nmos W=0.5u L=0.15u
     <li>翻转某只 MOS 的源漏方向；</li>
     <li>在一行中引入 diffusion break；</li>
     <li>折叠宽晶体管并重新排列 finger；</li>
-    <li>接受多一段局部互连，以换取 pin access、规则和更低拥塞。</li>
+    <li>接受多一段局部互连，以换取更好的引脚可接入性、规则裕量和更低拥塞。</li>
   </ol>
   <p>最少 diffusion break 不是唯一目标。一个更窄却无法布线或 pin 无法从上层访问的单元并不是更好的单元。</p>
 
@@ -114,10 +114,10 @@ PUN：对偶网络——A 与 B 并联，这一组再与 C 串联</code></pre>
       <li>图中的顶点、边、边标签分别对应什么版图对象？</li>
       <li>共同 Euler 顺序能优化什么，又不能保证什么？</li>
     </ol>
-    <details><summary>参考答案</summary><p>不一定，串并联由两端网络拓扑决定。顶点是扩散网络，边是 MOS，标签是 gate net。共同顺序有利于扩散连续和上下栅对齐，但不能保证 DRC、最小面积、内部布线、pin access、寄生或时序最优。</p></details>
+    <details><summary>参考答案</summary><p>不一定，串并联由两端网络拓扑决定。顶点是扩散网络，边是 MOS，标签是栅网络。共同顺序有利于扩散连续和上下栅对齐，但不能保证 DRC、最小面积、内部布线、引脚可接入性、寄生或时序最优。</p></details>
   </div>
 
-  <div class="source-note"><strong>阅读依据：</strong>Euler 版图直觉参考 Uehara 与 vanCleemput 的经典 CMOS functional array 方法，以及《CMOS版图设计基础》的 Euler/stick diagram 示例。第 10 章将再区分经典理论与本地 LibreCell 的具体放置器。</div>
+  <div class="source-note"><strong>阅读依据：</strong>Euler 版图直觉参考 Uehara 与 vanCleemput 的经典 CMOS functional array 方法，以及《CMOS版图设计基础》的 Euler/stick diagram 示例。第 10 章将再区分经典理论与本地 LibreCell 的具体布局器。</div>
   <nav class="bottom-nav"><a href="chapter4.html">← 第 4 章</a><a href="chapter6.html">第 6 章：一个库要交付哪些视图 →</a></nav>
   <footer>第 5 章 · NAND、NOR 与扩散共享</footer>
 </main>

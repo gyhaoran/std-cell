@@ -3,162 +3,162 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第16章：签核、表征与 P&amp;R 回归</title>
+  <title>第16章：签核、特征化与 P&amp;R 回归</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
   <nav class="top-nav"><a href="chapter15.html">← 上一章</a><a href="appendix.html">附录 →</a></nav>
-  <h1>第 16 章　签核、表征与 P&amp;R 回归</h1>
-  <p class="subtitle">把单元版图变成可被综合、STA 和芯片路由可靠使用的库</p>
+  <h1>第 16 章　签核、特征化与 P&amp;R 回归</h1>
+  <p class="subtitle">把单元版图变成可被综合、STA 和芯片级布线可靠使用的库</p>
 
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>搭建外部 DRC/LVS/ERC/PEX 与 characterization 的质量门禁。</li>
+      <li>搭建外部 DRC/LVS/ERC/PEX 与特征化（characterization）的质量门禁。</li>
       <li>验证 GDS、LEF、CDL、Verilog 和 Liberty 的一致性。</li>
-      <li>用 abutment、pin access、P&amp;R、STA 和可复现性回归完成库级验收。</li>
+      <li>用相邻拼接、引脚可接入性、P&amp;R、STA 和可复现性回归完成库级验收。</li>
     </ul>
   </div>
 
   <h2>16.1 七级质量门</h2>
   <ol class="steps">
-    <li><strong>结构检查：</strong>文件可解析、cell/pin/单位/层/尺寸符合 schema。</li>
-    <li><strong>物理检查：</strong>foundry DRC、ERC、antenna、density/DFM 和边界拼接。</li>
-    <li><strong>电路等价：</strong>foundry LVS，包含 body、Vt、W/L/finger 和端口。</li>
+    <li><strong>结构检查：</strong>文件可解析，单元/引脚/单位/层/尺寸符合格式规范。</li>
+    <li><strong>物理检查：</strong>晶圆厂 DRC、ERC、天线效应、密度/DFM 和边界拼接。</li>
+    <li><strong>电路等价：</strong>晶圆厂 LVS，包含体端、Vt、W/L/多指和端口。</li>
     <li><strong>寄生提取：</strong>通过 LVS 的版图运行 PEX，检查 R/C 网络与单位。</li>
-    <li><strong>表征：</strong>按 PVT、slew/load、timing arc 生成时序/功耗模型。</li>
-    <li><strong>视图一致性：</strong>GDS/LEF/CDL/Verilog/Liberty 的名字、功能、pin 和尺寸一致。</li>
-    <li><strong>集成回归：</strong>综合→P&amp;R→STA/功耗→DRC/LVS smoke，验证真实消费者。</li>
+    <li><strong>特征化：</strong>按 PVT、输入转换时间/输出负载和时序弧生成时序/功耗模型。</li>
+    <li><strong>视图一致性：</strong>GDS/LEF/CDL/Verilog/Liberty 的名字、功能、引脚和尺寸一致。</li>
+    <li><strong>集成回归：</strong>综合→P&amp;R→STA/功耗→DRC/LVS 冒烟测试，验证真实使用流程。</li>
   </ol>
-  <p>任何一级失败都不能用后一级的 pass 抵消。例如 STA 能跑完不代表 LEF obstruction 正确，LVS match 也不代表表征 corner 正确。</p>
+  <p>任何一级失败都不能用后一级的通过结果抵消。例如 STA 能跑完不代表 LEF 布线阻挡正确，LVS 匹配也不代表特征化使用了正确的 PVT 条件。</p>
 
   <h2>16.2 外部物理签核</h2>
   <table>
     <thead><tr><th>检查</th><th>单元级</th><th>库/拼接级</th></tr></thead>
     <tbody>
-      <tr><td>DRC</td><td>完整 rule deck 零未解释违规</td><td>abutment、multi-row、特殊 cell 组合</td></tr>
-      <tr><td>ERC/latch-up</td><td>well/body/tap、电源、器件电压</td><td>tap interval、跨 row well、电源域边界</td></tr>
-      <tr><td>Antenna</td><td>内部 gate/metal ratio 与保护结构</td><td>P&amp;R 中长线后的修复 cell/diode 策略</td></tr>
-      <tr><td>Density/DFM</td><td>局部最小/最大、forbidden pattern</td><td>填充后、窗口跨 cell edge 的密度</td></tr>
-      <tr><td>EM/IR</td><td>rail/via 电流能力假设</td><td>行级电源网络、最大活动率和 corner</td></tr>
+      <tr><td>DRC</td><td>完整验证规则文件下无未解释违规</td><td>相邻拼接、多行、特殊单元组合</td></tr>
+      <tr><td>ERC/闩锁效应</td><td>井/体端/接触、电源、器件电压</td><td>接触间隔、跨单元行的井、电源域边界</td></tr>
+      <tr><td>天线效应</td><td>内部栅/金属面积比与保护结构</td><td>P&amp;R 中长线后的修复单元/二极管策略</td></tr>
+      <tr><td>密度/DFM</td><td>局部最小/最大、禁用图形</td><td>填充后、窗口跨单元边界的密度</td></tr>
+      <tr><td>EM/IR</td><td>电源轨/通孔的电流能力假设</td><td>行级电源网络、最大活动率和 PVT 条件</td></tr>
     </tbody>
   </table>
-  <p>waiver 必须包含 rule、位置、理由、owner、风险和 foundry/项目批准；“生成器总会报这个”不是 waiver 理由。</p>
+  <p>规则豁免（waiver）必须包含规则、位置、理由、责任人、风险和晶圆厂/项目批准；“生成器总会报这个”不是豁免理由。</p>
 
-  <h2>16.3 LVS：参数和 body 都属于等价性</h2>
-  <p>生产级 LVS 比较不止 topology。为每个 cell 保存：</p>
+  <h2>16.3 LVS：参数和体端都属于等价性</h2>
+  <p>生产级 LVS 比较不止拓扑。为每个单元保存：</p>
   <ul>
     <li>reference CDL/SPICE 与端口顺序；</li>
-    <li>提取器件类型、Vt/电压 option；</li>
+    <li>提取器件类型、Vt/电压选项；</li>
     <li>D/G/S/B 网络；</li>
     <li>W/L/nf/m、并联/串联归并策略和容差；</li>
-    <li>短路、开路、unmatched device/net 计数均为零。</li>
+    <li>短路、开路、未匹配器件/网络计数均为零。</li>
   </ul>
-  <p>对 tapless 单元，仍需在 foundry LVS/ERC 流程中使用官方支持的 cell context 或 runset，不能简单删除 body 后宣布匹配。</p>
+  <p>对单元内不含阱/衬底接触的 tapless 架构，仍需在晶圆厂 LVS/ERC 流程中使用官方支持的单元上下文或运行配置，不能简单删除体端后宣布匹配。</p>
 
   <h2>16.4 PEX 与仿真基线</h2>
-  <p>每个需要表征的 cell 采用经过 LVS 的 extracted netlist。先做三个 sanity check：</p>
+  <p>每个需要特征化的单元采用经过 LVS 的提取后网表。先做三个合理性检查：</p>
   <ol>
     <li>无寄生/原理图仿真与逻辑真值表一致；</li>
     <li>PEX 仿真在轻载典型角仍功能正确，内部节点无浮空；</li>
     <li>输入电容、输出电容和关键电阻数量级与版图变化趋势一致。</li>
   </ol>
-  <p>当扩大器件 W 后，若 extracted input cap 反而显著下降，应先怀疑单位、提取层或网表关联，不要直接把结果写进 Liberty。</p>
+  <p>当扩大器件 W 后，若提取后的输入电容反而显著下降，应先怀疑单位、提取层或网表关联，不要直接把结果写进 Liberty。</p>
 
-  <h2>16.5 组合单元 characterization</h2>
+  <h2>16.5 组合单元特征化</h2>
   <ol class="steps">
-    <li>枚举每个输出 pin 的 Boolean function 和所有 sensitizable input→output arc。</li>
-    <li>对每条 arc 固定 side inputs 到能传播变化的 non-controlling value。</li>
-    <li>在 input slew × output load 网格上仿真 rise/fall delay 与 output transition。</li>
-    <li>测 internal power（输入切换时 cell 内耗能）和不同输入状态 leakage。</li>
-    <li>对每个 PVT/corner 生成独立 Liberty，并检查单位与表格完整性。</li>
+    <li>枚举每个输出引脚的布尔函数，以及所有可被敏化的输入→输出时序弧。</li>
+    <li>对每条时序弧，把其他输入固定到允许变化传播的非控制值。</li>
+    <li>在输入转换时间 × 输出负载网格上仿真上升/下降延迟与输出转换时间。</li>
+    <li>测量内部功耗（输入切换时单元内部耗能）和不同输入状态下的漏电功耗。</li>
+    <li>对每个 PVT 条件生成独立 Liberty，并检查单位与表格完整性。</li>
   </ol>
-  <p>以 NAND2 为例，A→Y 的变化只有在 B=1 时能传播；B→Y 同理需 A=1。错误的 side-input condition 会得到不存在或不完整的 timing arc。</p>
+  <p>以 NAND2 为例，A→Y 的变化只有在 B=1 时能传播；B→Y 同理需 A=1。错误的旁路输入条件会得到不存在或不完整的时序弧。</p>
 
   <h2>16.6 顺序单元额外需要什么</h2>
-  <p>DFF/latch 除 clock-to-Q 外还需要 setup、hold、recovery、removal、minimum pulse width、clock gating check 等。约束可能为负，并依赖 data/clock slew。还要验证：</p>
+  <p>DFF/锁存器除时钟到 Q 延迟外，还需要建立时间、保持时间、恢复时间、移除时间、最小脉宽和时钟门控检查等。约束可能为负，并依赖数据/时钟的转换时间。还要验证：</p>
   <ul>
-    <li>功能、异步 set/reset 优先级与非法状态；</li>
-    <li>scan enable、SI/SO 和测试模式；</li>
-    <li>状态保持、metastability 相关建模边界；</li>
-    <li>Verilog specify、Liberty sequential function 与 transistor circuit 一致。</li>
+    <li>功能、异步置位/复位优先级与非法状态；</li>
+    <li>扫描使能、SI/SO 和测试模式；</li>
+    <li>状态保持、亚稳态相关建模边界；</li>
+    <li>Verilog specify、Liberty 时序逻辑功能与晶体管电路一致。</li>
   </ul>
 
   <h2>16.7 Liberty QA</h2>
   <table>
     <thead><tr><th>类别</th><th>检查例</th></tr></thead>
     <tbody>
-      <tr><td>语法/schema</td><td>单位、template、索引维度、所有引用存在</td></tr>
-      <tr><td>功能</td><td>function/three-state、related_pin、timing_sense、when 条件</td></tr>
-      <tr><td>完整性</td><td>每个有效 arc、rise/fall、constraint/power table 均存在</td></tr>
-      <tr><td>数值</td><td>NaN/负 transition/异常跳变、随 load/slew 的合理趋势</td></tr>
-      <tr><td>跨角</td><td>corner 标签、voltage/temperature、模型/文件关联无混用</td></tr>
-      <tr><td>跨视图</td><td>cell/pin/function 与 Verilog、CDL、LEF 一致</td></tr>
+      <tr><td>语法/格式</td><td>单位、模板、索引维度、所有引用存在</td></tr>
+      <tr><td>功能</td><td>逻辑函数/三态、关联引脚、时序极性、条件表达式</td></tr>
+      <tr><td>完整性</td><td>每个有效时序弧、上升/下降、约束/功耗表均存在</td></tr>
+      <tr><td>数值</td><td>NaN、负转换时间、异常跳变，以及随负载/输入转换时间的合理趋势</td></tr>
+      <tr><td>跨 PVT 条件</td><td>条件标签、电压/温度、模型/文件关联无混用</td></tr>
+      <tr><td>跨视图</td><td>单元/引脚/功能与 Verilog、CDL、LEF 一致</td></tr>
     </tbody>
   </table>
-  <p>不要机械要求所有 delay table 单调；真实电路可能有复杂行为。自动 checker 标记异常后，应回到 waveform、bench 和 PEX 判断。</p>
+  <p>不要机械要求所有延迟表单调；真实电路可能有复杂行为。自动检查器标记异常后，应回到波形、测试平台和 PEX 结果判断。</p>
 
-  <h2>16.8 LEF 与 pin access QA</h2>
-  <p>LibreCell 当前 LEF writer 的已知问题必须先修复或后处理：正确的 <code>DIRECTION</code>/<code>USE</code>、POWER/GROUND、obstruction、site/symmetry 和必要 property。然后做：</p>
+  <h2>16.8 LEF 与引脚可接入性 QA</h2>
+  <p>LibreCell 当前 LEF 输出模块的已知问题必须先修复或后处理：正确的 <code>DIRECTION</code>/<code>USE</code>、POWER/GROUND、布线阻挡、站点/对称性和必要属性。然后做：</p>
   <ol>
-    <li>把 LEF macro overlay 到 GDS，核对 origin、SIZE、boundary 和每个 pin port。</li>
-    <li>在所有合法 orientation 下枚举上层路由器的 via/access point。</li>
-    <li>验证输入、输出、电源 pin 都有足够且规则合法的 access。</li>
-    <li>运行一个高利用率小设计的 detailed routing，统计 unrouted、DRC 和 detour。</li>
+    <li>把 LEF 宏单元叠加到 GDS，核对原点、尺寸、边界和每个引脚端口。</li>
+    <li>在所有合法朝向下枚举芯片级布线器可用的通孔/接入点。</li>
+    <li>验证输入、输出、电源引脚都有足够且规则合法的接入点。</li>
+    <li>对一个高利用率小设计运行详细布线，统计未布通网络、DRC 和绕行长度。</li>
   </ol>
-  <p>pin shape 越大不一定越易访问，它可能增加 obstruction、阻塞邻近 pin 或违反 via enclosure/spacing。</p>
+  <p>引脚图形越大不一定越易接入，它可能增加布线阻挡、阻塞邻近引脚或违反通孔包围/间距规则。</p>
 
-  <h2>16.9 Abutment QA</h2>
-  <p>按 cell edge signature 聚类以减少组合，同时保留代表性极端：</p>
+  <h2>16.9 相邻拼接 QA</h2>
+  <p>按单元边界特征聚类以减少组合，同时保留代表性极端：</p>
   <ul>
     <li>最窄/最宽逻辑单元；</li>
-    <li>边缘有/无 diffusion、implant、pin、metal 的类型；</li>
+    <li>边缘有/无扩散区、注入层、引脚和金属的类型；</li>
     <li>filler/tap/endcap 与普通单元；</li>
-    <li>R0/MX 和相邻 row 组合；</li>
-    <li>窗口跨边界的 density/DFM 检查。</li>
+    <li>R0/MX 和相邻单元行组合；</li>
+    <li>窗口跨边界的密度/DFM 检查。</li>
   </ul>
-  <p>除 DRC 外还检查 VDD/VSS 连续、well/tap 意图、site 对齐和拼接后 pin access。</p>
+  <p>除 DRC 外还检查 VDD/VSS 连续、井/接触意图、站点对齐和拼接后的引脚可接入性。</p>
 
-  <h2>16.10 P&amp;R 与 STA smoke test</h2>
+  <h2>16.10 P&amp;R 与 STA 冒烟测试</h2>
   <p>构造一个小而有压力的 RTL：</p>
   <ul>
-    <li>让综合实际使用 INV/NAND/NOR/AOI/OAI/MUX/DFF 及多个 drive；</li>
-    <li>包含长组合链、高扇出、时钟、reset 和拥塞区域；</li>
-    <li>分别跑低/中/高 utilization；</li>
-    <li>插入 filler/tap/endcap/antenna 修复，完成 detailed route；</li>
-    <li>导出 placed/routed netlist、SDF、SPEF/GDS，再跑 STA 和物理验证。</li>
+    <li>让综合实际使用 INV/NAND/NOR/AOI/OAI/MUX/DFF 及多个驱动能力档位；</li>
+    <li>包含长组合链、高扇出、时钟、复位和拥塞区域；</li>
+    <li>分别运行低/中/高利用率；</li>
+    <li>插入填充、阱/衬底接触、边界和天线修复单元，完成详细布线；</li>
+    <li>导出布局后/布线后网表、SDF、SPEF/GDS，再运行 STA 和物理验证。</li>
   </ul>
   <table>
     <thead><tr><th>阶段</th><th>门禁</th></tr></thead>
     <tbody>
-      <tr><td>综合</td><td>所有 cell/arc 可读，无 missing function/pin</td></tr>
-      <tr><td>放置</td><td>site/row/orientation 合法，无 overlap，电源对齐</td></tr>
-      <tr><td>布线</td><td>100% routed，pin access 和 router DRC 达标</td></tr>
-      <tr><td>STA</td><td>所有 endpoint/arc 有模型，约束与 corner 完整</td></tr>
+      <tr><td>综合</td><td>所有单元/时序弧可读，无缺失功能或引脚</td></tr>
+      <tr><td>布局</td><td>站点、单元行和朝向合法，无重叠，电源对齐</td></tr>
+      <tr><td>布线</td><td>100% 布通，引脚可接入性和布线器 DRC 达标</td></tr>
+      <tr><td>STA</td><td>所有时序端点/时序弧有模型，约束与 PVT 条件完整</td></tr>
       <tr><td>流片版图</td><td>合并 GDS 后 DRC/LVS/antenna/density 流程通过</td></tr>
     </tbody>
   </table>
 
-  <h2>16.11 回归指标与 golden policy</h2>
-  <p>保存结构化 manifest，而不是只保存截图：</p>
+  <h2>16.11 回归指标与基准管理策略</h2>
+  <p>保存结构化清单，而不是只保存截图：</p>
   <pre><code>cell, commit, tech_version, netlist_hash, placement_hash
 width, height, transistor_count, route_iterations
 wirelength_by_layer, via_count, pin_access_count
 drc_counts_by_rule, lvs_status, pex_status
 input_cap, leakage_states, delay/power summary
 lef/gds overlay status, abutment status, pnr status</code></pre>
-  <p>阈值来自库规格与项目经验，不存在通用“wirelength 增加 5% 就失败”的规则。正确性指标零容忍，QoR 指标采用经批准的预算和人工 review。</p>
+  <p>阈值来自库规格与项目经验，不存在通用“线长增加 5% 就失败”的规则。正确性指标零容忍，结果质量（QoR）指标采用经批准的预算和人工复核。</p>
 
   <h2>16.12 最终验收标准</h2>
   <table>
     <thead><tr><th>能力</th><th>合格证据</th></tr></thead>
     <tbody>
       <tr><td>读版图</td><td>能对 INV/NAND/NOR/AOI 逐层标出器件、DGSB、网络和对应 SPICE</td></tr>
-      <tr><td>读算法</td><td>能解释放置图、路由图、成本，并用源码证明实际算法</td></tr>
+      <tr><td>读算法</td><td>能解释布局图、布线图、成本，并用源码证明实际算法</td></tr>
       <tr><td>改 LibreCell</td><td>有最小 patch、测试、回归数据和清晰的 API/能力边界</td></tr>
-      <tr><td>迁移工艺</td><td>能力矩阵、coupon、架构、外部 DRC/LVS/PEX 和 P&amp;R 证据完整</td></tr>
-      <tr><td>交付库</td><td>全部视图一致、characterization/QA 完整、known limitations 可执行</td></tr>
+      <tr><td>迁移工艺</td><td>能力矩阵、测试结构、架构、外部 DRC/LVS/PEX 和 P&amp;R 证据完整</td></tr>
+      <tr><td>交付库</td><td>全部视图一致、特征化/QA 完整、已知限制可执行</td></tr>
     </tbody>
   </table>
 
@@ -167,15 +167,15 @@ lef/gds overlay status, abutment status, pnr status</code></pre>
   <div class="checkpoint">
     <strong>最终自评</strong>
     <ol>
-      <li>换 PDK 时，你能在动代码前列出所有 blocker 吗？</li>
-      <li>一个 GDS DRC/LVS clean 后，你能说明离可用 Liberty/LEF 还缺哪些证据吗？</li>
-      <li>一个 P&amp;R 失败时，你能区分 pin access、LEF abstract、placement、routing 和 foundry rule 问题吗？</li>
+      <li>换 PDK 时，你能在动代码前列出所有阻断项吗？</li>
+      <li>一个 GDS 通过 DRC/LVS 后，你能说明离可用 Liberty/LEF 还缺哪些证据吗？</li>
+      <li>一个 P&amp;R 失败时，你能区分引脚可接入性、LEF 抽象、布局、布线和晶圆厂规则问题吗？</li>
     </ol>
   </div>
 
-  <div class="source-note"><strong>阅读依据：</strong>《CMOS集成电路后端设计与实战》的 LEF/抽取/表征章节用于建立完整流程；<em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em>用于 P&amp;R 与 timing closure 背景；厂商资料只用于私有环境中的应用与签核核对。</div>
+  <div class="source-note"><strong>阅读依据：</strong>《CMOS集成电路后端设计与实战》的 LEF/提取/特征化章节用于建立完整流程；<em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em>用于 P&amp;R 与时序收敛背景；厂商资料只用于私有环境中的应用与签核核对。</div>
   <nav class="bottom-nav"><a href="chapter15.html">← 第 15 章</a><a href="appendix.html">附录：术语、排错与资源 →</a></nav>
-  <footer>第 16 章 · 签核、表征与 P&amp;R 回归</footer>
+  <footer>第 16 章 · 签核、特征化与 P&amp;R 回归</footer>
 </main>
 </body>
 </html>

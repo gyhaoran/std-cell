@@ -27,10 +27,10 @@
     <tbody>
       <tr><td>DRM / design-rule manual</td><td>哪些几何合法，哪些规则是强制/推荐/条件规则？</td><td>规则追踪表：rule ID→含义→生成器字段/deck</td></tr>
       <tr><td>GDS layer map</td><td>每个 mask/purpose 对应哪个 layer/datatype？</td><td>LibreCell <code>output_map</code> 与查看器显示配置</td></tr>
-      <tr><td>器件与 SPICE model</td><td>合法 MOS 类型、模型名、W/L/finger 参数和 PVT include 是什么？</td><td>输入网表规范、模型名适配、表征条件</td></tr>
+      <tr><td>器件与 SPICE 模型</td><td>合法 MOS 类型、模型名、W/L/多指（finger）参数和 PVT include 是什么？</td><td>输入网表规范、模型名适配、特征化条件</td></tr>
       <tr><td>DRC deck</td><td>如何执行 foundry 几何检查？</td><td>批处理命令、deck 版本、零违规基线</td></tr>
-      <tr><td>LVS/extraction deck</td><td>如何从层组合识别器件、端子和 body？</td><td>layout-vs-CDL 回归与器件映射</td></tr>
-      <tr><td>PEX tech/deck</td><td>如何抽取互连 R/C、耦合和器件寄生？</td><td>表征用 extracted netlist</td></tr>
+      <tr><td>LVS/提取规则文件</td><td>如何从层组合识别器件、端子和体端？</td><td>版图与 CDL 对比回归、器件映射</td></tr>
+      <tr><td>PEX 技术文件/deck</td><td>如何提取互连 R/C、耦合和器件寄生？</td><td>供特征化使用的提取后网表</td></tr>
       <tr><td>参考库/单元架构</td><td>行高、site、轨道、电源轨、tapless/tapped、pin 层如何选择？</td><td>架构规格与 P&amp;R 约束</td></tr>
     </tbody>
   </table>
@@ -44,9 +44,9 @@
     <li>器件提取依赖原始层，还是依赖布尔运算得到的派生层？</li>
     <li>pin geometry 与 pin text 分别放在哪个 purpose？</li>
     <li>哪些层是制造层，哪些只是 boundary/marker/label？</li>
-    <li>是否存在 LI、本地互连、多种 contact/cut、多个 via stack 或特殊 gate 层？</li>
+    <li>是否存在 LI、本地互连、多种接触孔/切割层、多个通孔栈或特殊栅层？</li>
   </ul>
-  <p>例如开放的 SKY130 文档就把层定义、GDS 层信息、LVS 设备信息、金属/via 规则、天线和寄生提取分成多个部分。这说明“知道 M1 的层号”远不足以完成工艺适配。</p>
+  <p>例如开放的 SKY130 文档就把层定义、GDS 层信息、LVS 器件信息、金属/通孔规则、天线效应和寄生提取分成多个部分。这说明“知道 M1 的层号”远不足以完成工艺适配。</p>
 
   <h2>7.3 单位与 DBU：所有几何错误的第一嫌疑</h2>
   <p>版图数据库用整数坐标保存几何。若 <code>db_unit = 1e-9</code> 米，则一个坐标单位是 1 nm：</p>
@@ -55,15 +55,15 @@ integer_coordinate = physical_length_m / db_unit
 
 例：0.4 µm = 0.4×10⁻⁶ m
 若 DBU=1 nm，则整数坐标 = 0.4×10⁻⁶ / 1×10⁻⁹ = 400</code></pre>
-  <p>选择 DBU 时要保证所有关键尺寸能准确落在整数网格，同时不能导致坐标溢出。必须检查 SPICE W/L 的单位、LibreCell 技术文件的整数单位、GDS writer 的 DBU、LEF <code>UNITS</code> 和外部 deck 的单位是否一致。</p>
-  <div class="callout warn"><strong>不要用“工艺是 130 nm”推导任何尺寸。</strong>工艺节点名不是 M1 最小宽度、gate length、routing pitch 或 DBU。只能从该 PDK 的规则和器件规范读取。</div>
+  <p>选择 DBU 时要保证所有关键尺寸能准确落在整数网格，同时不能导致坐标溢出。必须检查 SPICE W/L 的单位、LibreCell 技术文件的整数单位、GDS 输出模块的 DBU、LEF <code>UNITS</code> 和外部验证规则文件的单位是否一致。</p>
+  <div class="callout warn"><strong>不要用“工艺是 130 nm”推导任何尺寸。</strong>工艺节点名不是 M1 最小宽度、栅长、布线轨距或 DBU。只能从该 PDK 的规则和器件规范读取。</div>
 
   <h2>7.4 六类基础几何规则</h2>
   <table>
     <thead><tr><th>规则</th><th>含义</th><th>典型对象</th></tr></thead>
     <tbody>
-      <tr><td>minimum width</td><td>一个图形在局部不得窄于阈值</td><td>Poly、metal、active、via/cut</td></tr>
-      <tr><td>minimum spacing</td><td>两个图形或边之间必须保持距离</td><td>同层、异层、same-net/diff-net、平行长度条件</td></tr>
+      <tr><td>最小宽度</td><td>一个图形在局部不得窄于阈值</td><td>多晶硅、金属、有源区、通孔/切割层</td></tr>
+      <tr><td>最小间距</td><td>两个图形或边之间必须保持距离</td><td>同层、异层、同网络/异网络、平行长度条件</td></tr>
       <tr><td>enclosure / overlap</td><td>外层必须在内层四周包围一定距离</td><td>Metal 包 Via、Active 包 Contact、Well 包 Active</td></tr>
       <tr><td>extension / end-of-line</td><td>一层越过交叠区或线端必须延伸</td><td>Poly 越过 Active、金属线端</td></tr>
       <tr><td>notch</td><td>同一多边形凹槽不能太窄</td><td>井、Active、Metal</td></tr>
@@ -84,23 +84,23 @@ integer_coordinate = physical_length_m / db_unit
     <li>最大间距与井/tap 距离、latch-up；</li>
     <li>antenna ratio；</li>
     <li>metal density/fill 和 CMP；</li>
-    <li>via redundancy、EM/current density；</li>
+    <li>通孔冗余、电迁移/电流密度；</li>
     <li>minimum step、acute angle、forbidden pattern；</li>
     <li>边界拼接和特殊 cell 的例外规则。</li>
   </ul>
-  <p>因此 LibreCell 技术文件中的 <code>minimum_width</code>、<code>min_spacing</code> 等字典只是生成器的几何约束接口，不等同于完整 foundry deck。无法表达的规则要么通过保守模板规避，要么扩展生成器和检查流程。</p>
+  <p>因此 LibreCell 技术文件中的 <code>minimum_width</code>、<code>min_spacing</code> 等字典只是生成器的几何约束接口，不等同于完整晶圆厂验证规则文件。无法表达的规则要么通过保守模板规避，要么扩展生成器和检查流程。</p>
 
   <h2>7.6 标准单元架构是工艺规则之上的设计选择</h2>
   <p>拿到最小规则后仍不能立刻填技术文件。需要先定义：</p>
   <ul>
-    <li>cell height、site width、gate pitch、routing pitch 与 grid offset；</li>
+    <li>单元高度、站点宽度、栅节距、布线轨距与网格偏移；</li>
     <li>VDD/VSS 的层、宽度、位置及相邻行共享方式；</li>
     <li>NMOS/PMOS 行高和间隔、N-Well/P-Well 边界；</li>
     <li>pin layer、允许的接入方向和最小 access point 数；</li>
     <li>tapped 还是 tapless，以及 filler/endcap/tap 的边界职责；</li>
     <li>单元允许 R0/MX 等哪些对称变换。</li>
   </ul>
-  <p>这些参数互相耦合。较低 cell height 可能让面积更小，却导致更窄的晶体管、拥塞、pin access 失败或更多 DRC。</p>
+  <p>这些参数互相耦合。较低的单元高度可能让面积更小，却导致更窄的晶体管、拥塞、引脚接入失败或更多 DRC。</p>
 
   <div class="lab">
     <strong>PDK 盘点练习</strong>
@@ -114,7 +114,7 @@ integer_coordinate = physical_length_m / db_unit
       <li>一个规则无法放进 <code>minimum_spacing</code> 字典时，应怎么处理？</li>
       <li>DBU 改变后，哪些文件/模块必须一起复核？</li>
     </ol>
-    <details><summary>参考答案</summary><p>提取 MOS 还依赖层组合、派生层、合法器件结构与 LVS deck。复杂规则需评估保守模板、扩展生成器或外部迭代修复，不能忽略。至少复核技术文件全部整数尺寸、SPICE 尺寸转换、GDS writer、LEF 单位、路由网格和外部 deck。</p></details>
+    <details><summary>参考答案</summary><p>提取 MOS 还依赖层组合、派生层、合法器件结构与 LVS deck。复杂规则需评估保守模板、扩展生成器或外部迭代修复，不能忽略。至少复核技术文件全部整数尺寸、SPICE 尺寸转换、GDS writer、LEF 单位、布线网格和外部 deck。</p></details>
   </div>
 
   <div class="source-note"><strong>开放参考：</strong><a href="https://skywater-pdk.readthedocs.io/en/main/rules.html">SKY130 PDK 规则文档</a>可用于学习 PDK 资料的组织形式，不表示本教程或当前 LibreCell 已经兼容 SKY130。</div>

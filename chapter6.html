@@ -16,7 +16,7 @@
     <strong>本章目标</strong>
     <ul>
       <li>知道每类库视图保存什么、由谁产生、由谁使用。</li>
-      <li>理解 cell characterization 不是从 GDS 文件里直接读取一条延迟。</li>
+      <li>理解单元特征化不是从 GDS 文件里直接读取一条延迟。</li>
       <li>建立跨视图一致性和库级 QA 的基本概念。</li>
     </ul>
   </div>
@@ -29,77 +29,77 @@
   ▼
 版图生成/手工优化 ── DRC ── LVS
   ▼
-寄生提取 PEX ── characterization ── Liberty
+寄生参数提取 PEX ── 特征化（characterization）── Liberty
   ▼
 GDS / LEF / CDL / Verilog / Liberty 等视图打包
   ▼
-一致性检查、abutment、P&R、STA、功耗和回归
+一致性检查、相邻拼接、P&R、STA、功耗和回归
   └────────────────── 发现问题后回到前级修改</code></pre>
-  <p>这是迭代闭环。比如 pin access 很差时，可能需要改变单元内部布线甚至晶体管放置；时序不达标时，可能重新 sizing，导致版图宽度和寄生变化。</p>
+  <p>这是迭代闭环。例如引脚可接入性（pin access）很差时，可能需要改变单元内部布线甚至晶体管布局；时序不达标时，可能重新调整晶体管尺寸（sizing），导致版图宽度和寄生变化。</p>
 
   <h2>6.2 五类核心视图</h2>
   <table>
     <thead><tr><th>视图</th><th>主要内容</th><th>关键检查</th></tr></thead>
     <tbody>
       <tr><td>GDS/OASIS</td><td>完整层几何、cell hierarchy、文本</td><td>layer/datatype、DBU、边界、pin 标记、DRC/LVS/PEX</td></tr>
-      <tr><td>LEF</td><td>macro size、site、symmetry、pin port、OBS</td><td>与 GDS 对齐；pin 可访问；方向/use 正确</td></tr>
+      <tr><td>LEF</td><td>宏单元尺寸、站点、对称性、引脚端口、OBS</td><td>与 GDS 对齐；引脚可接入；方向/用途正确</td></tr>
       <tr><td>SPICE/CDL</td><td>MOS 和其他器件、D/G/S/B、模型、W/L/m/nf</td><td>端口顺序、模型名、参数单位、与提取网表 LVS</td></tr>
       <tr><td>Verilog</td><td>功能、时序检查或 specify、power-aware 行为</td><td>逻辑与 Liberty/SPICE 一致；X 传播策略</td></tr>
-      <tr><td>Liberty</td><td>pin 属性、function、timing arc、constraint、power、PVT</td><td>查找表单调性/完整性、arc sense、单位、跨 corner 一致性</td></tr>
+      <tr><td>Liberty</td><td>引脚属性、逻辑函数、时序弧、时序约束、功耗、PVT</td><td>查找表单调性/完整性、时序极性、单位、跨 PVT 条件一致性</td></tr>
     </tbody>
   </table>
 
   <h3>LEF 中最容易误解的部分</h3>
   <ul>
     <li><code>SIZE</code> 与 GDS 单元边界必须一致，并符合 site/row 步进。</li>
-    <li><code>PIN</code> 可有多个 <code>PORT</code> 和多个矩形；这些是路由器允许落 via/接线的目标形状。</li>
-    <li><code>OBS</code> 告诉路由器哪些区域已被单元内部几何占用。漏写会让芯片级路由穿过不该穿的地方。</li>
+    <li><code>PIN</code> 可有多个 <code>PORT</code> 和多个矩形；这些是布线器允许放置通孔并接线的目标形状。</li>
+    <li><code>OBS</code> 告诉布线器哪些区域已被单元内部几何占用。漏写会让芯片级走线穿过不该穿的地方。</li>
     <li><code>DIRECTION</code>、<code>USE</code> 影响逻辑和电源处理，不能把所有 pin 都笼统写成 INOUT/SIGNAL。</li>
   </ul>
 
   <h3>Liberty 中不是只有 delay</h3>
-  <p>组合单元的一个输出可能有多个 timing arc，例如 NAND2 的 A→Y 与 B→Y；每条 arc 还区分输入上升/下降、输出上升/下降，并在 input slew × output capacitance 网格上给出延迟和 transition。顺序单元还需 setup、hold、recovery、removal、minimum pulse width 等约束。</p>
+  <p>组合单元的一个输出可能有多个时序弧（timing arc），例如 NAND2 的 A→Y 与 B→Y；每条时序弧还区分输入上升/下降、输出上升/下降，并在输入转换时间 × 输出电容网格上给出延迟和输出转换时间。顺序单元还需建立时间、保持时间、恢复时间、移除时间和最小脉宽等约束。</p>
 
-  <h2>6.3 表征如何连接版图与时序模型</h2>
+  <h2>6.3 特征化如何连接版图与时序模型</h2>
   <ol class="steps">
-    <li>用 PDK 模型建立指定 process、voltage、temperature 的仿真条件。</li>
-    <li>从通过 LVS 的版图提取寄生 R/C，得到 extracted netlist。</li>
-    <li>对每个有效 timing arc 扫描输入 slew 和输出 load，测量 delay/transition。</li>
-    <li>测量 internal power、switching power 相关量和不同输入状态下的 leakage。</li>
-    <li>生成 Liberty，并执行功能、单位、查找表、交叉 corner 和 STA 质量检查。</li>
+    <li>用 PDK 模型建立指定工艺、电压和温度的仿真条件。</li>
+    <li>从通过 LVS 的版图提取寄生 R/C，得到提取后网表。</li>
+    <li>对每个有效时序弧扫描输入转换时间和输出负载，测量延迟/输出转换时间。</li>
+    <li>测量内部功耗、开关功耗相关量和不同输入状态下的漏电功耗。</li>
+    <li>生成 Liberty，并执行功能、单位、查找表、跨 PVT 条件和 STA 质量检查。</li>
   </ol>
-  <p>PVT 表示 process、voltage、temperature。一个库通常包含多个 corner；不同 corner 的模型和表不能混用。还可能有 statistical variation、LVF、CCS/ECSM 等更高级模型，入门项目可以先从 NLDM 开始，但必须知道工业交付不止一个典型角。</p>
+  <p>PVT 表示工艺（process）、电压（voltage）和温度（temperature）。一个库通常包含多个 PVT 条件；不同条件的模型和表不能混用。还可能有统计变化、LVF、CCS/ECSM 等更高级模型，入门项目可以先从 NLDM 开始，但必须知道工业交付不止一个典型条件。</p>
 
   <h2>6.4 跨视图一致性是硬约束</h2>
   <table>
     <thead><tr><th>必须一致的对象</th><th>典型故障</th><th>后果</th></tr></thead>
     <tbody>
-      <tr><td>cell name</td><td>GDS 是 <code>NAND2X1</code>，Liberty 是 <code>NAND2_X1</code></td><td>工具无法关联 macro 与时序单元</td></tr>
+      <tr><td>单元名</td><td>GDS 是 <code>NAND2X1</code>，Liberty 是 <code>NAND2_X1</code></td><td>工具无法关联物理宏与时序单元</td></tr>
       <tr><td>pin name/大小写</td><td>LEF 用 <code>ZN</code>，Verilog 用 <code>Y</code></td><td>P&amp;R、仿真或 LVS 连接失败</td></tr>
-      <tr><td>pin direction/use</td><td>输出写成 INPUT，VDD 写成 SIGNAL</td><td>路由与电源意图错误</td></tr>
+      <tr><td>引脚方向/用途</td><td>输出写成 INPUT，VDD 写成 SIGNAL</td><td>布线与电源意图错误</td></tr>
       <tr><td>逻辑 function</td><td>版图是 NAND，Liberty 声明 AND</td><td>综合/STA 与硅片行为不一致</td></tr>
-      <tr><td>物理尺寸与单位</td><td>LEF 高度和 GDS 边界差一个 DBU</td><td>单元重叠、行对不齐或路由违规</td></tr>
+      <tr><td>物理尺寸与单位</td><td>LEF 高度和 GDS 边界差一个 DBU</td><td>单元重叠、行对不齐或布线违规</td></tr>
       <tr><td>端口顺序</td><td>CDL subckt 与 LVS setup 顺序不一致</td><td>假 LVS 失败或更危险的错误匹配</td></tr>
     </tbody>
   </table>
 
   <h2>6.5 LibreCell 当前实际交付到哪里</h2>
-  <p>本地 <code>lclayout</code> 的 dummy technology 配置了 GDS、LEF 和 Magic writer。它适合教学和研究原型，但当前 writer/验证的能力必须在交付前补齐：</p>
+  <p>本地 <code>lclayout</code> 的示例技术配置了 GDS、LEF 和 Magic 输出模块。它适合教学和研究原型，但当前输出/验证能力必须在交付前补齐：</p>
   <ul>
-    <li>LEF writer 当前把每个 pin 输出为 <code>INOUT SIGNAL</code>，pin direction/use 尚有 TODO；</li>
-    <li>LEF obstruction 为空，需根据内部布线和 PDK pin-access 策略生成或后处理；</li>
+    <li>LEF writer 当前把每个引脚输出为 <code>INOUT SIGNAL</code>，引脚方向/用途尚有 TODO；</li>
+    <li>LEF 布线阻挡为空，需根据内部布线和 PDK 引脚接入策略生成或后处理；</li>
     <li>内部 LVS 只提取有限金属层并忽略 body，不能代替 PDK deck；</li>
-    <li>GDS/LEF 生成不包含完整 Liberty 表征，也不自动产生可签核的整套库包。</li>
+    <li>GDS/LEF 生成不包含完整 Liberty 特征化，也不自动产生可签核的整套库包。</li>
   </ul>
 
-  <div class="callout good"><strong>正确的项目定义：</strong>把 LibreCell 当成“可修改的单元版图生成核心”，再在外围连接 foundry DRC/LVS/PEX、表征、视图修补和库级回归。教程后半部分会明确每个接口。</div>
+  <div class="callout good"><strong>正确的项目定义：</strong>把 LibreCell 当成“可修改的单元版图生成核心”，再在外围连接 foundry DRC/LVS/PEX、特征化、视图修补和库级回归。教程后半部分会明确每个接口。</div>
 
   <h2>6.6 最小教学库与生产库的差距</h2>
   <table>
     <thead><tr><th>阶段</th><th>建议单元</th><th>验收重点</th></tr></thead>
     <tbody>
       <tr><td>读图训练</td><td>INV、NAND2、NOR2</td><td>器件、拓扑、扩散共享</td></tr>
-      <tr><td>生成器 bring-up</td><td>再加 AOI21/OAI21、XOR/MUX、不同宽度</td><td>复杂拓扑、无共同 Euler、pin/routing 压力</td></tr>
+      <tr><td>生成器逐级打通</td><td>再加 AOI21/OAI21、XOR/MUX、不同宽度</td><td>复杂拓扑、无共同 Euler 顺序、引脚/布线压力</td></tr>
       <tr><td>库集成 smoke test</td><td>加入 BUF、DFF、filler、tap、endcap</td><td>时序 arc、物理单元、行拼接和 P&amp;R</td></tr>
       <tr><td>生产库</td><td>按规格完整 cell/drive/Vt 集合</td><td>全部 PVT、可靠性、DFM、硅相关与长期 QA</td></tr>
     </tbody>
@@ -109,13 +109,13 @@ GDS / LEF / CDL / Verilog / Liberty 等视图打包
     <strong>本章检查点</strong>
     <ol>
       <li>为什么 LEF 里需要 OBS，即使 GDS 中已经有内部金属？</li>
-      <li>为什么表征应基于通过 LVS 的 extracted netlist？</li>
+      <li>为什么特征化应基于通过 LVS 的提取后网表（extracted netlist）？</li>
       <li>请列出至少五个跨视图必须一致的字段。</li>
     </ol>
-    <details><summary>参考答案</summary><p>芯片路由器通常只读 LEF 抽象，不会从 GDS 推断阻挡。使用 LVS 后的提取网表能证明被表征的寄生电路与参考原理图对应。cell/pin 名、pin 方向/use、逻辑 function、尺寸/单位、端口顺序、PVT 和电源命名等都需一致。</p></details>
+    <details><summary>参考答案</summary><p>芯片级布线器通常只读 LEF 抽象，不会从 GDS 推断布线阻挡。使用 LVS 后的提取网表能证明被特征化的寄生电路与参考原理图对应。单元名、引脚名、引脚方向与用途、逻辑功能、尺寸与单位、端口顺序、PVT 和电源命名等都需一致。</p></details>
   </div>
 
-  <div class="source-note"><strong>阅读依据：</strong>《CMOS集成电路后端设计与实战》第 3～9 章覆盖标准单元电路/版图、LEF、物理抽取和表征；工业库应用资料用于检查 cell 类别、表征与 QA 是否漏项，不复制其专有内容。</div>
+  <div class="source-note"><strong>阅读依据：</strong>《CMOS集成电路后端设计与实战》第 3～9 章覆盖标准单元电路/版图、LEF、物理提取和特征化；工业库应用资料用于检查单元类别、特征化与 QA 是否漏项，不复制其专有内容。</div>
   <nav class="bottom-nav"><a href="chapter5.html">← 第 5 章</a><a href="chapter7.html">第 7 章：读懂 PDK 与设计规则 →</a></nav>
   <footer>第 6 章 · 一个库要交付哪些视图</footer>
 </main>

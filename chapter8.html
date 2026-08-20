@@ -27,8 +27,8 @@
     <tbody>
       <tr><td>DRC</td><td>版图几何 vs 设计规则</td><td>宽度、间距、包围、面积、密度等违规</td><td>逻辑连接正确、时序正确</td></tr>
       <tr><td>ERC</td><td>提取网络的电气约束</td><td>悬空井、非法电源连接、栅过压等</td><td>全部制造规则和功能</td></tr>
-      <tr><td>LVS</td><td>版图提取网表 vs 参考 SPICE/CDL</td><td>开路、短路、漏/多器件、参数或端口不匹配</td><td>寄生后性能、pin access、完整 DRC</td></tr>
-      <tr><td>PEX</td><td>从已验证版图抽取寄生</td><td>互连 R/C、耦合和器件寄生</td><td>模型本身的精度和全部系统性能</td></tr>
+      <tr><td>LVS</td><td>版图提取网表 vs 参考 SPICE/CDL</td><td>开路、短路、缺失/多余器件、参数或端口不匹配</td><td>寄生后性能、引脚可接入性、完整 DRC</td></tr>
+      <tr><td>PEX</td><td>从已验证版图提取寄生参数</td><td>互连 R/C、耦合和器件寄生</td><td>模型本身的精度和全部系统性能</td></tr>
     </tbody>
   </table>
 
@@ -38,7 +38,7 @@
     <li>只显示 well/implant/active，确认器件区域。</li>
     <li>加入 Poly，数 Active×Poly 交叠。</li>
     <li>加入 contact 和 M1，追局部网络。</li>
-    <li>加入 via/M2/pin，确认引脚访问与电源轨。</li>
+    <li>加入通孔/M2/引脚，确认引脚可接入性与电源轨。</li>
     <li>用 ruler 量测时同时确认显示单位和 GDS DBU。</li>
   </ol>
   <p>命令行打开：</p>
@@ -75,14 +75,14 @@ metal1.space(50.nm).output("m1.space", "M1 spacing violation")</code></pre>
 klayout -b -r examples/dummy_tech_checks.drc \
   -rd input=/tmp/dummy-drc-fixture.gds \
   -rd report=/tmp/dummy-drc-fixture.lyrdb</code></pre>
-  <p>打开报告应看到 gate/poly/M1/via 的 width 或 spacing marker。这个实验同时验证脚本语法、单位和报告浏览流程。</p>
+  <p>打开报告应看到栅、多晶硅、M1、通孔的宽度或间距违规标记。这个实验同时验证脚本语法、单位和报告浏览流程。</p>
 
   <h2>8.4 如何读 DRC 报告</h2>
   <ol class="steps">
     <li>记录 tool、deck、PDK 和 layout commit/version。</li>
     <li>先按 rule ID/category 聚类，不要按 marker 一个个随机修。</li>
     <li>确认 marker 所在 cell 和层次；区分单元内部、边界和拼接违规。</li>
-    <li>回到 DRM 阅读适用条件，判断生成器参数错误、路由选择错误还是缺少后处理能力。</li>
+    <li>回到 DRM 阅读适用条件，判断生成器参数错误、布线选择错误还是缺少后处理能力。</li>
     <li>修复后全量重跑，防止一个补丁引入另一类 spacing/area 违规。</li>
   </ol>
 
@@ -94,7 +94,7 @@ GDS ── layer derivation ─ device extraction ─┘</code></pre>
   <ol>
     <li><strong>端口：</strong>cell 名、pin 名、大小写、顺序、电源名是否一致？</li>
     <li><strong>器件数与类型：</strong>是否少提/多提 MOS，NMOS/PMOS/阈值类型是否正确？</li>
-    <li><strong>开短路：</strong>contact/via 是否缺失，两个网络是否意外合并？</li>
+    <li><strong>开短路：</strong>接触孔/通孔是否缺失，两个网络是否意外合并？</li>
     <li><strong>body：</strong>well/substrate/tap 是否接到正确电源？</li>
     <li><strong>参数：</strong>W/L、finger、并联串联归并和容差是否一致？</li>
   </ol>
@@ -102,9 +102,9 @@ GDS ── layer derivation ─ device extraction ─┘</code></pre>
   <div class="callout warn"><strong>本地内部 LVS 的边界：</strong><code>lclayout/lvs/lvs.py</code> 明确丢弃第 4 个 body 端子，并且提取能力只覆盖有限金属层，源码中还有“more than 2 metal layers”的 TODO。它能帮助捕捉早期连接错误，但新工艺验收必须以外部 PDK LVS/ERC 为准。</div>
 
   <h2>8.6 PEX 为什么必须在 LVS 之后</h2>
-  <p>PEX 在版图网络上添加寄生。如果网络本来就短路或开路，抽取出的精细 R/C 也没有意义。典型顺序是：</p>
-  <pre><code>DRC clean → LVS match → PEX → post-layout SPICE → characterization</code></pre>
-  <p>对标准单元，需关注输出扩散与互连电容、输入栅/布线电容、内部节点电容、金属/扩散电阻和耦合。表征工具应采用与目标 corner 对应的器件模型和 PEX tech。</p>
+  <p>PEX 在版图网络上添加寄生。如果网络本来就短路或开路，提取出的精细 R/C 也没有意义。典型顺序是：</p>
+  <pre><code>DRC 通过 → LVS 匹配 → PEX → 版图后 SPICE 仿真 → 特征化</code></pre>
+  <p>对标准单元，需关注输出扩散与互连电容、输入栅/布线电容、内部节点电容、金属/扩散电阻和耦合。特征化工具应采用与目标 PVT 条件（corner）对应的器件模型和 PEX 技术文件。</p>
 
   <h2>8.7 单元通过还不够：必须做拼接检查</h2>
   <p>标准单元会在 row 中以 R0、MX 等方向紧密相邻。单个 cell DRC clean 不代表两个 cell 边界组合 clean。最少应生成：</p>
@@ -123,11 +123,11 @@ GDS ── layer derivation ─ device extraction ─┘</code></pre>
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li>删除一个 via，为什么 DRC 可能仍然干净？</li>
+      <li>删除一个通孔，为什么 DRC 可能仍然无违规？</li>
       <li>为什么不能用 LibreCell 内部 LVS 的 pass 代替 foundry LVS？</li>
       <li>为什么单元拼接矩阵属于库签核，而不是可选美化？</li>
     </ol>
-    <details><summary>参考答案</summary><p>删除 via 可能没有留下任何非法几何，却造成开路，需 LVS 发现。内部 LVS 忽略 body 且层/器件提取有限。真实芯片中单元必然相邻和镜像，边界层组合可能产生单 cell 中不存在的 spacing/notch/well 违规。</p></details>
+    <details><summary>参考答案</summary><p>删除通孔可能没有留下任何非法几何，却造成开路，需 LVS 发现。内部 LVS 忽略体端且层/器件提取有限。真实芯片中单元必然相邻和镜像，边界层组合可能产生单个单元中不存在的间距、凹槽或井规则违规。</p></details>
   </div>
 
   <div class="source-note"><strong>工具依据：</strong><a href="https://www.klayout.de/doc/manual/basic.html">KLayout 基础手册</a>与<a href="https://www.klayout.de/doc/manual/drc_basic.html">官方 DRC 基础文档</a>。Calibre 手册只用于理解工业验证分层，本教程的可执行入门实验采用 KLayout。</div>

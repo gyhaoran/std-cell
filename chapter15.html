@@ -15,107 +15,107 @@
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>建立可追踪的 PDK intake、能力矩阵和单元架构规格。</li>
-      <li>按 device coupon→INV→NAND/NOR→complex gate 的顺序 bring-up。</li>
+      <li>建立可追踪的 PDK 资料清点、能力矩阵和单元架构规格。</li>
+      <li>按器件测试结构→INV→NAND/NOR→复杂门的顺序逐级打通。</li>
       <li>交付代码、技术文件、测试、外部验证和已知限制，而不只是若干 GDS。</li>
     </ul>
   </div>
 
   <h2>15.1 先定义“迁移完成”</h2>
   <p>本教程的毕业目标不是“LibreCell 对新工艺跑完一次”，而是：</p>
-  <blockquote>在固定 PDK、deck、工具、LibreCell commit 和环境下，可重复地从受控晶体管网表生成目标单元；所有层/器件/网络/单位可追踪；通过外部 DRC/LVS/ERC/PEX、边界拼接和 P&amp;R smoke；输出视图一致；未支持能力有明确阻断或风险说明。</blockquote>
-  <p>如果 PDK 本身不允许自动生成、缺少授权 deck 或不能把验证结果保存到项目环境中，应停在 capability study，不得把教学结果标记为可制造。</p>
+  <blockquote>在固定 PDK、验证规则文件（deck）、工具、LibreCell 提交和环境下，可重复地从受控晶体管网表生成目标单元；所有层/器件/网络/单位可追踪；通过外部 DRC/LVS/ERC/PEX、边界拼接和 P&amp;R 冒烟测试；输出视图一致；未支持能力有明确阻断或风险说明。</blockquote>
+  <p>如果 PDK 本身不允许自动生成、缺少授权验证规则文件或不能把验证结果保存到项目环境中，应停在能力评估阶段，不得把教学结果标记为可制造。</p>
 
-  <h2>15.2 Phase 0：冻结输入与许可边界</h2>
+  <h2>15.2 阶段 0：冻结输入与许可边界</h2>
   <table>
     <thead><tr><th>对象</th><th>必须记录</th></tr></thead>
     <tbody>
       <tr><td>PDK</td><td>工艺 option、release/version、安装摘要、可使用工具与许可限制</td></tr>
       <tr><td>DRC/LVS/PEX</td><td>deck 名、版本、runset、tool/version、适用 option</td></tr>
-      <tr><td>器件模型</td><td>model library、corner include、温度/电压、合法几何范围</td></tr>
+      <tr><td>器件模型</td><td>模型库、PVT 条件文件、温度/电压、合法几何范围</td></tr>
       <tr><td>LibreCell</td><td>fork、commit、patch series、Python/lock/container digest</td></tr>
       <tr><td>库规格</td><td>cell list、drive/Vt、目标 PVT、site/height、命名和交付视图</td></tr>
     </tbody>
   </table>
   <div class="callout warn"><strong>不要把受限 PDK、厂商应用资料或 deck 提交到公开教程仓库。</strong>公开代码只保存接口、规则 ID、hash/版本与不含专有数值的测试框架；私有配置在受控环境中管理。</div>
 
-  <h2>15.3 Phase 1：PDK intake 清单</h2>
+  <h2>15.3 阶段 1：PDK 资料清点</h2>
   <ol class="steps">
     <li><strong>层：</strong>制造层、purpose、GDS map、pin/label、派生层、器件 marker、boundary。</li>
     <li><strong>器件：</strong>NMOS/PMOS/Vt/电压类型、D/G/S/B、model 名、W/L/nf/m、tap/well。</li>
-    <li><strong>互连：</strong>contact、LI、metal/via 栈、preferred direction、合法堆叠、via array。</li>
+    <li><strong>互连：</strong>接触孔、局部互连层（LI）、金属/通孔栈、优选方向、合法堆叠、通孔阵列。</li>
     <li><strong>规则：</strong>基础几何、条件 spacing/EOL、density、antenna、latch-up、EM、DFM。</li>
     <li><strong>库接口：</strong>site、track、power rail、tapless/tapped、edge/abutment、允许方向。</li>
     <li><strong>工具：</strong>batch 命令、环境变量、输入输出格式、error taxonomy 和零违规标准。</li>
   </ol>
   <p>给每项一个权威 source 与 rule ID。不要用“类似某开放工艺”填空。</p>
 
-  <h2>15.4 Phase 2：建立能力矩阵</h2>
+  <h2>15.4 阶段 2：建立能力矩阵</h2>
   <table>
     <thead><tr><th>等级</th><th>判定</th><th>行动</th></tr></thead>
     <tbody>
       <tr><td>A：技术文件可表达</td><td>已有内部层/器件结构，只有尺寸、map、成本不同</td><td>配置+schema test+外部签核</td></tr>
-      <tr><td>B：需要局部生成扩展</td><td>需 implant/marker/特殊模板，但不改变核心路由拓扑</td><td>扩展 transistor/template/writer 并增加几何 golden test</td></tr>
-      <tr><td>C：需要核心架构扩展</td><td>LI/M3+、多 cut、复杂器件、4T body、额外 route layer</td><td>设计新内部 layer/device API，联动 routing/LVS/writer</td></tr>
+      <tr><td>B：需要局部生成扩展</td><td>需注入层/标记层/特殊模板，但不改变核心布线拓扑</td><td>扩展晶体管/模板/输出模块并增加几何基准测试</td></tr>
+      <tr><td>C：需要核心架构扩展</td><td>LI/M3+、多切割层、复杂器件、四端体连接、额外布线层</td><td>设计新的内部层/器件 API，联动布线、LVS 和输出模块</td></tr>
       <tr><td>D：当前不支持/阻断</td><td>规则或器件无法可靠生成/验证</td><td>停止该工艺/单元类别，记录 gap 与实现计划</td></tr>
     </tbody>
   </table>
-  <p>矩阵至少覆盖：模型识别、内部层栈、器件提取、tap/body、implant/Vt、基本规则、条件规则、pin/LEF、外部 DRC/LVS/PEX、表征、特殊物理单元。</p>
+  <p>矩阵至少覆盖：模型识别、内部层栈、器件提取、阱/衬底接触与体端、注入层/Vt、基本规则、条件规则、引脚/LEF、外部 DRC/LVS/PEX、特征化、特殊物理单元。</p>
 
-  <h2>15.5 Phase 3：先定标准单元架构</h2>
+  <h2>15.5 阶段 3：先定标准单元架构</h2>
   <p>架构文档必须给出并说明理由：</p>
   <ul>
     <li>DBU、manufacturing grid、site width、cell height/track 数；</li>
-    <li>gate pitch、NMOS/PMOS 可用高度与 sizing/finger 策略；</li>
+    <li>栅节距、NMOS/PMOS 可用高度与尺寸调整/多指策略；</li>
     <li>VDD/VSS layer/width/y、相邻 row 的共享方式；</li>
     <li>signal pin layer、access direction、每 pin 最低 access 目标；</li>
     <li>well/implant/tap 架构和最大 tap 距离；</li>
     <li>left/right/top/bottom boundary ownership、R0/MX 等合法方向；</li>
     <li>filler、tap、endcap、decap、antenna cell 的接口。</li>
   </ul>
-  <p>不要直接用 PDK 最小规则拼出最低高度。先对 INV/NAND/NOR 做手工或脚本化 feasibility study，确认晶体管、接触孔、至少一条内部 route 和 pin access 能共存。</p>
+  <p>不要直接用 PDK 最小规则拼出最低高度。先对 INV/NAND/NOR 做手工或脚本化可行性研究，确认晶体管、接触孔、至少一条内部走线和引脚接入点能共存。</p>
 
-  <h2>15.6 Phase 4：建立技术适配骨架</h2>
+  <h2>15.6 阶段 4：建立技术适配骨架</h2>
   <ol>
     <li>从 <code>dummy_tech.py</code> 复制结构到私有适配目录，立即删除/替换所有 dummy 数值。</li>
-    <li>先实现 DBU、output map 和 writers，生成仅含 boundary/测试矩形的 layer smoke GDS。</li>
-    <li>增加 tech schema checker：字段存在、量纲、键覆盖、via layer pair、grid 整除、writer map。</li>
+    <li>先实现 DBU、输出映射和输出模块，生成仅含边界/测试矩形的分层冒烟测试 GDS。</li>
+    <li>增加技术配置结构检查器：字段存在、量纲、键覆盖、通孔层对、网格整除和输出映射。</li>
     <li>用显式 model mapping 替代首字母启发式；未知模型 fail closed。</li>
-    <li>按能力矩阵扩展内部 layers、via graph、device drawing、extraction 和 writers。</li>
+    <li>按能力矩阵扩展内部层、通孔连接图、器件绘制、提取和输出模块。</li>
     <li>把每个 DRM rule ID 映射到：生成约束、外部 deck 检查或已知 unsupported。</li>
   </ol>
 
-  <h2>15.7 Phase 5：由小到大的 bring-up 梯子</h2>
+  <h2>15.7 阶段 5：由小到大的逐级打通</h2>
   <table>
     <thead><tr><th>关卡</th><th>输入</th><th>必须证明</th></tr></thead>
     <tbody>
-      <tr><td>Layer coupon</td><td>每个 drawing/pin/label/cut 的小矩形</td><td>GDS map、DBU、viewer/deck 都认对层</td></tr>
-      <tr><td>Device coupon</td><td>单 NMOS、单 PMOS、tap、contact/via chain</td><td>外部提取类型/DGSB/WL 正确，基础 DRC clean</td></tr>
-      <tr><td>INV</td><td>2T</td><td>完整 pipeline、pin/power、LVS/PEX、首个 LEF overlay</td></tr>
-      <tr><td>NAND2/NOR2</td><td>4T</td><td>串并联、共享 diffusion、内部 net、共同栅顺序</td></tr>
-      <tr><td>AOI/OAI</td><td>6T+</td><td>分支网络、无简单共同 Euler、routing stress</td></tr>
-      <tr><td>MUX/XOR/宽驱动</td><td>复杂/多 finger</td><td>模型假设、folding、pin access、拥塞与寄生</td></tr>
+      <tr><td>层测试结构</td><td>每个绘图层/引脚层/标签层/切割层的小矩形</td><td>GDS 映射、DBU、查看器和验证规则均识别正确</td></tr>
+      <tr><td>器件测试结构</td><td>单 NMOS、单 PMOS、阱/衬底接触、接触孔/通孔链</td><td>外部提取的器件类型、D/G/S/B 和 W/L 正确，基础 DRC 无违规</td></tr>
+      <tr><td>INV</td><td>2T</td><td>完整流水线、信号/电源引脚、LVS/PEX、首次 LEF/GDS 叠图检查</td></tr>
+      <tr><td>NAND2/NOR2</td><td>4T</td><td>串并联、共享扩散区、内部网络、共同栅顺序</td></tr>
+      <tr><td>AOI/OAI</td><td>6T+</td><td>分支网络、无简单共同 Euler 顺序、布线压力</td></tr>
+      <tr><td>MUX/XOR/宽驱动</td><td>复杂/多指</td><td>模型假设、折叠、引脚可接入性、拥塞与寄生</td></tr>
       <tr><td>顺序/物理单元</td><td>DFF、filler、tap、endcap</td><td>时序 arc、边界职责和 row 集成</td></tr>
     </tbody>
   </table>
-  <p>每一关都要保存 reference schematic、layout、外部 DRC/LVS/PEX 结果和预期失败测试。上一关未通过，不扩大 cell corpus。</p>
+  <p>每一关都要保存参考原理图、版图、外部 DRC/LVS/PEX 结果和预期失败测试。上一关未通过，不扩大单元用例集。</p>
 
-  <h2>15.8 Phase 6：最小回归 corpus</h2>
-  <p>回归不能只跑“当前能成功的 cell”。至少包含：</p>
+  <h2>15.8 阶段 6：最小回归用例集</h2>
+  <p>回归不能只跑“当前能成功的单元”。至少包含：</p>
   <ul>
     <li>INVX1：单位、最小结构；</li>
     <li>INV 大驱动：finger/并联与 min-area 压力；</li>
     <li>NAND2/NOR2：串并联对偶；</li>
-    <li>AOI21/OAI21：分支与层次放置；</li>
+    <li>AOI21/OAI21：分支与层次布局；</li>
     <li>MUX2/XOR2：复杂内部网络；</li>
     <li>一个故意错误模型名：应在读取阶段失败；</li>
-    <li>一个无合法 routing terminal 的配置：应输出明确诊断；</li>
+    <li>一个无合法布线端点的配置：应输出明确诊断；</li>
     <li>每个 special/edge cell 类别至少一个。</li>
   </ul>
   <p>不要在批处理末尾用 <code>grep</code> 只显示成功项，也不要用 shell 逻辑吞掉退出码。生成清单必须明确标记 pass/fail/skipped 与原因。</p>
 
-  <h2>15.9 Phase 7：边界和行级测试</h2>
-  <p>自动生成 abutment test layout：</p>
+  <h2>15.9 阶段 7：边界和行级测试</h2>
+  <p>自动生成相邻拼接测试版图：</p>
   <pre><code>left_cell × right_cell × legal_orientation_pair
 逻辑/物理 cell 类别覆盖，而不是简单全量平方爆炸</code></pre>
   <p>检查 well/implant/active/metal/pin/boundary 在 cell edge 的 spacing、notch、max gap、continuity；再生成多 row 测试确认上下 VDD/VSS、MX 镜像、tap/endcap/filler 的组合。</p>
@@ -129,7 +129,7 @@
       <tr><td>架构规格</td><td>DBU/site/height/grid/rail/pin/tap/boundary</td></tr>
       <tr><td>代码与技术文件</td><td>最小 patch、schema、注释中的 rule ID，不含无权发布内容</td></tr>
       <tr><td>测试</td><td>unit、coupon、cell corpus、negative、abutment、P&amp;R</td></tr>
-      <tr><td>验证证据</td><td>DRC/LVS/ERC/PEX、表征、视图一致性、QA 报告</td></tr>
+      <tr><td>验证证据</td><td>DRC/LVS/ERC/PEX、特征化、视图一致性、QA 报告</td></tr>
       <tr><td>已知限制</td><td>unsupported rule/device/cell、风险、禁止使用范围</td></tr>
     </tbody>
   </table>
@@ -147,7 +147,7 @@
     </ol>
   </div>
 
-  <nav class="bottom-nav"><a href="chapter14.html">← 第 14 章</a><a href="chapter16.html">第 16 章：签核、表征与 P&amp;R 回归 →</a></nav>
+  <nav class="bottom-nav"><a href="chapter14.html">← 第 14 章</a><a href="chapter16.html">第 16 章：签核、特征化与 P&amp;R 回归 →</a></nav>
   <footer>第 15 章 · 新工艺迁移毕业项目</footer>
 </main>
 </body>

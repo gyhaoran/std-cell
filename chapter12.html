@@ -58,11 +58,11 @@ git -C /home/jasper/code/github/librecell rev-parse HEAD</code></pre>
       <tr><td><code>--cell NAME</code></td><td>是</td><td>选择网表中的一个 <code>.subckt</code></td></tr>
       <tr><td><code>--netlist FILE</code></td><td>是</td><td>输入晶体管级 SPICE</td></tr>
       <tr><td><code>--tech FILE</code></td><td>是</td><td>执行并加载 Python 技术文件</td></tr>
-      <tr><td><code>--output-dir DIR</code></td><td>否，默认当前目录</td><td>所有 writer 的输出目录</td></tr>
-      <tr><td><code>--placer</code></td><td>否，默认 <code>meta</code></td><td><code>meta/flat/hierarchical/smt/random/hillclimb/ta</code></td></tr>
-      <tr><td><code>--signal-router</code></td><td>否，默认 <code>dijkstra</code></td><td><code>dijkstra/steiner</code></td></tr>
-      <tr><td><code>--placement-file FILE</code></td><td>否</td><td>文件不存在时保存 placement，存在时加载复用</td></tr>
-      <tr><td><code>--debug-routing-graph</code></td><td>否</td><td>输出路由图而不是正常 wire，用于诊断 terminal/grid</td></tr>
+      <tr><td><code>--output-dir DIR</code></td><td>否，默认当前目录</td><td>所有输出模块（writer）的输出目录</td></tr>
+      <tr><td><code>--placer</code></td><td>否，默认 <code>meta</code></td><td>选择布局器：<code>meta/flat/hierarchical/smt/random/hillclimb/ta</code></td></tr>
+      <tr><td><code>--signal-router</code></td><td>否，默认 <code>dijkstra</code></td><td>选择信号布线器：<code>dijkstra/steiner</code></td></tr>
+      <tr><td><code>--placement-file FILE</code></td><td>否</td><td>文件不存在时保存布局结果，存在时加载复用</td></tr>
+      <tr><td><code>--debug-routing-graph</code></td><td>否</td><td>输出布线图而不是正常布线图形，用于诊断端子和网格</td></tr>
       <tr><td><code>--debug-smt-solver</code></td><td>否</td><td>显示 SMT 清理相关调试信息</td></tr>
       <tr><td><code>-v/--verbose</code></td><td>否</td><td>打开 DEBUG 日志；这是布尔开关，<code>-vv</code> 无效</td></tr>
       <tr><td><code>-q/--quiet</code>、<code>--log FILE</code></td><td>否</td><td>控制日志</td></tr>
@@ -87,7 +87,7 @@ PYTHONHASHSEED=42 lclayout \
   --signal-router dijkstra \
   --log "$TUTORIAL_OUT/INVX1.log" \
   --verbose</code></pre>
-  <p>固定 <code>PYTHONHASHSEED=42</code> 是项目 README 给出的非确定性 workaround。它不证明所有算法完全确定；还应比较输出 hash、placement JSON 和关键指标。</p>
+  <p>固定 <code>PYTHONHASHSEED=42</code> 是项目 README 给出的非确定性临时规避办法。它不证明所有算法完全确定；还应比较输出哈希、布局 JSON 和关键指标。</p>
 
   <h2>12.5 输出应当有什么</h2>
   <pre><code>ls -lh "$TUTORIAL_OUT"
@@ -98,16 +98,16 @@ klayout "$TUTORIAL_OUT/INVX1.gds"</code></pre>
   <table>
     <thead><tr><th>文件</th><th>检查内容</th></tr></thead>
     <tbody>
-      <tr><td><code>INVX1.gds</code></td><td>top cell、DBU、层号、2 只 MOS、VDD/VSS、A/Y、via/contact 与边界</td></tr>
-      <tr><td><code>INVX1.lef</code></td><td>macro size、site、pin port；同时记录 direction/use 与 OBS 的已知缺陷</td></tr>
-      <tr><td><code>INVX1.mag</code></td><td>Magic tech 名、矩形和 port；这是 dummy writer 的第三种输出</td></tr>
-      <tr><td><code>INVX1-placement.json</code></td><td>晶体管名称、slot 坐标、翻转后的 source/gate/drain</td></tr>
-      <tr><td><code>INVX1.log</code></td><td>placer/router、迭代、内部 LVS SUCCESS、writer 路径和总耗时</td></tr>
+      <tr><td><code>INVX1.gds</code></td><td>顶层单元、DBU、层号、2 只 MOS、VDD/VSS、A/Y、通孔/接触孔与边界</td></tr>
+      <tr><td><code>INVX1.lef</code></td><td>宏单元尺寸、站点、引脚端口；同时记录方向/用途与 OBS 的已知缺陷</td></tr>
+      <tr><td><code>INVX1.mag</code></td><td>Magic 技术名、矩形和端口；这是 dummy 配置的第三种输出</td></tr>
+      <tr><td><code>INVX1-placement.json</code></td><td>晶体管名称、槽位坐标、翻转后的源/栅/漏</td></tr>
+      <tr><td><code>INVX1.log</code></td><td>布局器/布线器、迭代、内部 LVS SUCCESS、输出路径和总耗时</td></tr>
     </tbody>
   </table>
 
-  <h2>12.6 把同一 placement 用于可比实验</h2>
-  <p><code>--placement-file</code> 已存在时会直接加载，因此可以只比较 router/technology 改动，避免 placement 变化干扰：</p>
+  <h2>12.6 把同一布局结果用于可比实验</h2>
+  <p><code>--placement-file</code> 已存在时会直接加载，因此可以只比较布线器或技术配置的改动，避免布局变化干扰：</p>
   <pre><code>mkdir -p /tmp/librecell-tutorial-steiner
 
 PYTHONHASHSEED=42 lclayout \
@@ -118,7 +118,7 @@ PYTHONHASHSEED=42 lclayout \
   --placement-file /tmp/librecell-tutorial-invx1/INVX1-placement.json \
   --signal-router steiner \
   --verbose</code></pre>
-  <p>反过来比较 placer 时，应给每个 placer 一个新的 placement 路径；否则它会加载旧 JSON，导致你误以为切换 placer 没有效果。</p>
+  <p>反过来比较布局器时，应给每个布局器一个新的布局文件路径；否则程序会加载旧 JSON，导致你误以为切换布局器没有效果。</p>
 
   <h2>12.7 常见失败的定位顺序</h2>
   <table>
@@ -128,8 +128,8 @@ PYTHONHASHSEED=42 lclayout \
       <tr><td><code>No such circuit</code></td><td><code>--cell</code> 与 <code>.subckt</code> 名称；KLayout 解析会转大写</td></tr>
       <tr><td>找不到 supply/ground</td><td>端口是否使用代码识别的 vdd/vcc/vpwr 与 gnd/vss/vgnd/0</td></tr>
       <tr><td>model 类型反了</td><td>本地规则是模型名以 n 开头→NMOS，其余→PMOS</td></tr>
-      <tr><td>net 没有 routing terminal</td><td>用 <code>--debug-routing-graph</code> 检查 grid、offset、enclosure 和端子</td></tr>
-      <tr><td><code>Failed to route</code></td><td>合法图是否有通路、冲突是否过密，再比较 router/cost</td></tr>
+      <tr><td>网络没有布线端点</td><td>用 <code>--debug-routing-graph</code> 检查网格节距、偏移、包围量和端子</td></tr>
+      <tr><td><code>Failed to route</code></td><td>合法布线图是否有通路、冲突是否过密，再比较布线器和成本</td></tr>
       <tr><td>LVS failed</td><td>先查端口/器件类型/开短路；<code>--ignore-lvs</code> 只输出诊断版图</td></tr>
     </tbody>
   </table>
@@ -142,11 +142,11 @@ PYTHONHASHSEED=42 lclayout \
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li>为什么不能在已有 placement JSON 时比较 placer？</li>
+      <li>为什么不能在已有布局 JSON 时比较布局器？</li>
       <li>为什么 <code>--ignore-lvs</code> 不能出现在发布流水线？</li>
       <li>本地 dummy tech 实际写出哪三种物理文件？</li>
     </ol>
-    <details><summary>参考答案</summary><p>已有 JSON 会绕过放置器并直接加载。ignore-lvs 会让不匹配版图继续输出，破坏正确性门禁。当前配置写 GDS、LEF 和 MAG。</p></details>
+    <details><summary>参考答案</summary><p>已有 JSON 会绕过布局器并直接加载。<code>--ignore-lvs</code> 会让不匹配版图继续输出，破坏正确性门禁。当前配置写 GDS、LEF 和 MAG。</p></details>
   </div>
 
   <nav class="bottom-nav"><a href="chapter11.html">← 第 11 章</a><a href="chapter13.html">第 13 章：技术文件逐字段拆解 →</a></nav>

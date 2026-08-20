@@ -16,7 +16,7 @@
   <h1>从零读懂并生成 CMOS 标准单元</h1>
   <p class="subtitle">版图识读、图算法、LibreCell 源码、新工艺迁移与库级验证</p>
 
-  <p class="lead">这不是一份“复制命令即可成功”的速查表。它从有源区、栅、多晶硅、接触孔这些最基础的对象讲起，最终要求你能审查一个新 PDK、修改 LibreCell 的技术适配和必要源码，并用外部 DRC/LVS/PEX、表征和 P&amp;R 回归证明结果可用。</p>
+  <p class="lead">这不是一份“复制命令即可成功”的速查表。它从有源区、栅、多晶硅、接触孔这些最基础的对象讲起，最终要求你能审查一个新 PDK、修改 LibreCell 的技术适配和必要源码，并用外部 DRC/LVS/PEX、特征化和 P&amp;R 回归证明结果可用。</p>
 
   <div class="callout warn">
     <h2 style="margin-top:0;border:0;padding:0">先知道教程的边界</h2>
@@ -79,8 +79,8 @@
     <h2>第三部分　为布局布线补齐算法基础</h2>
     <ul class="toc-list">
       <li><a href="chapter9.html"><strong>第 9 章　算法小白也能用的图论</strong><small>图、路径、连通分量、树、权重、容量与复杂度</small></a></li>
-      <li><a href="chapter10.html"><strong>第 10 章　晶体管放置</strong><small>Euler 放置、层次放置、分区与本地 MetaPlacer 的真实选择逻辑</small></a></li>
-      <li><a href="chapter11.html"><strong>第 11 章　单元内部布线</strong><small>路由图、Dijkstra、Steiner、拥塞协商及 LibreCell 的实际实现</small></a></li>
+      <li><a href="chapter10.html"><strong>第 10 章　晶体管布局</strong><small>Euler 布局、层次布局、分区与本地 MetaPlacer 的真实选择逻辑</small></a></li>
+      <li><a href="chapter11.html"><strong>第 11 章　单元内部布线</strong><small>布线图、Dijkstra、Steiner、拥塞协商及 LibreCell 的实际实现</small></a></li>
     </ul>
   </section>
 
@@ -88,8 +88,8 @@
     <h2>第四部分　进入 LibreCell</h2>
     <ul class="toc-list">
       <li><a href="chapter12.html"><strong>第 12 章　固定版本并生成第一个单元</strong><small>可复现环境、真实 CLI、日志、GDS/LEF/MAG 输出与失败定位</small></a></li>
-      <li><a href="chapter13.html"><strong>第 13 章　技术文件逐字段拆解</strong><small>以 dummy_tech.py 为接口规范，解释单位、规则、路由和输出映射</small></a></li>
-      <li><a href="chapter14.html"><strong>第 14 章　沿源码走完整流水线</strong><small>从 SPICE 读取到放置、绘制、布线、后处理、内部 LVS 和 writer</small></a></li>
+      <li><a href="chapter13.html"><strong>第 13 章　技术文件逐字段拆解</strong><small>以 dummy_tech.py 为接口规范，解释单位、规则、布线和输出映射</small></a></li>
+      <li><a href="chapter14.html"><strong>第 14 章　沿源码走完整流水线</strong><small>从 SPICE 读取到布局、绘制、布线、后处理、内部 LVS 和输出模块</small></a></li>
     </ul>
   </section>
 
@@ -97,7 +97,7 @@
     <h2>第五部分　新工艺迁移与库级验收</h2>
     <ul class="toc-list">
       <li><a href="chapter15.html"><strong>第 15 章　新工艺迁移毕业项目</strong><small>PDK 盘点、能力矩阵、代码改造、最小单元集与逐级验收</small></a></li>
-      <li><a href="chapter16.html"><strong>第 16 章　签核、表征与 P&amp;R 回归</strong><small>外部 DRC/LVS/PEX、PVT、时序功耗、LEF 可布线性与 abutment</small></a></li>
+      <li><a href="chapter16.html"><strong>第 16 章　签核、特征化与 P&amp;R 回归</strong><small>外部 DRC/LVS/PEX、PVT、时序功耗、LEF 可布线性与相邻拼接</small></a></li>
       <li><a href="appendix.html"><strong>附录　术语、排错树、清单与延伸资源</strong><small>命令速查、源代码入口、学习资源和项目验收表</small></a></li>
     </ul>
   </section>
@@ -107,11 +107,11 @@
     <table>
       <thead><tr><th>资料</th><th>在本教程中的用途</th><th>使用原则</th></tr></thead>
       <tbody>
-        <tr><td><code>std-cell-generator.pdf</code></td><td>理解 2003 年生成器的 gridless/全局布线/river routing 思路</td><td>作为历史对照；不把其算法冒充为 LibreCell 实现</td></tr>
+        <tr><td><code>std-cell-generator.pdf</code></td><td>理解 2003 年生成器的无网格、全局布线和河流式布线思路</td><td>作为历史对照；不把其算法冒充为 LibreCell 实现</td></tr>
         <tr><td><em>Fundamentals of Layout Design for Electronic Circuits</em></td><td>工艺、版图数据、设计规则、DRC/LVS、可靠性</td><td>用于建立稳定的通用概念</td></tr>
         <tr><td>《CMOS版图设计基础》</td><td>逐层识图、stick diagram、Euler 图和标准单元构造</td><td>重新绘图并结合现代 PDK 说明适用范围</td></tr>
-        <tr><td>《CMOS集成电路后端设计与实战》</td><td>标准单元设计、LEF、抽取、表征和后端使用</td><td>提炼方法，不依赖其中过时的软件界面</td></tr>
-        <tr><td><code>EDA_routing.pdf</code></td><td>图搜索、全局/详细布线、容量与拥塞的算法背景</td><td>明确“芯片级路由”和“单元内部路由”的尺度差异</td></tr>
+        <tr><td>《CMOS集成电路后端设计与实战》</td><td>标准单元设计、LEF、提取、特征化和后端使用</td><td>提炼方法，不依赖其中过时的软件界面</td></tr>
+        <tr><td><code>EDA_routing.pdf</code></td><td>图搜索、全局/详细布线、容量与拥塞的算法背景</td><td>明确“芯片级布线”和“单元内部布线”的尺度差异</td></tr>
         <tr><td>Calibre/厂商应用文档</td><td>核对工业验证和库使用流程是否漏项</td><td>不复制专有 deck、工艺数值、表格和限制；公开教程优先使用开放资料</td></tr>
       </tbody>
     </table>

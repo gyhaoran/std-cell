@@ -17,7 +17,7 @@
     <ul>
       <li>理解技术文件是被执行的 Python module，不是通用 PDK schema。</li>
       <li>掌握当前版本真正读取的全部字段及单位。</li>
-      <li>能判断新工艺需求是 output map、参数调整，还是内部层/器件/路由代码扩展。</li>
+      <li>能判断新工艺需求是输出映射、参数调整，还是内部层/器件/布线代码扩展。</li>
     </ul>
   </div>
 
@@ -31,7 +31,7 @@
 ndiff_contact, pdiff_contact, poly_contact
 metal1, via1, metal2
 metal1/metal2 label 与 pin，abutment_box</code></pre>
-  <p>内部 via connectivity 也固定为 diffusion/poly↔M1 和 M1↔M2。技术文件中的 <code>output_map</code> 只是在 writer 阶段把这些内部层复制到目标 GDS <code>(layer, datatype)</code>，并没有把内部拓扑变成任意 PDK 层栈。</p>
+  <p>内部通孔连通关系也固定为扩散区/多晶硅↔M1 和 M1↔M2。技术文件中的 <code>output_map</code> 只是在输出阶段把这些内部层复制到目标 GDS <code>(layer, datatype)</code>，并没有把内部拓扑变成任意 PDK 层栈。</p>
 
   <pre><code>my_metal1 = (6, 0)
 my_metal1_pin = (6, 2)
@@ -41,7 +41,7 @@ output_map = {
     l_metal1_pin: my_metal1_pin,
     l_nwell: [(2, 0), (2, 1)],  # 一个内部层可复制到多个输出层
 }</code></pre>
-  <p>如果目标工艺需要 LI、gate contact 特殊栈、多种 cut、M3+、不同阈值 implant 或布尔派生层，单靠 <code>output_map</code> 通常不够；要扩展内部层、via graph、transistor drawing、routing、LVS 和 writer。</p>
+  <p>如果目标工艺需要局部互连层（LI）、特殊栅接触栈、多种切割层、M3+、不同阈值注入层或布尔派生层，单靠 <code>output_map</code> 通常不够；要扩展内部层、通孔连接图、晶体管绘制、布线、LVS 和输出模块。</p>
 
   <h2>13.3 单位链必须完整推导</h2>
   <pre><code># 技术文件
@@ -52,15 +52,15 @@ unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
   <p>输入 SPICE 的 W 经 KLayout netlist parser 读取后被转换到米，再除以 <code>db_unit</code> 形成内部 channel width，之后乘 <code>transistor_channel_width_sizing</code> 并夹到 NMOS/PMOS 最小 gate width。GDS writer 又把米/DBU 换为 KLayout 要求的 µm/DBU；LEF writer按自己的 <code>db_unit</code> 计算缩放。</p>
   <div class="callout warn"><strong>迁移检查：</strong>选 INV 这样可手算的单元，从 SPICE W/L 一路打印到内部整数、GDS ruler 和 LEF SIZE/PIN 坐标。四者任一不一致就停止，不要靠“整体缩放 GDS”补救。</div>
 
-  <h2>13.4 输出 writer</h2>
+  <h2>13.4 输出模块（writer）</h2>
   <pre><code>output_writers = [
     MagWriter(tech_name="scmos", scale_factor=0.1, output_map={...}),
     LefWriter(db_unit=1e-6, output_map=output_map, site="CORE"),
     GdsWriter(db_unit=db_unit, output_map=output_map),
 ]</code></pre>
-  <p>writer 列表就是实际输出能力。删除一个 writer 就不会生成对应文件；添加新格式应实现 <code>Writer</code> 接口。Magic 的层名/缩放与 GDS map 是两个不同配置，不能假定自动同步。</p>
+  <p>输出模块列表就是实际输出能力。删除一个 writer 就不会生成对应文件；添加新格式应实现 <code>Writer</code> 接口。Magic 的层名/缩放与 GDS 映射是两个不同配置，不能假定自动同步。</p>
 
-  <h2>13.5 路由资源和层用途</h2>
+  <h2>13.5 布线资源和层用途</h2>
   <table>
     <thead><tr><th>字段</th><th>真实含义</th><th>典型风险</th></tr></thead>
     <tbody>
@@ -75,50 +75,50 @@ unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
   <table>
     <thead><tr><th>字段</th><th>控制对象</th></tr></thead>
     <tbody>
-      <tr><td><code>unit_cell_width</code></td><td>最小横向单元步长，也用于 gate slot pitch；最终宽度是 <code>(placement_width+1)×unit_cell_width</code></td></tr>
+      <tr><td><code>unit_cell_width</code></td><td>最小横向单元步长，也用于栅槽位节距；最终宽度是 <code>(placement_width+1)×unit_cell_width</code></td></tr>
       <tr><td><code>unit_cell_height</code></td><td>固定 cell height 和上下电源轨 y 位置</td></tr>
       <tr><td><code>gate_length</code></td><td>Poly gate path 的线宽，也就是生成几何的沟道 L</td></tr>
       <tr><td><code>gate_extension</code></td><td>Poly 超出 active 上下边界的长度</td></tr>
-      <tr><td><code>transistor_offset_y</code></td><td>active 到上下 cell 边界的放置偏移；代码会检查与 active/poly spacing 的关系</td></tr>
+      <tr><td><code>transistor_offset_y</code></td><td>有源区到上下单元边界的纵向偏移；代码会检查与有源区/多晶硅间距的关系</td></tr>
       <tr><td><code>minimum_gate_width_nfet/pfet</code></td><td>输入 W 太小时的下限</td></tr>
       <tr><td><code>transistor_channel_width_sizing</code></td><td>对所有输入 W 的全局缩放因子</td></tr>
       <tr><td><code>power_rail_width</code></td><td>上下电源 path 宽度</td></tr>
       <tr><td><code>minimum_pin_width</code></td><td>pin 相关最小尺寸参数</td></tr>
     </tbody>
   </table>
-  <p>这些参数并非互相独立。例如 <code>transistor_offset_y</code> 必须同时容纳 active spacing 与 <code>gate_extension + poly spacing/2</code>；gate 中心还必须落在 x routing grid 上。</p>
+  <p>这些参数并非互相独立。例如 <code>transistor_offset_y</code> 必须同时容纳有源区间距与 <code>gate_extension + poly spacing/2</code>；栅中心还必须落在 x 方向布线网格上。</p>
 
   <h2>13.7 网格字段</h2>
   <pre><code>routing_grid_pitch_x = ...
 routing_grid_pitch_y = ...
 grid_offset_x = ...
 grid_offset_y = ...</code></pre>
-  <p>pitch 决定候选节点间距，offset 决定第一列/行的位置。更密的网格提供更多候选但图更大，且不能自动使违规路径合法；更疏的网格可能让 transistor terminal 或 pin 没有接入节点。每次改动都要运行 routing graph 可视化和 terminal-count 回归。</p>
+  <p>网格节距（pitch）决定相邻候选节点的中心距，偏移（offset）决定第一列/行的位置。更密的网格提供更多候选但图更大，且不能自动使违规路径合法；更疏的网格可能让晶体管端子或引脚没有接入节点。注意 pitch/节距不同于图形边到边的 spacing/间距。每次改动都要运行布线图可视化和端点数量回归。</p>
 
   <h2>13.8 几何规则字段</h2>
   <table>
     <thead><tr><th>字段</th><th>结构</th><th>消费位置</th></tr></thead>
     <tbody>
-      <tr><td><code>min_spacing</code></td><td><code>{(layer1,layer2): integer}</code></td><td>spacing graph、器件边界、非法路由边和冲突节点</td></tr>
+      <tr><td><code>min_spacing</code></td><td><code>{(layer1,layer2): integer}</code></td><td>间距关系图、器件边界、非法布线边和冲突节点</td></tr>
       <tr><td><code>minimum_width</code></td><td><code>{layer: integer}</code></td><td>基础几何/清理相关约束</td></tr>
-      <tr><td><code>minimum_enclosure</code></td><td><code>{(outer,inner): integer或tuple}</code></td><td>active/well、via/contact 生成和 terminal access</td></tr>
-      <tr><td><code>minimum_notch</code></td><td><code>{layer: integer}</code></td><td>路由后 notch filling</td></tr>
+      <tr><td><code>minimum_enclosure</code></td><td><code>{(outer,inner): integer或tuple}</code></td><td>有源区/井、通孔/接触孔生成和端子接入</td></tr>
+      <tr><td><code>minimum_notch</code></td><td><code>{layer: integer}</code></td><td>布线后填补凹槽</td></tr>
       <tr><td><code>min_area</code></td><td><code>{layer: integer area}</code></td><td>SMT-based minimum-area repair</td></tr>
-      <tr><td><code>wire_width</code></td><td><code>{routing_layer: integer}</code></td><td>route drawing 与 spacing margin</td></tr>
+      <tr><td><code>wire_width</code></td><td><code>{routing_layer: integer}</code></td><td>走线绘制与间距裕量</td></tr>
       <tr><td><code>wire_width_horizontal</code></td><td>水平线宽覆盖值</td><td>绘制水平边</td></tr>
-      <tr><td><code>via_size</code></td><td><code>{cut_layer: side_length}</code></td><td>contact/via 几何和接入 margin</td></tr>
+      <tr><td><code>via_size</code></td><td><code>{cut_layer: side_length}</code></td><td>接触孔/通孔几何和接入裕量</td></tr>
     </tbody>
   </table>
   <p><code>min_area</code> 存面积，其他大多存长度；这是最常见的量纲错误之一。真实 PDK 的条件 spacing、密度、antenna、EOL 等并没有等价字段。</p>
 
-  <h2>13.9 路由成本字段</h2>
+  <h2>13.9 布线成本字段</h2>
   <table>
     <thead><tr><th>字段</th><th>作用</th></tr></thead>
     <tbody>
       <tr><td><code>weights_horizontal/vertical</code></td><td>每个内部层每 DBU 的横/纵边基础权重</td></tr>
       <tr><td><code>via_weights</code></td><td>跨层边成本；键是两个可连接层，不是 cut layer 名</td></tr>
       <tr><td><code>orientation_change_penalty</code></td><td>HVGraphRouter 中水平/垂直方向切换的成本</td></tr>
-      <tr><td><code>multi_via</code></td><td>指定层对的多 via 数；本地检查要求层对键按字符串顺序排列</td></tr>
+      <tr><td><code>multi_via</code></td><td>指定层对的多通孔数量；本地检查要求层对键按字符串顺序排列</td></tr>
     </tbody>
   </table>
   <p>成本只影响合法候选之间的偏好，不替代几何规则。先确保图正确，再调成本。</p>
@@ -128,9 +128,9 @@ grid_offset_y = ...</code></pre>
     <thead><tr><th>新工艺需求</th><th>仅技术文件？</th><th>说明</th></tr></thead>
     <tbody>
       <tr><td>相同内部层栈，不同 GDS 层号</td><td>通常可以</td><td>修改 <code>output_map</code> 并用 layer audit 验证</td></tr>
-      <tr><td>尺寸、pitch、基本 width/space/enclosure 改变</td><td>部分可以</td><td>字段可表达，但仍需完整外部 DRC</td></tr>
+      <tr><td>尺寸、节距、基本宽度/间距/包围量改变</td><td>部分可以</td><td>字段可表达，但仍需完整外部 DRC</td></tr>
       <tr><td>foundry 模型名不以 n 开头</td><td>不可以</td><td>需修改 <code>net_util.get_channel_type</code> 接口并测试</td></tr>
-      <tr><td>新增 LI/M3、多种 via/contact</td><td>不可以</td><td>扩展内部 layers/via graph/routing/writers/LVS</td></tr>
+      <tr><td>新增 LI/M3、多种通孔/接触孔</td><td>不可以</td><td>扩展内部层、通孔连接图、布线、输出模块和 LVS</td></tr>
       <tr><td>implant、Vt marker、复杂派生层</td><td>通常不可以</td><td>output copy 不能表达任意布尔/条件生成</td></tr>
       <tr><td>复杂 EOL/coloring/密度/antenna</td><td>不可以完整表达</td><td>需生成约束、后处理及外部 deck 闭环</td></tr>
       <tr><td>body/tap 签核</td><td>不可以靠内部 LVS</td><td>需明确 cell 架构并接 foundry LVS/ERC</td></tr>
@@ -139,7 +139,7 @@ grid_offset_y = ...</code></pre>
 
   <div class="lab">
     <strong>字段追踪实验</strong>
-    <p>任选 <code>via_size[l_via1]</code>，用 <code>rg</code> 找出它在 routing graph、terminal extraction 和 route drawing 中的全部消费点。修改字段前先写下每个消费点期望的单位和层语义。</p>
+    <p>任选 <code>via_size[l_via1]</code>，用 <code>rg</code> 找出它在布线图、端子提取和走线绘制中的全部使用位置。修改字段前先写下每个位置期望的单位和层语义。</p>
   </div>
 
   <div class="checkpoint">
@@ -147,9 +147,9 @@ grid_offset_y = ...</code></pre>
     <ol>
       <li>为什么把内部 <code>metal2</code> 映射成 PDK 的 M3 不等于支持了 M1–M3 完整栈？</li>
       <li><code>min_area</code> 与 <code>minimum_width</code> 的量纲有何不同？</li>
-      <li>为什么 tech 参数改动必须同时跑 routing graph 和外部 DRC？</li>
+      <li>为什么技术参数改动必须同时检查布线图和外部 DRC？</li>
     </ol>
-    <details><summary>参考答案</summary><p>内部 via graph 和接触结构仍只有固定层对，简单改名不会创建缺失层。min_area 是面积，minimum_width 是长度。前者验证拓扑和接入资源，后者覆盖生成器未表达的真实制造规则。</p></details>
+    <details><summary>参考答案</summary><p>内部通孔连接图和接触结构仍只有固定层对，简单改名不会创建缺失层。<code>min_area</code> 是面积，<code>minimum_width</code> 是长度。布线图检查验证拓扑和接入资源，外部 DRC 覆盖生成器未表达的真实制造规则。</p></details>
   </div>
 
   <nav class="bottom-nav"><a href="chapter12.html">← 第 12 章</a><a href="chapter14.html">第 14 章：沿源码走完整流水线 →</a></nav>

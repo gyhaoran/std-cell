@@ -27,7 +27,7 @@
     <thead><tr><th>问题</th><th>顶点</th><th>边</th><th>边/点属性</th></tr></thead>
     <tbody>
       <tr><td>晶体管排序</td><td>扩散网络</td><td>MOS，连接两个 S/D 网络</td><td>栅名、器件对象、NMOS/PMOS</td></tr>
-      <tr><td>网格布线</td><td><code>(layer, x, y)</code> 路由点</td><td>同层相邻线段或跨层 via</td><td>方向、层、长度代价、via 代价、冲突</td></tr>
+      <tr><td>网格布线</td><td><code>(layer, x, y)</code> 布线点</td><td>同层相邻线段或跨层通孔</td><td>方向、层、长度代价、通孔代价、冲突</td></tr>
       <tr><td>电路连通</td><td>网络或器件</td><td>端口连接</td><td>器件类型、端子、方向</td></tr>
     </tbody>
   </table>
@@ -37,13 +37,13 @@
   <table>
     <thead><tr><th>术语</th><th>定义</th><th>在本教程中的例子</th></tr></thead>
     <tbody>
-      <tr><td>walk</td><td>沿边经过的一串顶点，顶点和边可重复</td><td>任意沿路由图移动</td></tr>
-      <tr><td>trail</td><td>不重复边的 walk</td><td>Euler trail 要使用每条边一次</td></tr>
-      <tr><td>path</td><td>通常指顶点不重复的 walk</td><td>一条无环的点到点布线路径</td></tr>
-      <tr><td>cycle</td><td>起点终点相同的闭合路径</td><td>闭合连通结构</td></tr>
-      <tr><td>degree</td><td>与顶点相接的边数；自环需按定义计数</td><td>判断 Euler 路奇点</td></tr>
-      <tr><td>connected component</td><td>内部互相可达的最大顶点集合</td><td>把晶体管图拆为子电路</td></tr>
-      <tr><td>tree</td><td>连通且无环的图</td><td>一个多端网络的 routing tree</td></tr>
+      <tr><td>游走（walk）</td><td>沿边经过的一串顶点，顶点和边可重复</td><td>任意沿布线图移动</td></tr>
+      <tr><td>迹（trail）</td><td>边不重复的游走</td><td>Euler 迹要求每条边只用一次</td></tr>
+      <tr><td>路径（path）</td><td>通常指顶点不重复的游走</td><td>一条无环的点到点布线路径</td></tr>
+      <tr><td>环（cycle）</td><td>起点终点相同的闭合路径</td><td>闭合连通结构</td></tr>
+      <tr><td>度（degree）</td><td>与顶点相接的边数；自环需按定义计数</td><td>判断 Euler 迹的奇度顶点</td></tr>
+      <tr><td>连通分量（connected component）</td><td>内部互相可达的最大顶点集合</td><td>把晶体管图拆为子电路</td></tr>
+      <tr><td>树（tree）</td><td>连通且无环的图</td><td>一个多端网络的布线树</td></tr>
     </tbody>
   </table>
 
@@ -51,24 +51,24 @@
   <table>
     <thead><tr><th>问题</th><th>要求</th><th>标准单元用途</th></tr></thead>
     <tbody>
-      <tr><td>Euler trail/circuit</td><td>每条<strong>边</strong>恰好使用一次</td><td>排列每只晶体管一次并连续共享扩散</td></tr>
-      <tr><td>shortest path</td><td>连接两个点，路径总成本最小</td><td>连接一个源和一个目标路由点</td></tr>
-      <tr><td>minimum spanning tree</td><td>连接图中全部顶点，选边总权重最小</td><td>通常不是直接的多端 net 问题，因为不必连接全部路由点</td></tr>
-      <tr><td>Steiner tree</td><td>连接指定 terminals，可使用额外 Steiner 点</td><td>连接多端 net，允许在中间路由点分叉</td></tr>
+      <tr><td>Euler 迹/回路</td><td>每条<strong>边</strong>恰好使用一次</td><td>排列每只晶体管一次并连续共享扩散</td></tr>
+      <tr><td>最短路径（shortest path）</td><td>连接两个点，路径总成本最小</td><td>连接一个源和一个目标布线点</td></tr>
+      <tr><td>最小生成树（minimum spanning tree）</td><td>连接图中全部顶点，选边总权重最小</td><td>通常不是直接的多端网络问题，因为不必连接全部布线点</td></tr>
+      <tr><td>Steiner 树</td><td>连接指定端点，可使用额外 Steiner 点</td><td>连接多端网络，允许在中间布线点分叉</td></tr>
     </tbody>
   </table>
   <p>Euler 关注“每条晶体管边都走一次”；Dijkstra 关注“到目标的代价”；Steiner 关注“把多个 terminal 用较小总线长连成树”。不能用一个名字代替另一个目标。</p>
 
   <h2>9.4 权重、容量与冲突</h2>
-  <p>无权图只关心有没有边；加权图给边或点附加成本。LibreCell 路由中的成本可能来自：</p>
+  <p>无权图只关心有没有边；加权图给边或点附加成本。LibreCell 布线中的成本可能来自：</p>
   <ul>
     <li>水平/垂直线段长度 × 对应层的权重；</li>
-    <li>跨层 via 的固定代价；</li>
+    <li>跨层通孔的固定代价；</li>
     <li>从水平改为垂直的方向变化代价；</li>
     <li>当前迭代被其他 net 占用的 present cost；</li>
     <li>历史上持续拥塞位置的 history cost。</li>
   </ul>
-  <p>有些路由器把资源表示为有容量的边；本地 PathFinder 实现主要通过节点占用、冲突集合和动态成本阻止不同 net 同时使用不兼容资源。模型不同，但目的都是表达“这条最短路是否会和其他线冲突”。</p>
+  <p>有些布线器把资源表示为有容量的边；本地 PathFinder 实现主要通过节点占用、冲突集合和动态成本阻止不同网络同时使用不兼容资源。模型不同，但目的都是表达“这条最短路是否会和其他走线冲突”。</p>
 
   <h2>9.5 手工走一次 Dijkstra</h2>
   <pre><code>A --1-- B --2-- D
@@ -118,14 +118,14 @@ degrees = dict(g.degree())</code></pre>
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li>为什么 transistor graph 和 routing graph 的“边”含义不同？</li>
+      <li>为什么晶体管图和布线图的“边”含义不同？</li>
       <li>为什么两端最短路不能直接解决多端网络最小树？</li>
       <li>为什么枚举所有 Euler 路比找到任意一条更容易爆炸？</li>
     </ol>
   </div>
 
-  <div class="source-note"><strong>阅读依据：</strong><code>EDA_routing.pdf</code>用于路由图、全局/详细路由和约束背景；本章的具体建模以 LibreCell 的 NetworkX 数据结构为准。</div>
-  <nav class="bottom-nav"><a href="chapter8.html">← 第 8 章</a><a href="chapter10.html">第 10 章：晶体管放置 →</a></nav>
+  <div class="source-note"><strong>阅读依据：</strong><code>EDA_routing.pdf</code>用于布线图、全局/详细布线和约束背景；本章的具体建模以 LibreCell 的 NetworkX 数据结构为准。</div>
+  <nav class="bottom-nav"><a href="chapter8.html">← 第 8 章</a><a href="chapter10.html">第 10 章：晶体管布局 →</a></nav>
   <footer>第 9 章 · 算法小白也能用的图论</footer>
 </main>
 </body>

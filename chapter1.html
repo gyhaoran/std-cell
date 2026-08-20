@@ -28,7 +28,7 @@
   │ 逻辑综合：选择库中的具体逻辑门
   ▼
 门级网表（INV_X1、NAND2_X2、DFF_X1……）
-  │ 放置：把固定高度的单元排入 rows
+  │ 布局：把固定高度的单元排入标准单元行（rows）
   │ 布线：连接单元引脚
   ▼
 芯片版图
@@ -42,20 +42,20 @@
   <p>“标准”主要指同一架构中的单元遵守共同接口，而不是指所有工艺都采用同一个尺寸。</p>
   <div class="cards">
     <article class="card"><h3>统一高度</h3><p>同一套架构通常采用固定行高，宽度是站点宽度的整数倍。不同库可以有 7.5T、9T 等不同轨道高度。</p></article>
-    <article class="card"><h3>统一电源轨</h3><p>VDD/VSS 的位置、宽度和层固定，相邻单元放置后电源轨连续。</p></article>
-    <article class="card"><h3>统一边界</h3><p>边界、井、implant、扩散和金属必须满足相邻放置及镜像后的规则。</p></article>
-    <article class="card"><h3>可访问引脚</h3><p>信号引脚需落在全芯片路由器能够触达的位置，只有“单元内部连通”还不够。</p></article>
+    <article class="card"><h3>统一电源轨</h3><p>VDD/VSS 的位置、宽度和层固定，相邻单元拼接后电源轨连续。</p></article>
+    <article class="card"><h3>统一边界</h3><p>边界、井、注入层、扩散区和金属必须满足相邻拼接及镜像后的规则。</p></article>
+    <article class="card"><h3>引脚可接入</h3><p>信号引脚需位于芯片级布线器能够合法触达的位置，只有“单元内部连通”还不够。</p></article>
   </div>
 
   <div class="callout warn">
-    <strong>轨道高度不是工艺节点。</strong>“9-track”表示单元高度大致容纳多少条布线轨道，不表示 9 nm。轨道越少通常密度越高，但晶体管尺寸、引脚访问和可布线性更紧张。</div>
+    <strong>轨道高度不是工艺节点。</strong>“9-track”表示单元高度大致容纳多少条布线轨道，不表示 9 nm。轨道越少通常密度越高，但晶体管尺寸、引脚可接入性和可布线性更紧张。</div>
 
   <h2>1.3 同一个单元为什么有许多视图</h2>
   <p>一个 NAND2 对不同工具呈现不同抽象。视图省略的细节不同，但单元名、引脚名和逻辑功能必须一致。</p>
   <table>
     <thead><tr><th>视图</th><th>回答的问题</th><th>典型消费者</th></tr></thead>
     <tbody>
-      <tr><td>SPICE/CDL 晶体管网表</td><td>内部有哪些 MOS，端子如何相连、尺寸多大？</td><td>电路仿真、LVS、表征</td></tr>
+      <tr><td>SPICE/CDL 晶体管网表</td><td>内部有哪些 MOS，端子如何相连、尺寸多大？</td><td>电路仿真、LVS、特征化</td></tr>
       <tr><td>GDS/OASIS 版图</td><td>每个制造层上有哪些真实几何图形？</td><td>DRC、LVS、PEX、制造数据合并</td></tr>
       <tr><td>LEF 物理抽象</td><td>单元多大、引脚在哪里、哪些区域不能穿线？</td><td>芯片布局布线</td></tr>
       <tr><td>Verilog 功能模型</td><td>数字逻辑行为是什么？</td><td>逻辑综合、门级仿真</td></tr>
@@ -63,7 +63,7 @@
     </tbody>
   </table>
 
-  <p>LEF 不是“简化但等价的 GDS”。LEF 的任务是为芯片级 P&amp;R 提供边界、pin port 和 obstruction；GDS 才保存制造相关的完整几何。Liberty 也不是一条固定延迟，它通常包含二维查找表和按输入变化定义的 timing arc。</p>
+  <p>LEF 不是“简化但等价的 GDS”。LEF 的任务是为芯片级 P&amp;R 提供边界、引脚端口和布线阻挡；GDS 才保存制造相关的完整几何。Liberty 也不是一条固定延迟，它通常包含二维查找表和按输入变化定义的时序弧。</p>
 
   <h2>1.4 一个库不只有 INV 和 NAND</h2>
   <table>
@@ -77,16 +77,16 @@
     </tbody>
   </table>
 
-  <p>因此，“成功生成一个 INV 的 GDS”只是第一个里程碑。可用的库还需要单元族策略、所有视图的一致性、跨 PVT 表征、边界拼接、可布线性和整库 QA。</p>
+  <p>因此，“成功生成一个 INV 的 GDS”只是第一个里程碑。可用的库还需要单元族策略、所有视图的一致性、跨 PVT 特征化、边界拼接、可布线性和整库 QA。</p>
 
   <h2>1.5 LibreCell 在这张地图上的位置</h2>
-  <p>本地仓库包含布局生成、表征等子项目。本教程重点使用 <code>librecell-layout/lclayout</code>：它读取 SPICE 晶体管网表和 Python 技术文件，执行晶体管放置、几何生成与网格化布线，然后写出 GDS、LEF 和 Magic <code>.mag</code>。</p>
+  <p>本地仓库包含版图生成、特征化等子项目。本教程重点使用 <code>librecell-layout/lclayout</code>：它读取 SPICE 晶体管网表和 Python 技术文件，执行晶体管布局、几何生成与网格化布线，然后写出 GDS、LEF 和 Magic <code>.mag</code>。</p>
 
   <div class="callout danger">
     <strong>三个必须牢记的本地版本限制：</strong>
     <ul>
       <li>内部 LVS 为适配没有 well tap 的单元，会丢弃 MOS 的第 4 个 body 端子；这不能替代 foundry LVS。</li>
-      <li>当前 LEF writer 把所有 pin 写为 <code>INOUT SIGNAL</code>，没有生成完整 obstruction；不能直接视为生产级 LEF。</li>
+      <li>当前 LEF writer 把所有引脚写为 <code>INOUT SIGNAL</code>，没有生成完整布线阻挡；不能直接视为生产级 LEF。</li>
       <li>版图后处理只针对最小凹槽和最小面积等有限问题，不是完整 DRC 修复器。</li>
     </ul>
   </div>
@@ -96,7 +96,7 @@
   <h2>1.6 全教程的四个能力关卡</h2>
   <ol class="steps">
     <li><strong>看图：</strong>给一张 INV/NAND/NOR 版图，能独立标出 MOS、网络和端子。</li>
-    <li><strong>建模：</strong>把晶体管和布线问题转成图，能手工走出一个小例子的放置和路由。</li>
+    <li><strong>建模：</strong>把晶体管和布线问题转成图，能手工完成一个小例子的布局和布线。</li>
     <li><strong>读码：</strong>能从 CLI 参数追踪到流水线、技术字段和核心算法实现。</li>
     <li><strong>迁移：</strong>面对一个新 PDK，能给出适配矩阵、实施改动、外部签核结果和库级验收报告。</li>
   </ol>
@@ -108,7 +108,7 @@
       <li>为什么单元内部 DRC/LVS 通过仍不能证明整库可用？</li>
       <li>LibreCell 的输出 LEF 在进入 P&amp;R 前至少还要检查什么？</li>
     </ol>
-    <details><summary>参考答案</summary><p>GDS 描述几何，Liberty 描述不同 PVT、slew/load 下的功能、延迟和功耗，两者需通过抽取与表征建立联系。整库还存在相邻拼接、镜像、pin access、视图一致性、PVT 和物理单元等问题。LEF 至少要核对 pin 方向/use、port 形状、边界、site/symmetry、obstruction、单位和与 GDS 的一致性。</p></details>
+    <details><summary>参考答案</summary><p>GDS 描述几何，Liberty 描述不同 PVT 条件、输入转换时间（slew）和输出负载（load）下的功能、延迟和功耗，两者需通过寄生参数提取与特征化建立联系。整库还存在相邻拼接、镜像、引脚可接入性、视图一致性、PVT 和物理单元等问题。LEF 至少要核对引脚方向与用途、端口形状、边界、站点与对称性、布线阻挡、单位和与 GDS 的一致性。</p></details>
   </div>
 
   <div class="source-note"><strong>阅读依据：</strong>本章的物理设计总体框架参考 <em>Fundamentals of Layout Design for Electronic Circuits</em> 第 3～5 章；库交付覆盖度参考本地标准单元应用资料，但未使用其中任何专有工艺数值。</div>

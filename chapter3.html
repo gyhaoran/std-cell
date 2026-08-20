@@ -15,7 +15,7 @@
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>知道 Active、Poly、implant、well、contact、via 和 metal 分别表达什么。</li>
+      <li>知道有源区、多晶硅、注入层、井、接触孔、通孔和金属分别表达什么。</li>
       <li>看到 <code>Active × Poly</code> 就能定位沟道，并数出晶体管。</li>
       <li>沿扩散、接触孔和金属追踪网络，写出每只 MOS 的 G/D/S/B。</li>
     </ul>
@@ -36,7 +36,7 @@
       <tr><td>N/P implant 或 select</td><td>选择掺杂类型</td><td>Active+N implant 常形成 N+，Active+P implant 常形成 P+；实际派生规则以 PDK 为准。</td></tr>
       <tr><td>Poly / gate</td><td>形成栅或局部连接</td><td>穿过 Active 的部分控制沟道；离开 Active 的 poly 不会凭空形成 MOS。</td></tr>
       <tr><td>Contact / cut</td><td>在 Active/Poly 与 M1 之间建立垂直连接</td><td>必须同时满足 cut 大小、间距及上下层 enclosure。</td></tr>
-      <tr><td>Metal1, Metal2…</td><td>同层内的导电互连</td><td>相交不等于跨层连接；跨层通常需要相应 via。</td></tr>
+      <tr><td>Metal1, Metal2…</td><td>同层内的导电互连</td><td>相交不等于跨层连接；跨层通常需要相应通孔（via）。</td></tr>
       <tr><td>Via1, Via2…</td><td>连接相邻金属层</td><td>例如 Via1 通常连接 M1↔M2；名称与堆栈由 PDK 定义。</td></tr>
       <tr><td>Pin / label / boundary</td><td>给工具标记端口和单元边界</td><td>有些是非制造层；文字重叠金属也不一定自动建立电气连接。</td></tr>
     </tbody>
@@ -68,12 +68,12 @@
   <pre><code>左边晶体管的右侧网络 == 右边晶体管的左侧网络</code></pre>
   <p>如果两侧应属于不同网络，常见做法是分开 Active、调整晶体管顺序，或依照 PDK 使用专门的 diffusion break 结构；绝不是“放一个 contact 把它切开”。</p>
 
-  <div class="callout danger"><strong>另外两个常见误判：</strong>两个不同金属层的矩形上下重叠但没有 via，电气上不连接；一个 pin label 压在金属附近，也必须确认 pin purpose/port shape 的定义，不能仅凭文字位置判定连接。</div>
+  <div class="callout danger"><strong>另外两个常见误判：</strong>两个不同金属层的矩形上下重叠但没有通孔，电气上不连接；一个引脚标签压在金属附近，也必须确认引脚用途层和端口图形的定义，不能仅凭文字位置判定连接。</div>
 
   <h2>3.5 固定的六步追线法</h2>
   <p>面对任何陌生标准单元，按以下顺序做，不要一开始就试图猜逻辑门名称。</p>
   <ol class="steps">
-    <li><strong>确认图层语义：</strong>从 PDK layer map 得到 well、active、implant、poly、cut、metal、via、pin。</li>
+    <li><strong>确认图层语义：</strong>从 PDK 层映射得到井、有源区、注入层、多晶硅、切割层、金属、通孔和引脚层。</li>
     <li><strong>定位电源和体区：</strong>找 VDD/VSS rail、N-Well/P-Well 及 tap。</li>
     <li><strong>数晶体管：</strong>只数有效的 Active×gate 交叠，并记录 NMOS/PMOS。</li>
     <li><strong>给扩散片段编号：</strong>每条 gate 的两侧先写临时名 <code>N0</code>、<code>N1</code>，再沿 contact/metal 合并同一网络。</li>
