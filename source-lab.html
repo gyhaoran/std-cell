@@ -1,0 +1,38 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 26 章　真实源码补丁：显式 MOS 模型映射</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="chapter15.html">← 第 25 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter16.html">第 27 章 →</a></nav><h1>第 26 章　真实源码补丁：显式 MOS 模型映射</h1><p class="subtitle">不只写“应该加测试”，而是在真实解析入口制造错误、修正并回归</p>
+<!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter15.html">沿源码走完整流水线</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能编写负例测试并确认补丁未修改上游仓库。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>跑通 6 项解析测试并审查生成的统一 diff。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">问题不是模型名字不好看，而是器件会被认反</a></li><li><a href="#section-2">把需求写成三个可测试的不变量</a></li><li><a href="#section-3">执行真实源码副本上的补丁</a></li><li><a href="#section-4">一个必须单独解决的陷阱：SPICE 的 L 没有进入布局对象</a></li><li><a href="#section-5">从解析实验进入产品代码，还差哪些连接</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">26.1 问题不是模型名字不好看，而是器件会被认反</h2>
+<p>本教程 commit 的 <code>lccommon/net_util.py</code> 使用“模型名以 n 开头就是 NMOS，否则就是 PMOS”的判断。一个新工艺模型叫 <code>CORE_NFET</code>，原解析器会把它识别为 PMOS。工具未必立刻报错，却可能在布局阶段把它分到错误行。未知模型必须尽早失败，不能默默选择默认类型。</p>
+<pre><code># 原始规则的核心
+if s.lower().startswith('n'):
+    return ChannelType.NMOS
+return ChannelType.PMOS</code></pre>
+<h2 id="section-2">26.2 把需求写成三个可测试的不变量</h2>
+<ol><li>已明确支持的 NMOS/PMOS 名称仍正确，不改变端口和 W 单位。</li><li>允许调用方提供“模型名→ChannelType”映射，大小写统一归一化。</li><li>未知模型或无效映射值抛出明确异常，停止生成；不把失败伪装成 PMOS。</li></ol>
+<p>练习选择 <code>load_transistor_netlist(..., model_channel_types=None)</code> 作为最小接口。未传 mapping 时只接受明确的 nmos/pmos，意味着以前依赖前缀猜测的其他名字现在会报错；这是<strong>有意收紧兼容性</strong>。真实发布需先盘点所有现有模型，提供迁移说明，不能以“原 INV 测试通过”宣称完全兼容。</p>
+<h2 id="section-3">26.3 执行真实源码副本上的补丁</h2>
+<pre><code>cd /home/jasper/code/docs/std-cell
+TUTORIAL_PATCH_OUT=$(mktemp -d /tmp/stdcell-model-map.XXXXXX)
+python examples/learning/source_lab.py \
+  --librecell-root /home/jasper/code/github/librecell \
+  --output "$TUTORIAL_PATCH_OUT"</code></pre>
+<p>脚本读取真实 <code>net_util.py</code>，核对待替换的签名与规则各出现一次，把带原版权头的修改副本写进新目录，通过真实 KLayout reader 解析测试网表。它生成可审查的统一 diff，而不是在上游仓库直接写入。输入源码不符合预期时脚本拒绝套补丁，避免错误匹配。</p>
+<table><thead><tr><th>测试</th><th>原行为</th><th>修改后预期</th></tr></thead><tbody>
+<tr><td>明确 NMOS/PMOS</td><td>类型正确</td><td>仍正确</td></tr><tr><td>TYPO 未知模型</td><td>误认 PMOS</td><td>ValueError，报模型名</td></tr><tr><td>CORE_NFET 显式映射</td><td>误认 PMOS</td><td>按 mapping 认 NMOS</td></tr><tr><td>映射值错误，如字符串 n</td><td>没有该接口</td><td>明确拒绝，不混入内部类型</td></tr><tr><td>W=0.415U 与端口转小写</td><td>宽度转换与大小写处理</td><td>仍为 0.415×10⁻⁶ m，端口集合正确</td></tr><tr><td>只把网表 L 从 0.05U 改成 0.10U</td><td>内部 Transistor 对象不变</td><td>此测试证明原解析边界，不声称本补丁修复了 L</td></tr>
+</tbody></table>
+<p>本机已实际运行六项测试通过。参考证据：<a href="examples/learning/source-reference/result.json">测试摘要</a>、<a href="examples/learning/source-reference/model-map.patch">真实统一 diff</a>。你应展开 diff 看清哪几行改变，而不是只看 PASS。</p>
+<h2 id="section-4">26.4 一个必须单独解决的陷阱：SPICE 的 L 没有进入布局对象</h2>
+<p>原解析器从 KLayout 取 <code>d.parameter('W')*1e-6</code>，得到以米表示的 channel_width；创建的 Transistor 不保存 L。几何绘制在 <code>layout/transistor.py</code> 使用技术文件的 <code>gate_length</code> 画栅。因此，只把 CDL 的 L 改成两倍，不保证输出栅长跟着变。</p>
+<p>这不是“SPICE 没有 L”，而是 LibreCell 这一实现丢弃了这个参数。若工艺只允许一种栅长，至少增加网表 L 与 tech.gate_length 一致性检查；若要支持多种 L，则需扩展数据结构、布局间距、绘图、提取比较和输出验证。不能在本文小补丁中偷偷把所有任务一起改掉。</p>
+<h2 id="section-5">26.5 从解析实验进入产品代码，还差哪些连接</h2>
+<ol class="steps"><li>在 tech API 中声明 model mapping 的格式与默认行为。</li><li>让 <code>standalone._01_load_netlist</code> 把该映射传入解析器；本练习尚未修改这个调用链。</li><li>保留器件模型族、Vt、body 与 L 等必要元数据，确定哪些下游模块必须消费。</li><li>用 INV/NAND/NOR，再用多个模型族和宽器件，跑布局、内部 LVS 与外部 LVS。</li><li>检查未知模型的失败发生在输出发布之前，并把错误写进每单元日志。</li></ol>
+<div class="callout warn">本章验证的是<strong>解析函数的真实补丁</strong>，不是“新工艺已经迁移完成”。完整 lclayout 仍受当前环境缺少 z3/pysmt 的限制；没有伪造整条流水线的成功日志。</div>
+<div class="checkpoint"><strong>练习</strong><p>给目标工艺的 NMOS/PMOS 各写一个模型映射与反例；说明将 mapping 接入 tech API 后，哪些旧调用方可能受影响。</p><details><summary>核对要点</summary><p>映射键用确切模型名，值用内部 ChannelType；必须覆盖大小写、未知名称、错误值、多器件混合。调用链至少包括独立解析脚本、主生成入口和测试，不能只让当前测试传入 mapping 而产品入口仍用默认值。</p></details></div>
+<nav class="bottom-nav" aria-label="全书导航"><a href="chapter15.html">← 第 25 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter16.html">第 27 章 →</a></nav><footer>第 26 章　真实源码补丁：显式 MOS 模型映射 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+</main></body></html>

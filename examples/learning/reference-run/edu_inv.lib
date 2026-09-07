@@ -1,0 +1,58 @@
+/* EDUCATION ONLY: ideal Level-1 models, no PEX or signoff. */
+library (EDU_TT) {
+  delay_model : table_lookup;
+  time_unit : "1ns";
+  voltage_unit : "1V";
+  current_unit : "1mA";
+  capacitive_load_unit (1, pf);
+  nom_voltage : 1.8;
+  nom_temperature : 27;
+  nom_process : 1;
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 20;
+  slew_upper_threshold_pct_rise : 80;
+  slew_lower_threshold_pct_fall : 20;
+  slew_upper_threshold_pct_fall : 80;
+  lu_table_template (delay_3x3) {
+    variable_1 : input_net_transition;
+    variable_2 : total_output_net_capacitance;
+    index_1 ("0.02, 0.08, 0.2");
+    index_2 ("0.005, 0.02, 0.05");
+  }
+  cell (EDU_INV) {
+    pin (A) { direction : input; }
+    pin (Y) {
+      direction : output;
+      function : "!A";
+      max_capacitance : 0.05;
+      timing () {
+        related_pin : "A";
+        timing_sense : negative_unate;
+        timing_type : combinational;
+        cell_rise (delay_3x3) {
+          values ("0.01192294, 0.02560823, 0.05137137", \
+                  "0.0224128, 0.04774482, 0.07677878", \
+                  "0.03364057, 0.07269861, 0.1193726");
+        }
+        cell_fall (delay_3x3) {
+          values ("0.0119194, 0.02560805, 0.05137136", \
+                  "0.0224128, 0.04774482, 0.07677878", \
+                  "0.03364057, 0.07269861, 0.1193726");
+        }
+        rise_transition (delay_3x3) {
+          values ("0.00960896, 0.02605536, 0.06469536", \
+                  "0.01971673, 0.03795824, 0.06833558", \
+                  "0.03292729, 0.06105992, 0.09477328");
+        }
+        fall_transition (delay_3x3) {
+          values ("0.009607434, 0.02605538, 0.06469536", \
+                  "0.01971673, 0.03795824, 0.06833558", \
+                  "0.03292729, 0.06105992, 0.09477328");
+        }
+      }
+    }
+  }
+}

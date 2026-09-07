@@ -3,136 +3,228 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第8章：DRC、LVS 与 PEX 实验</title>
+  <title>第 10 章　DRC、LVS 与 PEX 可执行实验</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter7.html">← 上一章</a><a href="chapter9.html">下一章 →</a></nav>
-  <h1>第 8 章　DRC、LVS 与 PEX 实验</h1>
-  <p class="subtitle">几何合法、连接一致、寄生可用是三个不同问题</p>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter7.html">← 第 9 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter9.html">第 11 章 →</a></nav>
+  <h1>第 10 章　DRC、LVS 与 PEX 可执行实验</h1>
+  <p class="subtitle">不背规则缩写；从实际 GDS、单位、边和报告建立验证闭环</p>
 
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>区分 DRC、ERC、LVS 与 PEX 的输入、输出和能证明的事情。</li>
-      <li>会在 KLayout 中逐层查看 GDS，并运行一个语法真实的教学 DRC。</li>
-      <li>会按错误类别调试，而不是一看到 LVS fail 就盲目改版图。</li>
+      <li>能把宽度、间距、包围、包含、栅格与天线规则画成几何问题。</li>
+      <li>会核对 GDS DBU、层号、规则注释和实际表达式，不把 deck 当成不会出错的黑盒。</li>
+      <li>能运行仓库内的 KLayout 教学 DRC，查看结果数据库并按规则族定位根因。</li>
+      <li>知道 DRC、LVS、ERC、PEX 各能证明什么，以及为什么库还要做相邻拼接验证。</li>
     </ul>
   </div>
 
-  <h2>8.1 四种验证各自回答什么</h2>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter7.html">读懂 PDK 与设计规则</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能运行 fixture 并解释每类标记的测量对象。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>重现 7 个教学 DRC 标记，逐类记录修复方案。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">先分清四个问题</a></li><li><a href="#section-2">用本地 FreePDK45 做输入审计</a></li><li><a href="#section-3">从图形到规则：六个基本动作</a></li><li><a href="#section-4">批判性读本地 deck：四个真实案例</a></li><li><a href="#section-5">KLayout 可执行 DRC 实验</a></li><li><a href="#section-6">如果本机有 Calibre：用包装 deck 固定输入</a></li><li><a href="#section-7">如何从一千个 marker 找到一个根因</a></li><li><a href="#section-8">LVS 调试顺序</a></li><li><a href="#section-9">PEX 与库级拼接</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">10.1 先分清四个问题</h2>
   <table>
-    <thead><tr><th>检查</th><th>比较/分析对象</th><th>能发现</th><th>不能单独证明</th></tr></thead>
+    <thead><tr><th>检查</th><th>输入/比较对象</th><th>主要发现</th><th>不能单独证明</th></tr></thead>
     <tbody>
-      <tr><td>DRC</td><td>版图几何 vs 设计规则</td><td>宽度、间距、包围、面积、密度等违规</td><td>逻辑连接正确、时序正确</td></tr>
-      <tr><td>ERC</td><td>提取网络的电气约束</td><td>悬空井、非法电源连接、栅过压等</td><td>全部制造规则和功能</td></tr>
-      <tr><td>LVS</td><td>版图提取网表 vs 参考 SPICE/CDL</td><td>开路、短路、缺失/多余器件、参数或端口不匹配</td><td>寄生后性能、引脚可接入性、完整 DRC</td></tr>
-      <tr><td>PEX</td><td>从已验证版图提取寄生参数</td><td>互连 R/C、耦合和器件寄生</td><td>模型本身的精度和全部系统性能</td></tr>
+      <tr><td>DRC</td><td>版图几何 vs 规则 deck</td><td>宽度、间距、包围、面积、密度、栅格、天线等违规</td><td>逻辑连接正确、功能和时序正确</td></tr>
+      <tr><td>ERC</td><td>提取网络 vs 电气约束</td><td>悬空阱/衬底、非法电源连接、过压等</td><td>全部制造几何规则</td></tr>
+      <tr><td>LVS</td><td>版图提取网表 vs 参考 CDL/SPICE</td><td>开路、短路、端口、器件类型/数量/参数不匹配</td><td>寄生后性能、可制造性和引脚可接入性</td></tr>
+      <tr><td>PEX</td><td>已确认连接的版图网络</td><td>互连 R/C、耦合、器件寄生</td><td>参考网表本身正确、模型覆盖所有效应</td></tr>
+    </tbody>
+  </table>
+  <pre><code>版图生成 → DRC ─┐
+                 ├→ LVS → PEX → 版图后仿真/特征化
+参考 CDL ────────┘
+             ERC 可在提取网络上并行/穿插执行</code></pre>
+  <p>删除一只 Via 可能留下完全合法的几何，因此 DRC 可通过而 LVS 报开路；两块不同网络的 M1 太近则可能 DRC 先报间距。先判断问题属于<strong>几何</strong>还是<strong>连接</strong>，调试才不会乱。</p>
+
+  <h2 id="section-2">10.2 用本地 FreePDK45 做输入审计</h2>
+  <p>本章的事实来自 <code>examples/FreePDK45</code>，而不是参考教程中写下的二手结论。先看四类文件：</p>
+  <table>
+    <thead><tr><th>文件</th><th>回答的问题</th><th>本章用法</th></tr></thead>
+    <tbody>
+      <tr><td><code>gds/*.gds</code></td><td>实际图形、层号、层次和 DBU 是什么？</td><td>KLayout/脚本读取</td></tr>
+      <tr><td><code>calibre/layer.inc</code></td><td>层名怎样映射到 GDS layer？</td><td>建立显示与规则映射</td></tr>
+      <tr><td><code>calibre/calibreDRC.rul</code></td><td>SVRF 表达式真正检查什么？</td><td>规则源码审计</td></tr>
+      <tr><td><code>NangateOpenCellLibrary.cdl</code></td><td>参考电路与端口是什么？</td><td>LVS 与下一章电路对照</td></tr>
     </tbody>
   </table>
 
-  <h2>8.2 用 KLayout 建立逐层观察习惯</h2>
-  <p>打开一个 GDS 后先选对 top cell，再做以下动作：</p>
-  <ol class="steps">
-    <li>只显示 well/implant/active，确认器件区域。</li>
-    <li>加入 Poly，数 Active×Poly 交叠。</li>
-    <li>加入 contact 和 M1，追局部网络。</li>
-    <li>加入通孔/M2/引脚，确认引脚可接入性与电源轨。</li>
-    <li>用 ruler 量测时同时确认显示单位和 GDS DBU。</li>
-  </ol>
-  <p>命令行打开：</p>
-  <pre><code>klayout path/to/cell.gds</code></pre>
-  <p>KLayout 的 layer list 可以隐藏/显示层、配置颜色和层次深度。颜色仍只用于显示，网络判断必须依赖层定义与连通性。</p>
+  <h3>实际层映射</h3>
+  <table>
+    <thead><tr><th>层</th><th>GDS layer</th><th>在本库单元中的作用</th></tr></thead>
+    <tbody>
+      <tr><td>Active / P-well / N-well</td><td>1 / 2 / 3</td><td>源漏与沟道所在区域、NMOS/PMOS 体区</td></tr>
+      <tr><td>N-implant / P-implant</td><td>4 / 5</td><td>区分 N 型与 P 型扩散</td></tr>
+      <tr><td>Poly / Contact / Metal1</td><td>9 / 10 / 11</td><td>栅极、层间接触和单元内部连线/引脚</td></tr>
+      <tr><td>Via1…Via9</td><td>12、14…28</td><td>连接相邻金属层；本批逐单元 GDS 实际未使用</td></tr>
+      <tr><td>Metal2…Metal10</td><td>13、15…29</td><td>PDK 规则有定义；本批标准单元 GDS 实际未使用</td></tr>
+      <tr><td>235/0、63/63</td><td>不在 <code>layer.inc</code></td><td>该库额外的单元标记/边界数据，不能擅自当制造层</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>“文件里定义了”不等于“版图里用了”。</strong>层映射、规则 deck、GDS 和 LEF 是不同视图。迁移时应分别统计每个文件出现的层，而不是把其中任一份当成完整真相。</div>
 
-  <h2>8.3 一个可运行的教学 DRC</h2>
-  <p><a href="examples/dummy_tech_checks.drc">examples/dummy_tech_checks.drc</a> 对齐 LibreCell 的 <code>examples/dummy_tech.py</code> 输出层和其中的少量基础规则。脚本核心语法如下：</p>
-  <pre><code>source($input)
-report("LibreCell dummy-tech teaching checks", $report)
+  <h3>DBU 与栅格：先算，不猜</h3>
+  <p>用本机 KLayout Python API 读取 GDS，得到 <code>dbu = 0.0001 μm = 0.1 nm</code>：</p>
+  <pre><code>python3 - &lt;&lt;'PY'
+import klayout.db as kdb
+ly = kdb.Layout()
+ly.read("examples/FreePDK45/gds/INV_X1.gds")
+print(ly.dbu)                    # 0.0001 μm
+print(ly.top_cell().dbbox())     # 以 μm 表示的边界框
+PY</code></pre>
+  <p>而 deck 中 <code>Grid.*</code> 的注释写“2.5 nm grid”，表达式却是 <code>OFFGRID ... 5 5</code>，同时又启用了 <code>LAYOUT USE DATABASE PRECISION YES</code>。按该 GDS 的数据库精度，5 DBU 是 0.5 nm，并非 2.5 nm。这不是让你替 PDK 猜一个答案，而是提醒：<strong>注释、deck 语义、运行选项与输入数据库必须通过工具结果和原始工艺文档共同确认。</strong></p>
 
-active = input(1, 0) | input(1, 7)
-poly   = input(3, 0)
-metal1 = input(6, 0)
-gate   = active &amp; poly
+  <h2 id="section-3">10.3 从图形到规则：六个基本动作</h2>
+  <table>
+    <thead><tr><th>几何问题</th><th>SVRF 例子</th><th>读法</th><th>常见根因</th></tr></thead>
+    <tbody>
+      <tr><td>最小宽度</td><td><code>INTERNAL metal1 &lt; 0.065</code></td><td>M1 内部距离小于 0.065 μm</td><td>窄颈、短 stub、布线宽度错误</td></tr>
+      <tr><td>最小间距</td><td><code>EXTERNAL metal1 &lt; 0.065</code></td><td>分离 M1 边之间太近</td><td>轨道太密、拐角、邻网挤压</td></tr>
+      <tr><td>包围量</td><td><code>ENCLOSURE contact active &lt; 0.005</code></td><td>Active 对 Contact 的余量不足</td><td>孔靠边、对准裕量不足</td></tr>
+      <tr><td>完全包含</td><td><code>NOT via1 metal1</code></td><td>Via1 有部分落在 M1 外</td><td>缺少上/下金属或孔偏移</td></tr>
+      <tr><td>禁止重叠</td><td><code>AND nwell pwell</code></td><td>N-well 与 P-well 交集非空</td><td>区域定义或边界合并错误</td></tr>
+      <tr><td>栅格</td><td><code>OFFGRID poly 5 5</code></td><td>顶点不在指定数据库栅格</td><td>单位换算、缩放、布尔运算舍入</td></tr>
+    </tbody>
+  </table>
+  <p><code>INTERNAL</code>/<code>EXTERNAL</code> 不是简单读取矩形短边或两个 bounding box 的距离。真实检查针对边，凹角、投影长度、相交/共边、连接关系和测量方式都会影响结果。不要自己写一个 bbox 比较就称作 DRC。</p>
 
-gate.width(50.nm).output("gate.width", "Gate width violation")
-metal1.space(50.nm).output("m1.space", "M1 spacing violation")</code></pre>
-  <p>批处理运行：</p>
-  <pre><code>klayout -b \
-  -r examples/dummy_tech_checks.drc \
-  -rd input=path/to/cell.gds \
-  -rd report=path/to/cell.lyrdb</code></pre>
+  <h3>派生层把“物理含义”变成几何</h3>
+  <pre><code>well        = nwell OR pwell
+gate        = poly AND active
+fieldpoly   = poly NOT active
+contactenc1 = active OR poly
+contactenc  = contactenc1 AND metal1</code></pre>
+  <p><code>gate</code> 是 Poly 与 Active 的交集，代表沟道/栅区；<code>fieldpoly</code> 是未跨 Active 的场区 Poly。于是 deck 能分别规定 gate 间距与 field-poly 间距。注意这只是二维掩模推导；器件类型还要结合阱、注入和体连接。</p>
 
-  <div class="callout danger"><strong>这个脚本不是签核 deck。</strong>层号和数值来自 LibreCell dummy technology，只用于学习 KLayout DRC 的 <code>input</code>、布尔层、<code>width</code>、<code>space</code> 与报告输出。迁移任何真实 PDK 时必须使用该 PDK 的授权 deck 和规定版本。</div>
+  <h3>对边包围与宽度相关间距</h3>
+  <p>接触孔周围的金属可能允许“两条对边给足余量、另两边较小”，所以 deck 使用 <code>RECTANGLE ENCLOSURE ... GOOD ... OPPOSITE</code>，不能粗暴翻译为四边相同的 enclosure。宽金属间距则通过 <code>SIZE ... UNDEROVER</code>、<code>AND</code>、<code>COINCIDENT EDGE</code> 和 <code>LENGTH</code> 筛出满足宽度/边长条件的边，再施加更大 <code>EXTERNAL</code>。核心思路是：</p>
+  <pre><code>原始金属 → 筛出宽区域 → 找与原图共边的边 → 按边长筛选 → 检查更大间距</code></pre>
+  <p>这类规则最容易在跨工具翻译时失真，因为不同引擎对边、投影、端点和相交的定义未必一一对应。必须用 pass/fail 测试图形做等价性回归。</p>
 
-  <p>KLayout DRC 是基于 Ruby 的 DSL。浮点尺寸默认按微米处理，也可以明确写 <code>300.nm</code>；整数参数按 database unit 解释。初学时优先写单位，避免把 <code>100</code> 误认为 100 nm。</p>
+  <h3>连通性与天线不是纯局部几何</h3>
+  <pre><code>CONNECT metal1 poly BY contact
+CONNECT metal2 metal1 BY via1
+NET AREA RATIO metal1 poly gate diode &gt; 300 ...</code></pre>
+  <p>天线检查需要先构造网络，再比较制造阶段中连接到 gate 的导体面积与栅面积。规则还可能考虑保护二极管、累积层级和工艺顺序。它不能靠“最长导线是多少”替代，且不同工艺的累计模型不可照搬。</p>
 
-  <h3>不依赖 LibreCell 环境的 DRC 自测</h3>
-  <p>仓库还提供一个只依赖 KLayout 的故意违规 GDS 生成脚本：</p>
-  <pre><code>klayout -b -r examples/make_drc_fixture.rb \
-  -rd output=/tmp/dummy-drc-fixture.gds
+  <h2 id="section-4">10.4 批判性读本地 deck：四个真实案例</h2>
+  <table>
+    <thead><tr><th>位置</th><th>观察</th><th>应采取的动作</th></tr></thead>
+    <tbody>
+      <tr><td><code>Via2.1/.2</code>、<code>Via3.1/.2</code></td><td>注释写宽 0.07、间距 0.085 μm，表达式仍检查 0.065、0.075 μm</td><td>以规格/测试结构核对，不凭规则名或注释选值</td></tr>
+      <tr><td><code>Metal4.3</code> 等</td><td>注释说 Metal4 包围 Via3，表达式参数次序与前文规则模式不一致</td><td>制作四边余量 pass/fail 图，检查引擎真正标记哪条边</td></tr>
+      <tr><td><code>Grid.*</code></td><td>注释的 2.5 nm 与实际 GDS DBU、参数 5 不直接吻合</td><td>记录输入 DBU、deck 精度选项和 marker 坐标</td></tr>
+      <tr><td>库视图</td><td>CDL 有 135 个子电路，逐单元 GDS/LEF 各 134 个；<code>TAPCELL_X1</code> 仅在 CDL 中</td><td>发布前做 cell/pin/层清单差集，不能只跑某个逻辑单元</td></tr>
+    </tbody>
+  </table>
+  <div class="callout danger"><strong>结论：</strong>这套开放文件适合教学和工具实验，但不能因名字里有 FreePDK45 或 Calibre 就自动获得“可投片签核 deck”的地位。工艺迁移的签核依据必须由 PDK/foundry 明确指定，并锁定版本、选项和 waiver。</div>
 
-klayout -b -r examples/dummy_tech_checks.drc \
-  -rd input=/tmp/dummy-drc-fixture.gds \
-  -rd report=/tmp/dummy-drc-fixture.lyrdb</code></pre>
-  <p>打开报告应看到栅、多晶硅、M1、通孔的宽度或间距违规标记。这个实验同时验证脚本语法、单位和报告浏览流程。</p>
-
-  <h2>8.4 如何读 DRC 报告</h2>
-  <ol class="steps">
-    <li>记录 tool、deck、PDK 和 layout commit/version。</li>
-    <li>先按 rule ID/category 聚类，不要按 marker 一个个随机修。</li>
-    <li>确认 marker 所在 cell 和层次；区分单元内部、边界和拼接违规。</li>
-    <li>回到 DRM 阅读适用条件，判断生成器参数错误、布线选择错误还是缺少后处理能力。</li>
-    <li>修复后全量重跑，防止一个补丁引入另一类 spacing/area 违规。</li>
-  </ol>
-
-  <h2>8.5 LVS 的实际流程</h2>
-  <pre><code>参考 SPICE/CDL ── normalize names/parameters ─┐
-                                             ├─ graph/device comparison ─ report
-GDS ── layer derivation ─ device extraction ─┘</code></pre>
-  <p>调试 LVS 时按下面顺序最省时间：</p>
-  <ol>
-    <li><strong>端口：</strong>cell 名、pin 名、大小写、顺序、电源名是否一致？</li>
-    <li><strong>器件数与类型：</strong>是否少提/多提 MOS，NMOS/PMOS/阈值类型是否正确？</li>
-    <li><strong>开短路：</strong>接触孔/通孔是否缺失，两个网络是否意外合并？</li>
-    <li><strong>body：</strong>well/substrate/tap 是否接到正确电源？</li>
-    <li><strong>参数：</strong>W/L、finger、并联串联归并和容差是否一致？</li>
-  </ol>
-
-  <div class="callout warn"><strong>本地内部 LVS 的边界：</strong><code>lclayout/lvs/lvs.py</code> 明确丢弃第 4 个 body 端子，并且提取能力只覆盖有限金属层，源码中还有“more than 2 metal layers”的 TODO。它能帮助捕捉早期连接错误，但新工艺验收必须以外部 PDK LVS/ERC 为准。</div>
-
-  <h2>8.6 PEX 为什么必须在 LVS 之后</h2>
-  <p>PEX 在版图网络上添加寄生。如果网络本来就短路或开路，提取出的精细 R/C 也没有意义。典型顺序是：</p>
-  <pre><code>DRC 通过 → LVS 匹配 → PEX → 版图后 SPICE 仿真 → 特征化</code></pre>
-  <p>对标准单元，需关注输出扩散与互连电容、输入栅/布线电容、内部节点电容、金属/扩散电阻和耦合。特征化工具应采用与目标 PVT 条件（corner）对应的器件模型和 PEX 技术文件。</p>
-
-  <h2>8.7 单元通过还不够：必须做拼接检查</h2>
-  <p>标准单元会在 row 中以 R0、MX 等方向紧密相邻。单个 cell DRC clean 不代表两个 cell 边界组合 clean。最少应生成：</p>
+  <h2 id="section-5">10.5 KLayout 可执行 DRC 实验</h2>
+  <p>仓库提供两个可复现文件：</p>
   <ul>
-    <li>每种 cell 与自己、与最窄/最宽 cell 的左右拼接；</li>
-    <li>允许方向的 R0/R0、R0/MX、MX/R0、MX/MX；</li>
-    <li>普通逻辑与 filler/tap/endcap 的组合；</li>
-    <li>上下 row 共享电源轨和 well 的组合。</li>
+    <li><code>examples/FreePDK45/klayout/make_drc_fixture.rb</code>：生成故意含错的 GDS；</li>
+    <li><code>examples/FreePDK45/klayout/freepdk45_teaching_subset.drc</code>：翻译语义明确的宽度、间距、包含和井重叠规则。</li>
+  </ul>
+  <pre><code>klayout -b \
+  -r examples/FreePDK45/klayout/make_drc_fixture.rb \
+  -rd output=/tmp/freepdk45-drc-fixture.gds
+
+klayout -b \
+  -r examples/FreePDK45/klayout/freepdk45_teaching_subset.drc \
+  -rd input=/tmp/freepdk45-drc-fixture.gds \
+  -rd report=/tmp/freepdk45-drc-fixture.lyrdb
+
+klayout /tmp/freepdk45-drc-fixture.gds \
+  -m /tmp/freepdk45-drc-fixture.lyrdb \
+  -l examples/FreePDK45/freepdk45.lyp</code></pre>
+  <figure class="diagram">
+    <img src="assets/freepdk45/drc-fixture-layout.png" alt="KLayout 渲染的 FreePDK45 故意违规测试版图">
+    <figcaption>真实测试 GDS。它包含窄 Active、窄 Poly、窄/近距 M1、过小 Contact 和 N/P well 重叠；本机运行得到 7 个结果项。</figcaption>
+  </figure>
+  <p>打开 Results Database 后，不要只看 marker 数量。逐项确认：</p>
+  <ol class="steps">
+    <li>规则 ID 是否正是预期的 <code>Active.1</code>、<code>Poly.1</code> 等；</li>
+    <li>marker 指向哪两条边，距离由哪个方向量得；</li>
+    <li>刚好等于阈值时 pass 还是 fail（<code>&lt;</code> 与 <code>&lt;=</code>）；</li>
+    <li>旋转、镜像、凹角、短边和层次实例后结果是否保持；</li>
+    <li>修正一类违规后是否引入另一类 spacing/enclosure 违规。</li>
+  </ol>
+  <div class="callout warn"><strong>为什么只翻译子集：</strong>教学脚本刻意没有声称等价翻译 <code>RECTANGLE ENCLOSURE</code>、宽度相关边规则、OFFGRID 和天线规则。正确做法是为每个复杂语义建立双工具测试集，再比较 marker，而不是让相似的 API 名称制造虚假信心。</div>
+
+  <h2 id="section-6">10.6 如果本机有 Calibre：用包装 deck 固定输入</h2>
+  <p>本地 <code>calibreDRC.rul</code>主要是层与检查规则，没有在文件头固定你的 GDS 路径和 top cell。工程中通常建立包装文件（路径仅为示意）：</p>
+  <pre><code>LAYOUT SYSTEM GDSII
+LAYOUT PATH "/absolute/path/INV_X1.gds"
+LAYOUT PRIMARY "INV_X1"
+DRC RESULTS DATABASE "/tmp/INV_X1.drc.results" ASCII
+DRC SUMMARY REPORT "/tmp/INV_X1.drc.summary"
+INCLUDE "/absolute/path/calibreDRC.rul"</code></pre>
+  <pre><code>calibre -drc /tmp/INV_X1-wrapper.rul</code></pre>
+  <p>实际命令、许可证、结果格式与运行选项以安装版本和 PDK 文档为准。本教程当前环境未用 Calibre 执行这份 deck，因此不会把 KLayout 子集结果冒充 Calibre 结果。正式回归还应记录工具版本、deck checksum、宏定义、LAYOUT PRIMARY、层次/flat 选项、线程数和 waiver。</p>
+
+  <h2 id="section-7">10.7 如何从一千个 marker 找到一个根因</h2>
+  <ol>
+    <li><strong>按 rule ID 和层聚类：</strong>先看有多少规则族，不按坐标随机点。</li>
+    <li><strong>区分层次：</strong>单元内部、单元边界、实例拼接、顶层布线分别处理。</li>
+    <li><strong>找第一个生成原因：</strong>技术值错误、形状构造错误、布线选择错误，还是缺少后处理。</li>
+    <li><strong>最小化复现：</strong>把问题裁成只含必要层的 pass/fail 对照，保留原 DBU。</li>
+    <li><strong>建立自动回归：</strong>固定期望规则 ID 和 marker 数；同时增加应当通过的反例。</li>
+    <li><strong>全量复跑：</strong>局部 clean 后再跑 cell、拼接矩阵和库级测试。</li>
+  </ol>
+  <p>例如大量 Contact.4 通常不是逐孔手改，而是统一的接触孔 enclosure 参数、坐标舍入或 active 合并逻辑有问题。marker 是症状，生成器参数/算法才是根因。</p>
+
+  <h2 id="section-8">10.8 LVS 调试顺序</h2>
+  <pre><code>参考 CDL ── 名称/参数规范化 ───────────────┐
+                                           ├─ 图与器件比较 → 报告
+GDS ── 派生层 → 器件识别 → 网络提取 ─────┘</code></pre>
+  <ol>
+    <li><strong>接口：</strong>cell 名、pin 名/大小写/方向、电源名是否一致？</li>
+    <li><strong>器件：</strong>MOS 数量、NMOS/PMOS/阈值类型是否一致？</li>
+    <li><strong>开短路：</strong>Contact/Via 是否缺失，两个网络是否意外合并？</li>
+    <li><strong>体端：</strong>well、substrate、tap 是否接到正确电源？</li>
+    <li><strong>参数归并：</strong>W/L、finger、并联/串联归并与容差是否一致？</li>
+  </ol>
+  <div class="callout warn"><strong>LibreCell 内部 LVS 的边界：</strong><code>lclayout/lvs/lvs.py</code> 会丢弃第 4 个 body 端子，提取层能力也有限。它适合早期连接回归，不能代替目标 PDK 的外部 LVS/ERC。</div>
+
+  <h2 id="section-9">10.9 PEX 与库级拼接</h2>
+  <p>PEX 应在连接已由 LVS 确认后进行。标准单元需要关注输出扩散/互连电容、输入栅与布线电容、内部节点电容、金属/扩散电阻和耦合；模型与 PVT corner 必须配套。</p>
+  <p>单个 cell DRC clean 仍不够。真实 row 中存在紧密相邻和镜像，至少应覆盖：</p>
+  <ul>
+    <li>每个 cell 与自身、最窄/最宽 cell 的左右拼接；</li>
+    <li>合法方向的 R0/R0、R0/MX、MX/R0、MX/MX；</li>
+    <li>逻辑单元与 filler、tap、endcap、antenna 单元组合；</li>
+    <li>上下 row 的电源轨、well/implant 连续性及间距。</li>
   </ul>
 
   <div class="lab">
-    <strong>故意制造错误的学习法</strong>
-    <p>在一个副本中分别制造三种错误：缩窄 M1、删除 Via1、把输出金属碰到 VDD。预测哪一种由 DRC 发现，哪一种主要由 LVS 发现，再运行验证核对。不要修改唯一的黄金版图。</p>
+    <strong>进阶实验：为一条规则建立证据</strong>
+    <p>选择 <code>Metal1.1</code>，生成宽度为 0.0649、0.0650、0.0651 μm 的三条 M1；再旋转 90° 并放进子 cell 实例。记录实际坐标量化后的宽度和 marker。这个实验会同时暴露阈值比较、DBU 舍入、方向和层次处理。</p>
   </div>
 
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li>删除一个通孔，为什么 DRC 可能仍然无违规？</li>
-      <li>为什么不能用 LibreCell 内部 LVS 的 pass 代替 foundry LVS？</li>
-      <li>为什么单元拼接矩阵属于库签核，而不是可选美化？</li>
+      <li>规则注释和表达式数值不一致时，为什么不能任选一个？</li>
+      <li>删除 Via 后 DRC 可能通过而 LVS 失败，说明两者分别检查什么？</li>
+      <li>为什么跨工具翻译宽度相关间距规则必须比较 marker，而不能只比较代码长得像不像？</li>
+      <li>为什么单元拼接 DRC 是库签核的一部分？</li>
     </ol>
-    <details><summary>参考答案</summary><p>删除通孔可能没有留下任何非法几何，却造成开路，需 LVS 发现。内部 LVS 忽略体端且层/器件提取有限。真实芯片中单元必然相邻和镜像，边界层组合可能产生单个单元中不存在的间距、凹槽或井规则违规。</p></details>
+    <details><summary>参考答案</summary><p>注释不是可执行规范，表达式也可能写错，必须回到原始工艺规格和 pass/fail 测试。DRC 检查存在的几何是否合法，LVS 检查提取连接/器件是否匹配参考。复杂规则依赖边语义和测量选项，相似 API 不保证等价。标准单元在芯片中必然相邻和镜像，边界组合会出现单 cell 内不存在的井、间距、凹槽和连续性问题。</p></details>
   </div>
 
-  <div class="source-note"><strong>工具依据：</strong><a href="https://www.klayout.de/doc/manual/basic.html">KLayout 基础手册</a>与<a href="https://www.klayout.de/doc/manual/drc_basic.html">官方 DRC 基础文档</a>。Calibre 手册只用于理解工业验证分层，本教程的可执行入门实验采用 KLayout。</div>
-  <nav class="bottom-nav"><a href="chapter7.html">← 第 7 章</a><a href="chapter9.html">第 9 章：算法小白也能用的图论 →</a></nav>
-  <footer>第 8 章 · DRC、LVS 与 PEX 实验</footer>
+  <div class="source-note"><strong>本章依据：</strong>本地 <code>calibreDRC.rul</code>、<code>layer.inc</code>、FreePDK45 GDS/CDL，以及 <code>calibre_drc_tutorial.md</code> 中关于基本几何操作、派生层、可变间距和天线的可复用部分。未采用其中专有工艺内容、未经本地文件验证的数值结论和不严谨剖面示意。</div>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter7.html">← 第 9 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter9.html">第 11 章 →</a></nav>
+  <footer>第 10 章　DRC、LVS 与 PEX 可执行实验 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

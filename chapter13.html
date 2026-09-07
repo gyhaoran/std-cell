@@ -3,157 +3,162 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第13章：技术文件逐字段拆解</title>
+  <title>第 23 章　固定版本并生成第一个单元</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter12.html">← 上一章</a><a href="chapter14.html">下一章 →</a></nav>
-  <h1>第 13 章　技术文件逐字段拆解</h1>
-  <p class="subtitle">以 <code>examples/dummy_tech.py</code> 为真实接口，不发明不存在的配置类</p>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter12.html">← 第 22 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter14.html">第 24 章 →</a></nav>
+  <h1>第 23 章　固定版本并生成第一个单元</h1>
+  <p class="subtitle">先让环境、输入和命令可复现，再讨论新工艺</p>
 
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>理解技术文件是被执行的 Python module，不是通用 PDK schema。</li>
-      <li>掌握当前版本真正读取的全部字段及单位。</li>
-      <li>能判断新工艺需求是输出映射、参数调整，还是内部层/器件/布线代码扩展。</li>
+      <li>固定 LibreCell commit、Python、依赖和随机性。</li>
+      <li>使用本地版本真实存在的 CLI 参数生成 <code>INVX1</code>。</li>
+      <li>检查 GDS、LEF、MAG、日志和内部 LVS，而不是只看退出码。</li>
     </ul>
   </div>
 
-  <h2>13.1 技术文件如何被加载</h2>
-  <p><code>tech_util.load_tech_file</code> 使用 <code>SourceFileLoader</code> 执行传入的 Python 文件，然后其他模块直接访问 <code>tech.db_unit</code>、<code>tech.min_spacing</code> 等 module attributes。</p>
-  <div class="callout danger"><strong>安全与接口含义：</strong><code>--tech</code> 文件具有执行任意 Python 的能力，只加载可信文件。当前代码没有 schema validator；字段拼错往往到流程深处才表现为 <code>AttributeError</code> 或错误几何。迁移项目应自行增加静态校验与单元测试。</div>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter12.html">单元内部布线</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>有本 commit 成功日志、环境锁与内部 LVS 证据。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>保存真实运行清单；缺依赖时记录阻塞点而不伪造结果。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">本教程的版本基线</a></li><li><a href="#section-2">建立独立、可锁定的环境</a></li><li><a href="#section-3">真实 CLI 参数</a></li><li><a href="#section-4">生成第一个 INVX1</a></li><li><a href="#section-5">输出应当有什么</a></li><li><a href="#section-6">把同一布局结果用于可比实验</a></li><li><a href="#section-7">常见失败的定位顺序</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">23.1 本教程的版本基线</h2>
+  <pre><code>Repository: /home/jasper/code/github/librecell
+Branch:     anneal
+Commit:     f708e3a
+Package:    librecell-layout 0.0.9</code></pre>
+  <p>本地 <code>setup.py</code> 约束了 <code>klayout==0.26.*</code>、<code>networkx==2.*</code>、<code>pysmt==0.9.*</code>、<code>z3-solver==4.8.*</code>、<code>numpy==1.*</code> 等旧依赖。它们与现代 Python 的兼容性不能想当然。</p>
 
-  <h2>13.2 内部层不是 PDK 层号</h2>
-  <p><code>lclayout/layout/layers.py</code> 固定定义了一套内部语义层：</p>
-  <pre><code>ndiffusion, pdiffusion, nwell, pwell, poly
-ndiff_contact, pdiff_contact, poly_contact
-metal1, via1, metal2
-metal1/metal2 label 与 pin，abutment_box</code></pre>
-  <p>内部通孔连通关系也固定为扩散区/多晶硅↔M1 和 M1↔M2。技术文件中的 <code>output_map</code> 只是在输出阶段把这些内部层复制到目标 GDS <code>(layer, datatype)</code>，并没有把内部拓扑变成任意 PDK 层栈。</p>
+  <div class="callout danger"><strong>当前机器的现场状态：</strong>系统是 Python 3.12.3，现有 <code>/home/jasper/.virtualenvs/iCell/bin/lclayout</code> 在导入 <code>smt_placer.py</code> 时因缺少 <code>z3</code> 失败。因此教程不能声称“当前环境已开箱即用”，也不应在这个共享环境中边装边猜。</div>
 
-  <pre><code>my_metal1 = (6, 0)
-my_metal1_pin = (6, 2)
+  <h2 id="section-2">23.2 建立独立、可锁定的环境</h2>
+  <p>不要为了旧依赖直接降级共享 Python，也不要把某个旧 Python 版本当成已经验证的安装配方。先区分两条路线：本书新增的 SPICE、算法和 KLayout 解析/几何实验已在当前 Python 3.12.3 环境实测；完整 lclayout 仍缺依赖，需要在你可控的独立环境中建立并验证锁文件。</p>
+  <pre><code>cd /home/jasper/code/docs/std-cell
+python examples/learning/preflight.py
 
-output_map = {
-    l_metal1: my_metal1,
-    l_metal1_pin: my_metal1_pin,
-    l_nwell: [(2, 0), (2, 1)],  # 一个内部层可复制到多个输出层
-}</code></pre>
-  <p>如果目标工艺需要局部互连层（LI）、特殊栅接触栈、多种切割层、M3+、不同阈值注入层或布尔派生层，单靠 <code>output_map</code> 通常不够；要扩展内部层、通孔连接图、晶体管绘制、布线、LVS 和输出模块。</p>
+# 以下只创建隔离环境，不表示依赖已安装或生成器已通过
+TUTORIAL_ENV_ROOT=$(mktemp -d /tmp/stdcell-env.XXXXXX)
+python -m venv "$TUTORIAL_ENV_ROOT/venv"
+source "$TUTORIAL_ENV_ROOT/venv/bin/activate"
+python --version
+python -m pip --version</code></pre>
+  <p>然后依据仓库要求与解释器兼容性，在该隔离环境内解决依赖；成功后冻结精确版本、安装来源和哈希，重建第二个空环境复验，再发布安装步骤。这里没有提供一个未经验证的 requirements lock。当前网络权限不允许补装 z3/pysmt，不能把这个阻塞描述为已解决。</p>
+  <p><strong>如何继续学习：</strong>不必卡在安装整套生成器。先退出新建的空环境，回到能运行 KLayout Python API 的既有解释器，完成<a href="source-lab.html">真实 parser 补丁</a>和<a href="porting-lab.html">几何迁移</a>；仅标准库的算法实验及通过命令行调用 ngspice 的仿真实验也可独立运行。它们不等价于完整 lclayout 成功。</p>
 
-  <h2>13.3 单位链必须完整推导</h2>
-  <pre><code># 技术文件
-db_unit = 1e-9  # 一内部整数单位 = 1 nm = 1e-9 m
+  <h3>最小环境验收</h3>
+  <pre><code>python -c "import klayout.db, networkx, numpy, z3; print('imports ok')"
+lclayout --help
+git -C /home/jasper/code/github/librecell rev-parse HEAD</code></pre>
+  <p>只有三条都成功，才进入生成实验。若导入失败，先修依赖；不要用 <code>--ignore-lvs</code> 掩盖环境问题。</p>
 
-# 所有 unit_cell_width、spacing、via_size 等都用内部整数单位
-unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
-  <p>输入 SPICE 的 W 经 KLayout netlist parser 读取后被转换到米，再除以 <code>db_unit</code> 形成内部 channel width，之后乘 <code>transistor_channel_width_sizing</code> 并夹到 NMOS/PMOS 最小 gate width。GDS writer 又把米/DBU 换为 KLayout 要求的 µm/DBU；LEF writer按自己的 <code>db_unit</code> 计算缩放。</p>
-  <div class="callout warn"><strong>迁移检查：</strong>选 INV 这样可手算的单元，从 SPICE W/L 一路打印到内部整数、GDS ruler 和 LEF SIZE/PIN 坐标。四者任一不一致就停止，不要靠“整体缩放 GDS”补救。</div>
-
-  <h2>13.4 输出模块（writer）</h2>
-  <pre><code>output_writers = [
-    MagWriter(tech_name="scmos", scale_factor=0.1, output_map={...}),
-    LefWriter(db_unit=1e-6, output_map=output_map, site="CORE"),
-    GdsWriter(db_unit=db_unit, output_map=output_map),
-]</code></pre>
-  <p>输出模块列表就是实际输出能力。删除一个 writer 就不会生成对应文件；添加新格式应实现 <code>Writer</code> 接口。Magic 的层名/缩放与 GDS 映射是两个不同配置，不能假定自动同步。</p>
-
-  <h2>13.5 布线资源和层用途</h2>
+  <h2 id="section-3">23.3 真实 CLI 参数</h2>
   <table>
-    <thead><tr><th>字段</th><th>真实含义</th><th>典型风险</th></tr></thead>
+    <thead><tr><th>参数</th><th>是否必需</th><th>作用</th></tr></thead>
     <tbody>
-      <tr><td><code>routing_layers</code></td><td>内部层→<code>h</code>/<code>v</code>/<code>hv</code>/空串</td><td>漏层或方向错误会让图断开；空串层可接触但无同层轨道</td></tr>
-      <tr><td><code>pin_layer</code></td><td>信号 pin 的内部层</td><td>必须存在对应 <code>_pin/_label</code> 内部层与 output map</td></tr>
-      <tr><td><code>power_layer</code></td><td>VDD/VSS rail 所在内部层</td><td>需与 P&amp;R 电源连接和 LEF 约定一致</td></tr>
-      <tr><td><code>connectable_layers</code></td><td>后处理填 notch 时允许跨 shape 合并的层</td><td>错误加入金属会把不同 net 短路；dummy 只放 nwell</td></tr>
+      <tr><td><code>--cell NAME</code></td><td>是</td><td>选择网表中的一个 <code>.subckt</code></td></tr>
+      <tr><td><code>--netlist FILE</code></td><td>是</td><td>输入晶体管级 SPICE</td></tr>
+      <tr><td><code>--tech FILE</code></td><td>是</td><td>执行并加载 Python 技术文件</td></tr>
+      <tr><td><code>--output-dir DIR</code></td><td>否，默认当前目录</td><td>所有输出模块（writer）的输出目录</td></tr>
+      <tr><td><code>--placer</code></td><td>否，默认 <code>meta</code></td><td>选择布局器：<code>meta/flat/hierarchical/smt/random/hillclimb/ta</code></td></tr>
+      <tr><td><code>--signal-router</code></td><td>否，默认 <code>dijkstra</code></td><td>选择信号布线器：<code>dijkstra/steiner</code></td></tr>
+      <tr><td><code>--placement-file FILE</code></td><td>否</td><td>文件不存在时保存布局结果，存在时加载复用</td></tr>
+      <tr><td><code>--debug-routing-graph</code></td><td>否</td><td>输出布线图而不是正常布线图形，用于诊断端子和网格</td></tr>
+      <tr><td><code>--debug-smt-solver</code></td><td>否</td><td>显示 SMT 清理相关调试信息</td></tr>
+      <tr><td><code>-v/--verbose</code></td><td>否</td><td>打开 DEBUG 日志；这是布尔开关，argparse 也接受 <code>-vv</code>，但不会比 <code>-v</code> 更详细</td></tr>
+      <tr><td><code>-q/--quiet</code>、<code>--log FILE</code></td><td>否</td><td>控制日志</td></tr>
+      <tr><td><code>--ignore-lvs</code></td><td>否</td><td>LVS 失败仍写输出，仅限诊断，不是验收方式</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>本版本没有</strong> <code>--all-cells</code>、通用 <code>--debug</code> 或 <code>--routing-graph-file</code>。批量生成必须自己循环明确存在的 subckt，并保留每个单元的退出码与日志。示例统一使用 <code>-v</code>，不把重复 v 当成多级日志。</div>
+
+  <h2 id="section-4">23.4 生成第一个 <code>INVX1</code></h2>
+  <pre><code>LIBRECELL_ROOT=/home/jasper/code/github/librecell
+TUTORIAL_OUT=/tmp/librecell-tutorial-invx1
+mkdir -p "$TUTORIAL_OUT"
+cd "$LIBRECELL_ROOT/librecell-layout"
+
+PYTHONHASHSEED=42 lclayout \
+  --cell INVX1 \
+  --netlist examples/cells.sp \
+  --tech examples/dummy_tech.py \
+  --output-dir "$TUTORIAL_OUT" \
+  --placement-file "$TUTORIAL_OUT/INVX1-placement.json" \
+  --placer meta \
+  --signal-router dijkstra \
+  --log "$TUTORIAL_OUT/INVX1.log" \
+  --verbose</code></pre>
+  <p>固定 <code>PYTHONHASHSEED=42</code> 是项目 README 给出的非确定性临时规避办法。它不证明所有算法完全确定；还应比较输出哈希、布局 JSON 和关键指标。</p>
+
+  <h2 id="section-5">23.5 输出应当有什么</h2>
+  <pre><code>ls -lh "$TUTORIAL_OUT"
+rg "Placement engine|routing|LVS result|Write GDS|Write LEF|Done" \
+  "$TUTORIAL_OUT/INVX1.log"
+
+klayout "$TUTORIAL_OUT/INVX1.gds"</code></pre>
+  <table>
+    <thead><tr><th>文件</th><th>检查内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>INVX1.gds</code></td><td>顶层单元、DBU、层号、2 只 MOS、VDD/VSS、A/Y、通孔/接触孔与边界</td></tr>
+      <tr><td><code>INVX1.lef</code></td><td>宏单元尺寸、站点、引脚端口；同时记录方向/用途与 OBS 的已知缺陷</td></tr>
+      <tr><td><code>INVX1.mag</code></td><td>Magic 技术名、矩形和端口；这是 dummy 配置的第三种输出</td></tr>
+      <tr><td><code>INVX1-placement.json</code></td><td>晶体管名称、槽位坐标、翻转后的源/栅/漏</td></tr>
+      <tr><td><code>INVX1.log</code></td><td>布局器/布线器、迭代、内部 LVS SUCCESS、输出路径和总耗时</td></tr>
     </tbody>
   </table>
 
-  <h2>13.6 单元架构和器件几何字段</h2>
-  <table>
-    <thead><tr><th>字段</th><th>控制对象</th></tr></thead>
-    <tbody>
-      <tr><td><code>unit_cell_width</code></td><td>最小横向单元步长，也用于栅槽位节距；最终宽度是 <code>(placement_width+1)×unit_cell_width</code></td></tr>
-      <tr><td><code>unit_cell_height</code></td><td>固定 cell height 和上下电源轨 y 位置</td></tr>
-      <tr><td><code>gate_length</code></td><td>Poly gate path 的线宽，也就是生成几何的沟道 L</td></tr>
-      <tr><td><code>gate_extension</code></td><td>Poly 超出 active 上下边界的长度</td></tr>
-      <tr><td><code>transistor_offset_y</code></td><td>有源区到上下单元边界的纵向偏移；代码会检查与有源区/多晶硅间距的关系</td></tr>
-      <tr><td><code>minimum_gate_width_nfet/pfet</code></td><td>输入 W 太小时的下限</td></tr>
-      <tr><td><code>transistor_channel_width_sizing</code></td><td>对所有输入 W 的全局缩放因子</td></tr>
-      <tr><td><code>power_rail_width</code></td><td>上下电源 path 宽度</td></tr>
-      <tr><td><code>minimum_pin_width</code></td><td>pin 相关最小尺寸参数</td></tr>
-    </tbody>
-  </table>
-  <p>这些参数并非互相独立。例如 <code>transistor_offset_y</code> 必须同时容纳有源区间距与 <code>gate_extension + poly spacing/2</code>；栅中心还必须落在 x 方向布线网格上。</p>
+  <h2 id="section-6">23.6 把同一布局结果用于可比实验</h2>
+  <p><code>--placement-file</code> 已存在时会直接加载，因此可以只比较布线器或技术配置的改动，避免布局变化干扰：</p>
+  <pre><code>mkdir -p /tmp/librecell-tutorial-steiner
 
-  <h2>13.7 网格字段</h2>
-  <pre><code>routing_grid_pitch_x = ...
-routing_grid_pitch_y = ...
-grid_offset_x = ...
-grid_offset_y = ...</code></pre>
-  <p>网格节距（pitch）决定相邻候选节点的中心距，偏移（offset）决定第一列/行的位置。更密的网格提供更多候选但图更大，且不能自动使违规路径合法；更疏的网格可能让晶体管端子或引脚没有接入节点。注意 pitch/节距不同于图形边到边的 spacing/间距。每次改动都要运行布线图可视化和端点数量回归。</p>
+PYTHONHASHSEED=42 lclayout \
+  --cell INVX1 \
+  --netlist examples/cells.sp \
+  --tech examples/dummy_tech.py \
+  --output-dir /tmp/librecell-tutorial-steiner \
+  --placement-file /tmp/librecell-tutorial-invx1/INVX1-placement.json \
+  --signal-router steiner \
+  --verbose</code></pre>
+  <p>反过来比较布局器时，应给每个布局器一个新的布局文件路径；否则程序会加载旧 JSON，导致你误以为切换布局器没有效果。</p>
 
-  <h2>13.8 几何规则字段</h2>
+  <h2 id="section-7">23.7 常见失败的定位顺序</h2>
   <table>
-    <thead><tr><th>字段</th><th>结构</th><th>消费位置</th></tr></thead>
+    <thead><tr><th>现象</th><th>先检查</th></tr></thead>
     <tbody>
-      <tr><td><code>min_spacing</code></td><td><code>{(layer1,layer2): integer}</code></td><td>间距关系图、器件边界、非法布线边和冲突节点</td></tr>
-      <tr><td><code>minimum_width</code></td><td><code>{layer: integer}</code></td><td>基础几何/清理相关约束</td></tr>
-      <tr><td><code>minimum_enclosure</code></td><td><code>{(outer,inner): integer或tuple}</code></td><td>有源区/井、通孔/接触孔生成和端子接入</td></tr>
-      <tr><td><code>minimum_notch</code></td><td><code>{layer: integer}</code></td><td>布线后填补凹槽</td></tr>
-      <tr><td><code>min_area</code></td><td><code>{layer: integer area}</code></td><td>SMT-based minimum-area repair</td></tr>
-      <tr><td><code>wire_width</code></td><td><code>{routing_layer: integer}</code></td><td>走线绘制与间距裕量</td></tr>
-      <tr><td><code>wire_width_horizontal</code></td><td>水平线宽覆盖值</td><td>绘制水平边</td></tr>
-      <tr><td><code>via_size</code></td><td><code>{cut_layer: side_length}</code></td><td>接触孔/通孔几何和接入裕量</td></tr>
-    </tbody>
-  </table>
-  <p><code>min_area</code> 存面积，其他大多存长度；这是最常见的量纲错误之一。真实 PDK 的条件 spacing、密度、antenna、EOL 等并没有等价字段。</p>
-
-  <h2>13.9 布线成本字段</h2>
-  <table>
-    <thead><tr><th>字段</th><th>作用</th></tr></thead>
-    <tbody>
-      <tr><td><code>weights_horizontal/vertical</code></td><td>每个内部层每 DBU 的横/纵边基础权重</td></tr>
-      <tr><td><code>via_weights</code></td><td>跨层边成本；键是两个可连接层，不是 cut layer 名</td></tr>
-      <tr><td><code>orientation_change_penalty</code></td><td>HVGraphRouter 中水平/垂直方向切换的成本</td></tr>
-      <tr><td><code>multi_via</code></td><td>指定层对的多通孔数量；本地检查要求层对键按字符串顺序排列</td></tr>
-    </tbody>
-  </table>
-  <p>成本只影响合法候选之间的偏好，不替代几何规则。先确保图正确，再调成本。</p>
-
-  <h2>13.10 适配能力矩阵</h2>
-  <table>
-    <thead><tr><th>新工艺需求</th><th>仅技术文件？</th><th>说明</th></tr></thead>
-    <tbody>
-      <tr><td>相同内部层栈，不同 GDS 层号</td><td>通常可以</td><td>修改 <code>output_map</code> 并用 layer audit 验证</td></tr>
-      <tr><td>尺寸、节距、基本宽度/间距/包围量改变</td><td>部分可以</td><td>字段可表达，但仍需完整外部 DRC</td></tr>
-      <tr><td>foundry 模型名不以 n 开头</td><td>不可以</td><td>需修改 <code>net_util.get_channel_type</code> 接口并测试</td></tr>
-      <tr><td>新增 LI/M3、多种通孔/接触孔</td><td>不可以</td><td>扩展内部层、通孔连接图、布线、输出模块和 LVS</td></tr>
-      <tr><td>implant、Vt marker、复杂派生层</td><td>通常不可以</td><td>output copy 不能表达任意布尔/条件生成</td></tr>
-      <tr><td>复杂 EOL/coloring/密度/antenna</td><td>不可以完整表达</td><td>需生成约束、后处理及外部 deck 闭环</td></tr>
-      <tr><td>body/tap 签核</td><td>不可以靠内部 LVS</td><td>需明确 cell 架构并接 foundry LVS/ERC</td></tr>
+      <tr><td><code>ModuleNotFoundError: z3</code></td><td>是否进入正确 venv，依赖是否按 lock 安装</td></tr>
+      <tr><td><code>No such circuit</code></td><td><code>--cell</code> 与 <code>.subckt</code> 名称；KLayout 解析会转大写</td></tr>
+      <tr><td>找不到 supply/ground</td><td>端口是否使用代码识别的 vdd/vcc/vpwr 与 gnd/vss/vgnd/0</td></tr>
+      <tr><td>model 类型反了</td><td>本地规则是模型名以 n 开头→NMOS，其余→PMOS</td></tr>
+      <tr><td>网络没有布线端点</td><td>用 <code>--debug-routing-graph</code> 检查网格节距、偏移、包围量和端子</td></tr>
+      <tr><td><code>Failed to route</code></td><td>合法布线图是否有通路、冲突是否过密，再比较布线器和成本</td></tr>
+      <tr><td>LVS failed</td><td>先查端口/器件类型/开短路；<code>--ignore-lvs</code> 只输出诊断版图</td></tr>
     </tbody>
   </table>
 
   <div class="lab">
-    <strong>字段追踪实验</strong>
-    <p>任选 <code>via_size[l_via1]</code>，用 <code>rg</code> 找出它在布线图、端子提取和走线绘制中的全部使用位置。修改字段前先写下每个位置期望的单位和层语义。</p>
+    <strong>首次运行验收记录</strong>
+    <p>保存 commit、Python version、<code>pip freeze</code>、完整命令、退出码、日志、输出 hash 和一张逐层标注截图。只有这份记录完整，后续“改技术文件前后比较”才有可信基线。</p>
   </div>
 
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li>为什么把内部 <code>metal2</code> 映射成 PDK 的 M3 不等于支持了 M1–M3 完整栈？</li>
-      <li><code>min_area</code> 与 <code>minimum_width</code> 的量纲有何不同？</li>
-      <li>为什么技术参数改动必须同时检查布线图和外部 DRC？</li>
+      <li>为什么不能在已有布局 JSON 时比较布局器？</li>
+      <li>为什么 <code>--ignore-lvs</code> 不能出现在发布流水线？</li>
+      <li>本地 dummy tech 实际写出哪三种物理文件？</li>
     </ol>
-    <details><summary>参考答案</summary><p>内部通孔连接图和接触结构仍只有固定层对，简单改名不会创建缺失层。<code>min_area</code> 是面积，<code>minimum_width</code> 是长度。布线图检查验证拓扑和接入资源，外部 DRC 覆盖生成器未表达的真实制造规则。</p></details>
+    <details><summary>参考答案</summary><p>已有 JSON 会绕过布局器并直接加载。<code>--ignore-lvs</code> 会让不匹配版图继续输出，破坏正确性门禁。当前配置写 GDS、LEF 和 MAG。</p></details>
   </div>
 
-  <nav class="bottom-nav"><a href="chapter12.html">← 第 12 章</a><a href="chapter14.html">第 14 章：沿源码走完整流水线 →</a></nav>
-  <footer>第 13 章 · 技术文件逐字段拆解</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter12.html">← 第 22 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter14.html">第 24 章 →</a></nav>
+  <footer>第 23 章　固定版本并生成第一个单元 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

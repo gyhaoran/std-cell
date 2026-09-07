@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第2章：从 MOS 到 CMOS 逻辑</title>
+  <title>第 3 章　从 MOS 到 CMOS 逻辑</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter1.html">← 上一章</a><a href="chapter3.html">下一章 →</a></nav>
-  <h1>第 2 章　从 MOS 到 CMOS 逻辑</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="foundations.html">← 第 2 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter3.html">第 4 章 →</a></nav>
+  <h1>第 3 章　从 MOS 到 CMOS 逻辑</h1>
   <p class="subtitle">版图不是彩色矩形拼图，而是四端器件组成的电路</p>
 
   <div class="objectives">
@@ -21,7 +21,15 @@
     </ul>
   </div>
 
-  <h2>2.1 MOS 是受电压控制的四端器件</h2>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="foundations.html">电学、逻辑与电路图零基础</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能推导 INV 的两种稳态并标出 W/L/B。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>画两张导通路径图并解释体接触。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">MOS 是受电压控制的四端器件</a></li><li><a href="#section-2">体端、井与 tap 为什么不能省略</a></li><li><a href="#section-3">从俯视版图正确理解 W/L</a></li><li><a href="#section-4">CMOS 反相器：两个互补网络</a></li><li><a href="#section-5">串联表示 AND，并联表示 OR——但要先说明“导通条件”</a></li><li><a href="#section-6">晶体管尺寸不是“越大越好”</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">3.1 MOS 是受电压控制的四端器件</h2>
   <table>
     <thead><tr><th>端子</th><th>英文</th><th>作用</th></tr></thead>
     <tbody>
@@ -43,7 +51,7 @@
 
   <div class="callout warn"><strong>“开”和“关”只是一阶模型。</strong>真实 MOS 有截止、弱反型、线性区和饱和区。数字门在稳定的 0/1 状态可用开关模型分析逻辑，但切换过程中器件会经过不同工作区，反相器的 NMOS 和 PMOS 也会有一段时间同时导通，产生短路电流。</div>
 
-  <h2>2.2 体端、井与 tap 为什么不能省略</h2>
+  <h2 id="section-2">3.2 体端、井与 tap 为什么不能省略</h2>
   <p>在常见 bulk CMOS 中，PMOS 位于 N-Well，NMOS 位于 P-Well 或 P 型衬底。通常把 PMOS body 接 VDD，把 NMOS body 接 VSS，使体二极管保持反偏并稳定阈值。版图中的 well/substrate tap 就是把井或衬底可靠接到电源的结构。</p>
 
   <figure class="diagram">
@@ -53,7 +61,7 @@
 
   <p>某些标准单元库采用 tapless 架构：普通逻辑单元内部不放 tap，而是在芯片行中周期性插入专用 tap cell。无论哪一种，body 网络都必须在库架构和外部 LVS 中明确。LibreCell 本地内部 LVS 为兼容缺少 tap 的单元会忽略第四端，因此它只能作早期连通性检查。</p>
 
-  <h2>2.3 从俯视版图正确理解 W/L</h2>
+  <h2 id="section-3">3.3 从俯视版图正确理解 W/L</h2>
   <p>当一条 Poly 穿过 Active 时形成一个 MOS。假设电流从交叠区左侧扩散流向右侧扩散：</p>
   <ul>
     <li><strong>L（沟道长度）</strong>是沿源到漏方向，栅覆盖沟道的短尺寸；在常见图形里往往接近那条细 Poly 的线宽。</li>
@@ -68,7 +76,7 @@ Source  ───────┃───────  Drain
 
   <p>减小 L 通常可增强驱动但受工艺规则和器件模型限制；增大 W 通常降低导通电阻，却增加栅/扩散电容和面积。宽器件可以折成多个指（finger）：多个栅条并联控制多个窄沟道，总有效宽度近似为各指宽度之和，但寄生和端部效应需要提取确认。</p>
 
-  <h2>2.4 CMOS 反相器：两个互补网络</h2>
+  <h2 id="section-4">3.4 CMOS 反相器：两个互补网络</h2>
   <pre><code> VDD
   │
  PMOS  gate=A
@@ -90,7 +98,7 @@ Source  ───────┃───────  Drain
   </ul>
   <p>理想稳态下不应同时存在 VDD→VSS 的直流通路；切换期间则可能短暂同时导通。</p>
 
-  <h2>2.5 串联表示 AND，并联表示 OR——但要先说明“导通条件”</h2>
+  <h2 id="section-5">3.5 串联表示 AND，并联表示 OR——但要先说明“导通条件”</h2>
   <p>两个开关串联时必须都导通，路径才连通；并联时任一支路导通即可。因此：</p>
   <table>
     <thead><tr><th>NMOS 下拉网络</th><th>何时 Y 被拉低</th><th>得到的门</th></tr></thead>
@@ -101,7 +109,7 @@ Source  ───────┃───────  Drain
   </table>
   <p>PUN 使用 PMOS，控制极性相反，同时把串联和并联对调。这个“对偶”关系比死记每个门的晶体管图更可靠。</p>
 
-  <h2>2.6 晶体管尺寸不是“越大越好”</h2>
+  <h2 id="section-6">3.6 晶体管尺寸不是“越大越好”</h2>
   <p>电子迁移率通常高于空穴迁移率，因此要获得近似对称的上升/下降能力，PMOS 往往需要比 NMOS 更宽；具体比例由目标工艺模型和负载仿真决定，不能套一个跨工艺常数。串联堆叠的器件等效电阻更大，也常需要增宽。</p>
   <p>标准单元尺寸设计是多目标折中：</p>
   <ul>
@@ -123,8 +131,9 @@ Source  ───────┃───────  Drain
   </div>
 
   <div class="source-note"><strong>阅读依据：</strong><em>Fundamentals of Layout Design for Electronic Circuits</em> §2.9、§3.2 与 §6.3；《CMOS版图设计基础》关于基本工艺层和 FET 尺寸的图例。具体器件参数仍以目标 PDK 模型和设计手册为准。</div>
-  <nav class="bottom-nav"><a href="chapter1.html">← 第 1 章</a><a href="chapter3.html">第 3 章：版图如何变成晶体管 →</a></nav>
-  <footer>第 2 章 · 从 MOS 到 CMOS 逻辑</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="foundations.html">← 第 2 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter3.html">第 4 章 →</a></nav>
+  <footer>第 3 章　从 MOS 到 CMOS 逻辑 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

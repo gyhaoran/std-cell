@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第7章：读懂 PDK 与设计规则</title>
+  <title>第 9 章　读懂 PDK 与设计规则</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter6.html">← 上一章</a><a href="chapter8.html">下一章 →</a></nav>
-  <h1>第 7 章　读懂 PDK 与设计规则</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter6.html">← 第 8 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter8.html">第 10 章 →</a></nav>
+  <h1>第 9 章　读懂 PDK 与设计规则</h1>
   <p class="subtitle">新工艺适配的第一步不是改 Python，而是建立工艺事实清单</p>
 
   <div class="objectives">
@@ -21,7 +21,15 @@
     </ul>
   </div>
 
-  <h2>7.1 一个可迁移的 PDK 至少要有什么</h2>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter6.html">一个库要交付哪些视图</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能区分 DBU、制造网格和宽度/间距/包围/EOL。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>填写一个目标工艺的规则来源与换算表。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">一个可迁移的 PDK 至少要有什么</a></li><li><a href="#section-2">Layer、datatype 与 purpose</a></li><li><a href="#section-3">单位与 DBU：所有几何错误的第一嫌疑</a></li><li><a href="#section-4">基础几何规则：相似术语也要区分</a></li><li><a href="#section-5">真实规则远不止一个数字</a></li><li><a href="#section-6">标准单元架构是工艺规则之上的设计选择</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">9.1 一个可迁移的 PDK 至少要有什么</h2>
   <table>
     <thead><tr><th>资料/文件</th><th>回答的问题</th><th>迁移中的产物</th></tr></thead>
     <tbody>
@@ -37,7 +45,7 @@
 
   <div class="callout danger"><strong>规则手册不能代替验证 deck，验证 deck也不能代替规则手册。</strong>DRM 用来理解规则意图和适用条件；签核以被授权、版本匹配的 foundry deck 与指定工具流程为准。不要把公开网页中的数值搬进另一工艺。</div>
 
-  <h2>7.2 Layer、datatype 与 purpose</h2>
+  <h2 id="section-2">9.2 Layer、datatype 与 purpose</h2>
   <p>GDS 中一个层通常由 <code>(layer, datatype)</code> 二元组标识。同一物理材料可能还有 drawing、pin、label、net、slot 等不同 purpose，它们可能映射到相同或不同 GDS 对。迁移时必须逐项回答：</p>
   <ul>
     <li>生成器内部层如何映射到输出层？</li>
@@ -48,7 +56,7 @@
   </ul>
   <p>例如开放的 SKY130 文档就把层定义、GDS 层信息、LVS 器件信息、金属/通孔规则、天线效应和寄生提取分成多个部分。这说明“知道 M1 的层号”远不足以完成工艺适配。</p>
 
-  <h2>7.3 单位与 DBU：所有几何错误的第一嫌疑</h2>
+  <h2 id="section-3">9.3 单位与 DBU：所有几何错误的第一嫌疑</h2>
   <p>版图数据库用整数坐标保存几何。若 <code>db_unit = 1e-9</code> 米，则一个坐标单位是 1 nm：</p>
   <pre><code>physical_length_m = integer_coordinate × db_unit
 integer_coordinate = physical_length_m / db_unit
@@ -58,27 +66,26 @@ integer_coordinate = physical_length_m / db_unit
   <p>选择 DBU 时要保证所有关键尺寸能准确落在整数网格，同时不能导致坐标溢出。必须检查 SPICE W/L 的单位、LibreCell 技术文件的整数单位、GDS 输出模块的 DBU、LEF <code>UNITS</code> 和外部验证规则文件的单位是否一致。</p>
   <div class="callout warn"><strong>不要用“工艺是 130 nm”推导任何尺寸。</strong>工艺节点名不是 M1 最小宽度、栅长、布线轨距或 DBU。只能从该 PDK 的规则和器件规范读取。</div>
 
-  <h2>7.4 六类基础几何规则</h2>
+  <h2 id="section-4">9.4 基础几何规则：相似术语也要区分</h2>
   <table>
     <thead><tr><th>规则</th><th>含义</th><th>典型对象</th></tr></thead>
     <tbody>
       <tr><td>最小宽度</td><td>一个图形在局部不得窄于阈值</td><td>多晶硅、金属、有源区、通孔/切割层</td></tr>
       <tr><td>最小间距</td><td>两个图形或边之间必须保持距离</td><td>同层、异层、同网络/异网络、平行长度条件</td></tr>
-      <tr><td>enclosure / overlap</td><td>外层必须在内层四周包围一定距离</td><td>Metal 包 Via、Active 包 Contact、Well 包 Active</td></tr>
-      <tr><td>extension / end-of-line</td><td>一层越过交叠区或线端必须延伸</td><td>Poly 越过 Active、金属线端</td></tr>
+      <tr><td>enclosure（包围）</td><td>外层包含内层，并越过指定边界达到包围量</td><td>Metal 包 Via、Active 包 Contact、Well 包 Active</td></tr>
+      <tr><td>overlap（交叠）</td><td>检查两层的交叠尺寸或区域；不一定要求一层完整包含另一层</td><td>须根据具体 deck 的算子、方向及限定条件解释</td></tr>
+      <tr><td>extension（延伸）</td><td>一层沿指定方向越过另一层边界</td><td>Poly 在沟道宽度方向伸出 Active</td></tr>
+      <tr><td>end-of-line / EOL（线端条件）</td><td>线端附近可能有更严格的间距、邻接或包围约束；不是 extension 的同义词</td><td>短金属线端到邻近金属的 EOL spacing</td></tr>
       <tr><td>notch</td><td>同一多边形凹槽不能太窄</td><td>井、Active、Metal</td></tr>
       <tr><td>minimum area</td><td>孤立或短线段面积不得过小</td><td>金属、implant、well</td></tr>
     </tbody>
   </table>
-  <pre><code>width                 spacing               enclosure
-┌──────────┐       ┌─────┐   s   ┌─────┐       outer
-│←── w ──→│       │     │←─────→│     │    ┌─────────┐
-└──────────┘       └─────┘       └─────┘    │  ┌───┐  │
-                                             │e │via│ e│
-                                             │  └───┘  │
-                                             └─────────┘</code></pre>
+  <figure class="diagram">
+    <img src="assets/basic-design-rules.svg" alt="最小宽度、最小间距和包围规则的几何尺寸标注图">
+    <figcaption>三类尺寸都从相关图形的边界开始测量：宽度测同一图形，间距测两个图形，包围量测外层到内层。</figcaption>
+  </figure>
 
-  <h2>7.5 真实规则远不止一个数字</h2>
+  <h2 id="section-5">9.5 真实规则远不止一个数字</h2>
   <p>现代规则常依赖条件：same-net/different-net、线宽、平行重叠长度、拐角类型、线端、相邻 cut 数、颜色/多重图形化、区域、电压、密度和邻近效应。还需考虑：</p>
   <ul>
     <li>最大间距与井/tap 距离、latch-up；</li>
@@ -90,7 +97,7 @@ integer_coordinate = physical_length_m / db_unit
   </ul>
   <p>因此 LibreCell 技术文件中的 <code>minimum_width</code>、<code>min_spacing</code> 等字典只是生成器的几何约束接口，不等同于完整晶圆厂验证规则文件。无法表达的规则要么通过保守模板规避，要么扩展生成器和检查流程。</p>
 
-  <h2>7.6 标准单元架构是工艺规则之上的设计选择</h2>
+  <h2 id="section-6">9.6 标准单元架构是工艺规则之上的设计选择</h2>
   <p>拿到最小规则后仍不能立刻填技术文件。需要先定义：</p>
   <ul>
     <li>单元高度、站点宽度、栅节距、布线轨距与网格偏移；</li>
@@ -118,8 +125,9 @@ integer_coordinate = physical_length_m / db_unit
   </div>
 
   <div class="source-note"><strong>开放参考：</strong><a href="https://skywater-pdk.readthedocs.io/en/main/rules.html">SKY130 PDK 规则文档</a>可用于学习 PDK 资料的组织形式，不表示本教程或当前 LibreCell 已经兼容 SKY130。</div>
-  <nav class="bottom-nav"><a href="chapter6.html">← 第 6 章</a><a href="chapter8.html">第 8 章：DRC、LVS 与 PEX 实验 →</a></nav>
-  <footer>第 7 章 · 读懂 PDK 与设计规则</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter6.html">← 第 8 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter8.html">第 10 章 →</a></nav>
+  <footer>第 9 章　读懂 PDK 与设计规则 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

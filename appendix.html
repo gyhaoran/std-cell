@@ -3,21 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>附录：术语、排错树、清单与延伸资源</title>
+  <title>附录　术语、排错树、清单与延伸资源</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter16.html">← 第 16 章</a><a href="tutorial_index.html">总目录</a></nav>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter17.html">← 第 31 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a></nav>
   <h1>附录　术语、排错树、清单与延伸资源</h1>
   <p class="subtitle">查术语、找源码、定位失败和复核项目交付</p>
 
-  <h2>A.1 版图与器件术语</h2>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter17.html">表征故障排查、签核与库级回归</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能准确使用全文术语并找到一手资料。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>用资源索引补齐自己的最弱环节。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">版图与器件术语</a></li><li><a href="#section-2">库与验证术语</a></li><li><a href="#section-3">算法术语</a></li><li><a href="#section-4">本地 LibreCell 源码地图</a></li><li><a href="#section-5">CLI 速查（提交 f708e3a）</a></li><li><a href="#section-6">排错决策树</a></li><li><a href="#section-7">最常见的错误认知</a></li><li><a href="#section-8">推荐阅读路线</a></li><li><a href="#section-9">开放在线资源</a></li><li><a href="#section-10">项目最终清单</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">A.1 版图与器件术语</h2>
   <table>
     <thead><tr><th>术语</th><th>本教程中的精确定义</th></tr></thead>
     <tbody>
       <tr><td>Active / OD</td><td>允许形成器件有源区域的层/层组；结合 well/implant/gate 才确定器件和 S/D。</td></tr>
       <tr><td>Diffusion</td><td>历史上常泛指有源/掺杂源漏区域；本地 LibreCell 直接区分 <code>ndiffusion/pdiffusion</code> 内部层。</td></tr>
+      <tr><td>Source/drain diffusion sharing / 源漏扩散区共享</td><td>相邻、同类型且井/注入/Vt 等兼容的 MOS，在接触端属于同一网络时用一块扩散区作为公共端子；网表只能说明拓扑上具备条件，实际是否共享必须查看版图并验证 PDK 规则。</td></tr>
+      <tr><td>Transmission gate / 传输门</td><td>NMOS 与 PMOS 并联在同一对信号端之间，并由互补控制信号驱动的双向开关；两种扩散区物理上仍须分开。</td></tr>
+      <tr><td>High impedance / 高阻态 Z</td><td>输出上拉和下拉均关闭，端口不主动驱动 0/1；不是逻辑 0，也不是“无效字符”。</td></tr>
       <tr><td>Implant / Select</td><td>选择掺杂或器件类型的层；不是导线。</td></tr>
       <tr><td>Well / Body</td><td>NMOS/PMOS 所在体区及 MOS 第四端 B；需通过 tap 接到规定网络。</td></tr>
       <tr><td>Poly / Gate</td><td>穿过 Active 的有效交叠形成受控沟道；离开 Active 的 Poly 可作为局部连接。</td></tr>
@@ -31,7 +42,7 @@
     </tbody>
   </table>
 
-  <h2>A.2 库与验证术语</h2>
+  <h2 id="section-2">A.2 库与验证术语</h2>
   <table>
     <thead><tr><th>术语</th><th>含义</th></tr></thead>
     <tbody>
@@ -43,12 +54,18 @@
       <tr><td>CDL/SPICE</td><td>晶体管/器件网表，包含端子、模型和参数。</td></tr>
       <tr><td>Liberty</td><td>逻辑、时序约束、延迟、输出转换时间、功耗和 PVT 模型。</td></tr>
       <tr><td>DRC</td><td>版图几何对设计规则的检查。</td></tr>
+      <tr><td>SVRF</td><td>Calibre 使用的规则描述语言；命令的边测量、连接与选项语义需以对应工具版本文档和测试图形确认。</td></tr>
+      <tr><td>Rule deck / 规则文件</td><td>验证工具可执行的层推导、规则和连接定义；注释、规则表达式和 DRM 仍需做版本与一致性审计。</td></tr>
       <tr><td>ERC</td><td>对提取网络的电气规则检查，如 well、电压、悬空网络。</td></tr>
       <tr><td>LVS</td><td>版图提取网表与参考网表的器件/网络/参数比较。</td></tr>
       <tr><td>PEX</td><td>从版图提取互连/器件寄生 R/C 等，供版图后仿真。</td></tr>
       <tr><td>PVT</td><td>process、voltage、temperature 条件组合。</td></tr>
       <tr><td>Slew / Load</td><td>输入转换快慢与输出负载；Liberty 表常以二者作为索引。</td></tr>
       <tr><td>Timing arc / 时序弧</td><td>某关联引脚的变化与目标引脚延迟、转换时间或约束之间的关系。</td></tr>
+      <tr><td>Cell rise / cell fall</td><td>目标输出上升/下降时的传播延迟；rise/fall 指输出方向，关联输入边沿由时序弧决定。</td></tr>
+      <tr><td>Rise/fall transition</td><td>目标输出自身跨过上下 slew 阈值所需的时间，不是输入到输出的传播延迟。</td></tr>
+      <tr><td>K 库/刻库</td><td>团队对 library characterization 的口语称呼；通过 SPICE/PEX 仿真生成 Liberty，不是一种单独文件格式。</td></tr>
+      <tr><td><code>1e31</code>/失败占位值</td><td>某些表征流程在无法得到有效测量时写入的极大占位数；具体原因查工具日志，但不可作为正常库值交付。</td></tr>
       <tr><td>Layout / 版图</td><td>制造相关几何及其电路实现；本教程不用“布局”指代 layout。</td></tr>
       <tr><td>Placement / 布局</td><td>决定单元或晶体管的位置、顺序与朝向；placer 译为布局器。</td></tr>
       <tr><td>Routing / 布线</td><td>为网络选择合法路径并形成走线；router 译为布线器，routing graph 译为布线图。</td></tr>
@@ -63,7 +80,7 @@
     </tbody>
   </table>
 
-  <h2>A.3 算法术语</h2>
+  <h2 id="section-3">A.3 算法术语</h2>
   <table>
     <thead><tr><th>术语</th><th>用途</th></tr></thead>
     <tbody>
@@ -78,15 +95,17 @@
     </tbody>
   </table>
 
-  <h2>A.4 本地 LibreCell 源码地图</h2>
+  <h2 id="section-4">A.4 本地 LibreCell 源码地图</h2>
   <table>
     <thead><tr><th>问题</th><th>入口</th></tr></thead>
     <tbody>
       <tr><td>CLI 与整条流水线</td><td><code>librecell-layout/lclayout/standalone.py</code></td></tr>
       <tr><td>SPICE 读取、model/power/pin 识别</td><td><code>librecell-common/lccommon/net_util.py</code></td></tr>
+      <tr><td>传输门输入识别限制</td><td><code>librecell-common/lccommon/net_util.py:get_cell_inputs</code></td></tr>
       <tr><td>内部层与通孔连通关系</td><td><code>librecell-layout/lclayout/layout/layers.py</code></td></tr>
       <tr><td>单个 MOS 几何</td><td><code>librecell-layout/lclayout/layout/transistor.py</code></td></tr>
       <tr><td>Euler/层次布局</td><td><code>librecell-layout/lclayout/place/euler_placer.py</code></td></tr>
+      <tr><td>传输门/不连通图的 Euler 候选</td><td><code>librecell-layout/lclayout/place/eulertours.py</code></td></tr>
       <tr><td>Meta 选择</td><td><code>librecell-layout/lclayout/place/meta_placer.py</code></td></tr>
       <tr><td>Supply-split partition</td><td><code>librecell-layout/lclayout/place/partition.py</code></td></tr>
       <tr><td>SMT/随机/局部搜索</td><td><code>place/smt_placer.py</code>、<code>place/anneal_placer.py</code></td></tr>
@@ -100,7 +119,7 @@
     </tbody>
   </table>
 
-  <h2>A.5 CLI 速查（提交 f708e3a）</h2>
+  <h2 id="section-5">A.5 CLI 速查（提交 f708e3a）</h2>
   <pre><code>lclayout --cell NAME --netlist FILE --tech FILE [options]
 
 --output-dir DIR
@@ -113,9 +132,9 @@
 -v | --verbose
 -q | --quiet
 --log FILE</code></pre>
-  <p>不存在：<code>--all-cells</code>、通用 <code>--debug</code>、<code>--routing-graph-file</code>、<code>-vv</code>。</p>
+  <p>不存在：<code>--all-cells</code>、通用 <code>--debug</code>、<code>--routing-graph-file</code>。<code>-vv</code> 可被 argparse 接受，但只是重复同一个布尔开关，不比 <code>-v</code> 更详细。</p>
 
-  <h2>A.6 排错决策树</h2>
+  <h2 id="section-6">A.6 排错决策树</h2>
   <pre><code>lclayout 还未进入 main？
 ├─ import/module error → 激活正确 venv，核对 Python/lock/z3/klayout
 └─ 已开始读取输入
@@ -135,7 +154,7 @@
             ├─ LEF/P&amp;R 失败 → 尺寸/站点/引脚/用途/OBS/引脚可接入性
             └─ 特征化异常 → PVT/模型/测试平台/PEX/单位/时序弧</code></pre>
 
-  <h2>A.7 最常见的错误认知</h2>
+  <h2 id="section-7">A.7 最常见的错误认知</h2>
   <table>
     <thead><tr><th>错误说法</th><th>正确说法</th></tr></thead>
     <tbody>
@@ -151,24 +170,24 @@
     </tbody>
   </table>
 
-  <h2>A.8 推荐阅读路线</h2>
+  <h2 id="section-8">A.8 推荐阅读路线</h2>
   <table>
     <thead><tr><th>资料</th><th>建议章节</th><th>配合教程</th></tr></thead>
     <tbody>
-      <tr><td>R. Jacob Baker, <em>CMOS: Circuit Design, Layout, and Simulation</em>, 4e</td><td>Ch.1–7、10–15</td><td>第 2–5、7–8 章：MOS、层、工艺、静态门和版图实例</td></tr>
+      <tr><td>R. Jacob Baker, <em>CMOS: Circuit Design, Layout, and Simulation</em>, 4e</td><td>原书 Ch.1–7、10–15</td><td><a href="chapter2.html">MOS</a>、<a href="chapter3.html">层识读</a>、<a href="cells-basic.html">静态门与版图实例</a></td></tr>
       <tr><td>Dan Clein, <em>CMOS IC Layout</em></td><td>Ch.2–3、5、7–8、10</td><td>零基础读图、标准单元、寄生、工艺约束和 CAD</td></tr>
       <tr><td>Lienig &amp; Scheible, <em>Fundamentals of Layout Design for Electronic Circuits</em></td><td>Ch.2–5、7</td><td>工艺接口、版图数据、DRC/LVS 和可靠性</td></tr>
-      <tr><td>Kahng et al., <em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em></td><td>§1.7、Ch.2、4–6、8</td><td>第 9–11、16 章：图、划分、布局、布线、时序闭环</td></tr>
-      <tr><td>Uehara &amp; vanCleemput, “Optimal Layout of CMOS Functional Arrays”</td><td>全文 8 页</td><td>第 5、10 章：经典连续 diffusion/Euler 思路</td></tr>
+      <tr><td>Kahng et al., <em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em></td><td>原书 §1.7、Ch.2、4–6、8</td><td><a href="chapter10.html">图论</a>、<a href="chapter11.html">布局</a>、<a href="chapter12.html">布线</a>与<a href="chapter17.html">时序闭环</a></td></tr>
+      <tr><td>Uehara &amp; vanCleemput, “Optimal Layout of CMOS Functional Arrays”</td><td>全文 8 页</td><td><a href="chapter5.html">连续扩散</a>与<a href="algorithms-lab.html">Euler 实算</a></td></tr>
       <tr><td><a href="std-cell-generator.pdf"><em>A Parameterizable Standard Cell Generator</em></a></td><td>布局与布线章节</td><td>作为 2003 年历史工具与 LibreCell 的对照</td></tr>
       <tr><td>《CMOS集成电路后端设计与实战》</td><td>Ch.3–9</td><td>标准单元电路/版图、LEF、提取和特征化</td></tr>
-      <tr><td>《CMOS版图设计基础》</td><td>工艺层、W/L、stick/Euler、标准单元</td><td>第 3–5 章的图形练习</td></tr>
-      <tr><td><code>EDA_routing.pdf</code></td><td>全局/详细布线章节</td><td>第 9、11 章通用算法背景</td></tr>
+      <tr><td>《CMOS版图设计基础》</td><td>工艺层、W/L、stick/Euler、标准单元</td><td><a href="chapter3.html">层与器件</a>、<a href="chapter4.html">反相器读图</a>、<a href="chapter5.html">源漏共享</a></td></tr>
+      <tr><td><code>EDA_routing.pdf</code></td><td>全局/详细布线章节</td><td><a href="chapter10.html">图论</a>与<a href="chapter12.html">通用布线背景</a></td></tr>
     </tbody>
   </table>
   <div class="callout warn"><strong>资料管理：</strong>厂商/受限手册只在授权环境内用于查漏和签核，不复制到公开教程或输出其工艺表格。书籍用于理解并用自己的图和语言重建教程，不做大段摘录。</div>
 
-  <h2>A.9 开放在线资源</h2>
+  <h2 id="section-9">A.9 开放在线资源</h2>
   <ul>
     <li><a href="https://www.klayout.de/doc/manual/basic.html">KLayout Basics</a>：打开版图、层列表、层次、测量和 marker browser。</li>
     <li><a href="https://www.klayout.de/doc/manual/drc_basic.html">KLayout DRC Basics</a>：官方 DRC DSL、GUI 与 batch 运行。</li>
@@ -177,7 +196,7 @@
   </ul>
   <p>视频只作为建立直觉的补充。涉及本教程命令、规则或代码结论时，仍回到本地源码和官方 PDK/工具文档。</p>
 
-  <h2>A.10 项目最终清单</h2>
+  <h2 id="section-10">A.10 项目最终清单</h2>
   <div class="cards">
     <article class="card"><h3>输入</h3><ul><li>PDK/deck/tool 版本</li><li>cell/architecture/PVT 规格</li><li>受控 SPICE/CDL</li><li>环境 lock/digest</li></ul></article>
     <article class="card"><h3>实现</h3><ul><li>capability matrix</li><li>tech schema/map</li><li>最小源码 patch</li><li>unit/negative tests</li></ul></article>
@@ -185,8 +204,9 @@
     <article class="card"><h3>库</h3><ul><li>GDS/LEF/CDL/Verilog/Liberty</li><li>视图一致性</li><li>引脚可接入性/P&amp;R/STA</li><li>交付清单与已知限制</li></ul></article>
   </div>
 
-  <nav class="bottom-nav"><a href="chapter16.html">← 第 16 章</a><a href="tutorial_index.html">返回总目录 →</a></nav>
-  <footer>附录 · 术语、排错树、清单与延伸资源</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter17.html">← 第 31 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a></nav>
+  <footer>附录　术语、排错树、清单与延伸资源 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

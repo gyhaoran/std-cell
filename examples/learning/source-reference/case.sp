@@ -1,0 +1,4 @@
+* teaching parser fixture
+.SUBCKT CHECK A Y VDD VSS
+M1 Y A VSS VSS NMOS W=0.415U L=0.050U
+.ENDS

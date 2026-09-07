@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 600" role="img" aria-labelledby="t"><title id="t">主从触发器与低相透明时钟门的概念分组</title><rect width="1120" height="600" fill="white"/>
+<g font-family="sans-serif" font-size="21" fill="#172033"><text x="35" y="38" font-size="26">先找功能块，再回到晶体管图（不是实际单元拓扑）</text>
+<g fill="#edf3ff" stroke="#2457d6" stroke-width="2"><rect x="165" y="105" width="330" height="125" rx="12"/><rect x="650" y="105" width="330" height="125" rx="12"/></g>
+<text x="190" y="146">主锁存器</text><text x="190" y="182">CK=0：透明；CK=1：保持</text><text x="675" y="146">从锁存器</text><text x="675" y="182">CK=0：保持；CK=1：透明</text>
+<path d="M75 167H165 M495 167H650 M980 167H1060" stroke="#2457d6" stroke-width="3"/><text x="49" y="159">D</text><text x="521" y="152">内部状态</text><text x="1064" y="159">Q</text>
+<text x="53" y="273">CK↑：主级关门、从级开门。D 必须在采样窗口附近满足 setup/hold。</text>
+<path d="M35 306H1085" stroke="#d0d5dd"/>
+<text x="35" y="345" font-size="25">集成时钟门：先保存使能，再决定是否传递脉冲</text>
+<rect x="160" y="385" width="350" height="105" rx="12" fill="#edf8f1" stroke="#168354" stroke-width="2"/>
+<rect x="750" y="390" width="200" height="100" rx="12" fill="#edf8f1" stroke="#168354" stroke-width="2"/>
+<text x="184" y="423">低电平透明的使能锁存器</text><text x="184" y="460">CK=1 时保持 E_latched</text><text x="812" y="450">AND</text>
+<path d="M80 437H160 M510 437H750 M850 540V490 M950 437H1030" stroke="#168354" stroke-width="3" fill="none"/>
+<text x="52" y="431">E</text><text x="538" y="422">E_latched</text><text x="817" y="564">CK</text><text x="1036" y="444">GCK</text>
+<text x="35" y="587">真实 ICG 仍需门控 setup/hold 检查；异步乱跳的使能不会因一个方框就自动安全。</text></g></svg>

@@ -68,6 +68,21 @@ h4 { font-size: 1.05rem; margin-top: 1.6em; }
 .muted { color: var(--muted); }
 .small { font-size: .9rem; }
 
+.learning-guide {
+  margin: 28px 0;
+  padding: 18px 24px;
+  border: 1px solid #b8cce8;
+  border-left: 5px solid #2457d6;
+  border-radius: 12px;
+  background: #f4f8ff;
+}
+.learning-guide p { margin: 8px 0; }
+.learning-guide details { margin: 14px 0 0; }
+.learning-guide ol { columns: 2; column-gap: 32px; }
+.learning-guide li { break-inside: avoid; margin: 6px 0; }
+@media (max-width: 760px) { .learning-guide ol { columns: 1; } }
+@media print { .learning-guide details { display: none; } }
+
 .objectives,
 .callout,
 .checkpoint,
@@ -158,6 +173,22 @@ pre code { padding: 0; color: inherit; background: transparent; }
 .diagram img { width: 100%; height: auto; display: block; }
 .diagram figcaption { color: var(--muted); font-size: .9rem; padding: 10px 8px 2px; }
 
+.figure-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin: 24px 0;
+}
+.figure-grid .diagram { margin: 0; display: flex; flex-direction: column; }
+.figure-grid .diagram a { display: grid; flex: 1; place-items: center; min-height: 260px; }
+.figure-grid .diagram img { max-height: 720px; object-fit: contain; }
+.figure-grid .figure-wide { grid-column: 1 / -1; }
+.figure-grid .figure-wide a { min-height: 0; }
+.figure-grid .figure-wide img { max-height: none; }
+.truth-table td, .truth-table th { text-align: center; }
+.truth-table td:last-child, .truth-table th:last-child { font-weight: 700; }
+
 .steps { counter-reset: tutorial-step; list-style: none; padding-left: 0; }
 .steps > li { position: relative; margin: 18px 0; padding: 0 0 0 52px; }
 .steps > li::before {
@@ -201,6 +232,7 @@ footer { margin-top: 48px; color: var(--muted); font-size: .9rem; text-align: ce
   .page { width: 100%; margin: 0; border: 0; border-radius: 0; padding: 22px 18px 45px; }
   .top-nav, .bottom-nav { align-items: flex-start; }
   .top-nav a, .bottom-nav a { max-width: 46%; }
+  .figure-grid { grid-template-columns: 1fr; }
 }
 
 @media print {

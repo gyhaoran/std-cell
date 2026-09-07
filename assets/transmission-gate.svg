@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 430" role="img" aria-labelledby="title desc">
+  <title id="title">CMOS 传输门结构</title>
+  <desc id="desc">NMOS 与 PMOS 并联连接 X 和 Y，NMOS 由 EN 控制，PMOS 由互补信号 ENB 控制。两种扩散区在版图中必须分开，再用金属连接同名端点。</desc>
+  <style>
+    text{font-family:Arial,"Noto Sans SC",sans-serif;fill:#172033}.title{font-size:25px;font-weight:700}.label{font-size:19px;font-weight:700}.small{font-size:16px}.wire{stroke:#28364d;stroke-width:5;fill:none}.device-n{fill:#e9f2ff;stroke:#2457d6;stroke-width:3}.device-p{fill:#fff0f3;stroke:#b4234d;stroke-width:3}.ctrl{stroke:#667085;stroke-width:3;fill:none}.node{fill:#28364d}.note{fill:#fff8e8;stroke:#a15c00;stroke-width:2}
+  </style>
+  <rect width="980" height="430" fill="#fff"/>
+  <text x="490" y="40" text-anchor="middle" class="title">CMOS 传输门：两个互补控制的双向通路</text>
+
+  <text x="85" y="205" text-anchor="middle" class="label">X</text>
+  <text x="895" y="205" text-anchor="middle" class="label">Y</text>
+  <circle cx="125" cy="195" r="7" class="node"/><circle cx="855" cy="195" r="7" class="node"/>
+  <path d="M125 195 L210 195 L210 120 L335 120" class="wire"/>
+  <path d="M125 195 L210 195 L210 270 L335 270" class="wire"/>
+  <path d="M645 120 L770 120 L770 195 L855 195" class="wire"/>
+  <path d="M645 270 L770 270 L770 195 L855 195" class="wire"/>
+
+  <rect x="335" y="82" width="310" height="76" rx="12" class="device-p"/>
+  <text x="490" y="114" text-anchor="middle" class="label">PMOS 通路</text>
+  <text x="490" y="140" text-anchor="middle" class="small">栅 = ENB（EN 的反相信号）</text>
+
+  <rect x="335" y="232" width="310" height="76" rx="12" class="device-n"/>
+  <text x="490" y="264" text-anchor="middle" class="label">NMOS 通路</text>
+  <text x="490" y="290" text-anchor="middle" class="small">栅 = EN</text>
+
+  <path d="M490 82 L490 65" class="ctrl"/><text x="490" y="61" text-anchor="middle" class="small">ENB</text>
+  <path d="M490 308 L490 331" class="ctrl"/><text x="490" y="354" text-anchor="middle" class="small">EN</text>
+
+  <rect x="150" y="372" width="680" height="40" rx="8" class="note"/>
+  <text x="490" y="397" text-anchor="middle" class="small">电路端点同为 X/Y；版图中的 N 型和 P 型扩散区仍必须分开，再由金属连接</text>
+</svg>

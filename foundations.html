@@ -1,0 +1,56 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 2 章　电学、逻辑与电路图零基础</title><link rel="stylesheet" href="styles.css"></head><body><main class="page">
+<nav class="top-nav" aria-label="全书导航"><a href="chapter1.html">← 第 1 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter2.html">第 3 章 →</a></nav><h1>第 2 章　电学、逻辑与电路图零基础</h1><p class="subtitle">先能解释一根线上发生了什么，再谈晶体管、版图和时序</p>
+<p class="lead">这一章不是电路理论的浓缩考试。你只需要建立后面会反复使用的几个模型：电压是差值，节点会存储电荷，充放电需要时间，逻辑值是对模拟电压的解释。每个公式都立即用于一个小例子。</p>
+<!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter1.html">标准单元库究竟是什么</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能计算 VGS、分清节点/导线、X/Z 与逻辑极性。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>完成电压、RC、真值表与交叉导线四组题。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">电压不是一根导线的“绝对数值”</a></li><li><a href="#section-2">为什么一根线也会有电容</a></li><li><a href="#section-3">0 和 1 是电压范围，不是只允许两个电压点</a></li><li><a href="#section-4">从逻辑符号读出真实条件</a></li><li><a href="#section-5">怎样读电路图，而不是猜线条</a></li><li><a href="#section-6">VGS/VSG：用三个数识别“栅高了却没导通”</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">2.1 电压不是一根导线的“绝对数值”</h2>
+<p>说节点 A 是 1.8 V，通常是说它相对参考地 VSS 的电压为 1.8 V。<code>V(A,B)=V(A)-V(B)</code>。电源 VDD 给电路提供能量，VSS 是常用的低电位参考；VSS 并不总等于实验室大地。本文的单电源教学例子令 VSS=0 V，除此之外不要自行补充假设。</p>
+<p>电流描述电荷流动的速率，单位安培 A。导线相连的节点允许电荷流动；同名网络标签也可能表示电气连接，即使图上没有画出一条跨页的线。理想导线电阻为零，真实金属、通孔和扩散都存在电阻。<code>V=IR</code> 可以估算一段导线的压降，但 MOS 不是一个在所有偏置下都恒定的电阻。</p>
+<table><thead><tr><th>量</th><th>本教程里的角色</th><th>一个数量级练习</th></tr></thead><tbody>
+<tr><td>电压 V</td><td>决定 MOS 的偏置和逻辑解释</td><td>1.8 V 与 0.9 V 相差 0.9 V</td></tr>
+<tr><td>电流 I</td><td>输出级向负载充电或从负载放电</td><td>100 μA = 0.0001 A</td></tr>
+<tr><td>电阻 R</td><td>限制电流，引起压降与延迟</td><td>1 kΩ × 100 μA = 0.1 V</td></tr>
+<tr><td>电容 C</td><td>在节点上存储电荷；包括栅、结、互连和外接负载</td><td>20 fF = 20×10⁻¹⁵ F = 0.02 pF</td></tr>
+<tr><td>时间 t</td><td>输入何时到达、输出何时响应</td><td>50 ps = 0.05 ns</td></tr>
+</tbody></table>
+<h2 id="section-2">2.2 为什么一根线也会有电容</h2>
+<p>金属与附近金属、衬底之间隔着介质，MOS 栅与沟道之间隔着薄绝缘层；这些结构都会存储电荷。简单线性电容有 <code>Q=CV</code>，其中 Q 是电荷量，别和触发器输出名 Q 混淆。电容电流满足 <code>I=C·dV/dt</code>：相同电流下，电容越大，电压变化越慢。</p>
+<p>例如向 20 fF 电容充入 100 μA 的恒定电流，电压升高 1 V 约需 <code>Δt=CΔV/I=200 ps</code>。真实 MOS 电流随电压变化，这只是帮助理解趋势的估算，不是标准单元的精确延迟公式。</p>
+<p>把输出级暂时等效为电阻 R、负载视为 C，阶跃充电得到 <code>V(t)=VDD·(1-exp(-t/RC))</code>。时间常数 <code>τ=RC</code> 时达到最终值约 63%；达到 50% 大约需要 <code>0.693RC</code>。这解释了为什么“驱动同一个逻辑 1”也会因为负载不同而花不同时间。实际时序最终由晶体管模型和波形测量决定。</p>
+<div class="callout"><strong>扇出不是电容本身。</strong>一个输出连接几个输入叫几何意义上的扇出计数；两个负载即使数量相同，输入尺寸和布线长度不同，总电容也可能差很多。Liberty 用输出负载电容表征这类差异，而不是只查“接了几只门”。</div>
+<h2 id="section-3">2.3 0 和 1 是电压范围，不是只允许两个电压点</h2>
+<p>真实输出从低到高一定经过中间电压。数字逻辑把某个低电压范围解释为 0，把某个高电压范围解释为 1；中间区不能保证得到确定解释。电压范围应由工艺、单元和接口规范给出，不能把“低于 VDD/2 都是合格的 0”当作通用验收条件。</p>
+<p><code>VIL</code> 是保证识别为低的输入上限，<code>VIH</code> 是保证识别为高的输入下限；<code>VOL</code>、<code>VOH</code> 则约束输出低/高电压。高低噪声容限可分别写为 <code>VOH(min)-VIH(min)</code> 与 <code>VIL(max)-VOL(max)</code>。先保证前一级输出与后一级输入兼容，再讨论是否有足够余量。</p>
+<table><thead><tr><th>符号</th><th>含义</th><th>不是</th></tr></thead><tbody>
+<tr><td>0 / 1</td><td>被解释为低/高的逻辑状态</td><td>任意工艺都精确为 0 V / 1 V</td></tr>
+<tr><td>X：未知</td><td>仿真无法确定值，如未初始化或冲突传播</td><td>一种独立的物理“X 电压”</td></tr>
+<tr><td>X / —：无关项</td><td>压缩真值表中此输入取 0 或 1 都不影响该行结论</td><td>要求把输入实际悬空；阅读时先看表格约定</td></tr>
+<tr><td>Z：高阻</td><td>此输出驱动器暂时不主动拉高或拉低</td><td>输出必定为 0，或节点电压必定为某个中间值</td></tr>
+</tbody></table>
+<p>本书压缩表中的 X 默认表示无关项；讲仿真未知状态时会明确写“未知 X”。未驱动的节点可能暂时保留电荷，也可能被漏电、耦合或其他驱动器改变，所以不能把高阻直接当作可靠存储。</p>
+<h2 id="section-4">2.4 从逻辑符号读出真实条件</h2>
+<table><thead><tr><th>写法</th><th>含义</th><th>代入例子</th></tr></thead><tbody>
+<tr><td><code>!A</code>、上划线、NOT A</td><td>取反</td><td>A=0 时 !A=1</td></tr>
+<tr><td><code>A·B</code>、<code>A &amp; B</code></td><td>逻辑与</td><td>两者都是 1 才为 1</td></tr>
+<tr><td><code>A+B</code>、<code>A | B</code></td><td>布尔逻辑或</td><td>布尔式中 1+1=1；不是二进制算术进位</td></tr>
+<tr><td><code>A⊕B</code></td><td>异或</td><td>A/B 不同为 1，相同为 0</td></tr>
+<tr><td><code>reset_n</code>、RN、带小圆圈的控制端</td><td>常用于低有效命名或反相标记</td><td>reset_n=0 才表示复位有效；名字只是线索，功能表才是证据</td></tr>
+</tbody></table>
+<p>“有效”描述条件成立，“高/低”描述电平，两者不可混用。一个低有效片选为 0 时是选中状态，不是“没有信号”。读复杂方程时先加括号：<code>!(A+B·C)</code> 先算 B·C，再与 A 做 OR，最后反相。用 A=0、B=1、C=1 代入，输出为 0。</p>
+<h2 id="section-5">2.5 怎样读电路图，而不是猜线条</h2>
+<p>先找电源、地、输入和输出标签，再把电路分成器件与网络。器件符号是一种抽象：同样的 MOS 可以画成不同风格，不能通过图标的方向推断版图必须怎样摆放。网络标签 A 连接的是一个节点，可能同时控制几只 MOS 栅极。</p>
+<ol class="steps"><li>找连接点：常见原理图用实心圆点表示交汇连接；无点交叉通常只是跨越，但必须服从绘图工具的符号约定。</li><li>对疑似交叉点，用网名或工具的高亮网络功能确认，不靠低分辨率图片中有没有一个黑点下结论。</li><li>沿每个 MOS 的 G/D/S/B 分别追到节点。符号里的小圆圈常提示 PMOS 或逻辑反相，不是一个额外电阻。</li><li>检查同名网络和电源符号：它们可在图上分开出现，却属于同一个网。</li><li>把连接抄成 <code>Mname D G S B model W L</code>，用逐端表对照。这比“这根线像是接过去了”可靠。</li></ol>
+<p>SPICE 原生 MOS 行是 D/G/S/B 顺序，<code>.subckt</code> 的端口顺序却由声明决定。实例 <code>XU A Y VDD 0 EDU_INV</code> 必须和 <code>.subckt EDU_INV A Y VDD VSS</code> 逐位置对应。名字相似不能修正接错的位置。</p>
+<h2 id="section-6">2.6 VGS/VSG：用三个数识别“栅高了却没导通”</h2>
+<p>NMOS 判断的是栅相对源的电压。设教学阈值 VTH=0.45 V：G=1.8 V、S=0 V 时 VGS=1.8 V，具备强反型导通条件；G=1.8 V、S=1.5 V 时 VGS=0.3 V，就不能说“G 是高电平，所以一定强导通”。这也是单 NMOS 传高电平存在局限的直觉入口。</p>
+<p>PMOS 更方便用 <code>VSG=VS-VG</code> 和正的 <code>|VTP|</code> 比较。S=1.8 V、G=0 V 时 VSG=1.8 V；S=1.8 V、G=1.8 V 时 VSG=0 V。图中 PMOS 位于上方只是常用画法，不是控制规律。阈值还受体偏置等影响，后面的“开关模型”只能用来推逻辑，不能代替模拟仿真。</p>
+<div class="checkpoint"><strong>离章练习：四题都能独立完成再向后走</strong><ol><li>G=1.0 V、S=0.8 V，VGS 是多少？为什么不能只看 G？</li><li>R=2 kΩ、C=10 fF，RC 是多少 ps？把 C 加倍会怎样？</li><li>写出 <code>!(A+B)</code> 的四行表。它为什么不是 NAND？</li><li>一个 TBUF 输出 Z，另一驱动器输出 1，总线是否必定“未知”？</li></ol><details><summary>答案与推导</summary><p>① 0.2 V；控制量是相对源电压。② 20 ps；RC 变为 40 ps，此简化模型变慢。③ 00→1、01→0、10→0、11→0，是 NOR；NAND 只有 11 输出 0。④ 在没有其他问题且另一驱动器能正常驱动时，总线可为 1；高阻端不主动竞争，不等于未知值源。</p></details></div>
+<div class="source-note">延伸学习按问题选：电学困难先补大学电路课程的节点电压、RC 阶跃响应；器件困难再读书目中 MOS 四端与反相器章节。这里的数值都是自拟算例，不是任何 PDK 的器件规格。</div>
+<nav class="bottom-nav" aria-label="全书导航"><a href="chapter1.html">← 第 1 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter2.html">第 3 章 →</a></nav><footer>第 2 章　电学、逻辑与电路图零基础 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+</main></body></html>

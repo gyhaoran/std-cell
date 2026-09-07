@@ -1,0 +1,33 @@
+
+Note: No compatibility mode selected!
+
+
+Circuit: edu_inv teaching characterization
+
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+vdd                                        1.8
+a                                            0
+y                                          1.8
+va#branch                                    0
+vdd#branch                           -1.81e-12
+
+
+No. of Data Rows : 9021
+
+  Measurements for Transient Analysis
+
+cell_fall           =  4.774482e-11 targ=  2.114411e-09 trig=  2.066667e-09
+cell_rise           =  4.774482e-11 targ=  1.024774e-08 trig=  1.020000e-08
+rise_transition     =  3.795824e-11 targ=  1.026554e-08 trig=  1.022758e-08
+fall_transition     =  3.795824e-11 targ=  2.132207e-09 trig=  2.094249e-09
+input_slew          =  8.000000e-11 targ=  2.106667e-09 trig=  2.026667e-09
+
+ngspice-42 done

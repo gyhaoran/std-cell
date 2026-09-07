@@ -1,0 +1,16 @@
+{
+  "before": {
+    "cut_nm": 65,
+    "margin_nm": 5,
+    "metal_nm": 75,
+    "width_fail": true,
+    "enclosure_fail": true
+  },
+  "after": {
+    "cut_nm": 65,
+    "margin_nm": 35,
+    "metal_nm": 135,
+    "width_fail": false,
+    "enclosure_fail": false
+  }
+}

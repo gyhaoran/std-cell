@@ -3,130 +3,203 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第9章：算法小白也能用的图论</title>
+  <title>第 11 章　FreePDK45 图谱入口与 MOS 识读</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter8.html">← 上一章</a><a href="chapter10.html">下一章 →</a></nav>
-  <h1>第 9 章　算法小白也能用的图论</h1>
-  <p class="subtitle">先把物理问题翻译成顶点、边和代价，再讨论算法</p>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter8.html">← 第 10 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-basic.html">第 12 章 →</a></nav>
+  <h1>第 11 章　FreePDK45 图谱入口与 MOS 识读</h1>
+  <p class="subtitle">用同一份 CDL 与 GDS，把功能、晶体管网络和真实版图逐一对应</p>
 
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>理解图、路径、连通分量、度、树、权重和容量。</li>
-      <li>区分 Euler 路、最短路、最小生成树和 Steiner 树解决的问题。</li>
-      <li>看懂 LibreCell 中 NetworkX 图的基本数据结构与复杂度记号。</li>
+      <li>能从 FreePDK45 版图中识别 NMOS、PMOS、栅、源漏扩散、接触孔、M1 和电源轨。</li>
+      <li>能把组合门、AOI/OAI、MUX、三态门、算术单元、锁存器、触发器和时钟门归入正确类别。</li>
+      <li>面对握手、选择、比较、加法、状态保存、扫描与时钟门控等需求，能说明候选单元及其工程代价。</li>
+      <li>掌握本库 135 个 CDL 子电路所属的全部 51 个基础单元族；同驱动强度变体共享功能表。</li>
+      <li>知道 Boolean 真值表、三态表和时序单元状态表的区别，不用二输入真值表硬套锁存器。</li>
     </ul>
   </div>
 
-  <h2>9.1 图不是版图图片</h2>
-  <p>算法中的图写作 <code>G=(V,E)</code>：<code>V</code> 是顶点集合，<code>E</code> 是边集合。图是关系模型，不是 GDS 图形。一个物理问题可以有多种建图方式。</p>
+  <div class="callout warn"><strong>范围：</strong>本章讨论平面体硅 MOSFET/CMOS 标准单元。FinFET 的鳍数、鳍量化、局部互连和版图识别另章再写。FreePDK45/Nangate 文件适合教学，但不是现代 foundry 签核数据。</div>
+
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter8.html">DRC、LVS 与 PEX 可执行实验</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能给 51 个单元族分类并说明资料缺口。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>选一个单元完成器件、网络、尺寸、体端证据表。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#cell-map">先建立“需求—单元”地图</a></li><li><a href="#layout-reading">截图怎样读：颜色不是物理，交叠才是证据</a></li><li><a href="#section-3">全库单元族覆盖清单</a></li><li><a href="#section-4">版图与 CDL 一致性：不要把“长得像”当作 LVS</a></li><li><a href="#section-5">重现本章截图</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="cell-map">11.1 先建立“需求—单元”地图</h2>
+  <p>真值表只回答“输入确定后输出是什么”，不能回答“为什么芯片里需要这个单元”。后文对每一类都按六个问题展开：<strong>解决什么问题、有哪些成员、引脚怎样解释、典型应用是什么、信号如何代入、实现时容易错在哪里</strong>。先用下表建立全局地图：</p>
   <table>
-    <thead><tr><th>问题</th><th>顶点</th><th>边</th><th>边/点属性</th></tr></thead>
+    <thead><tr><th>设计需求</th><th>先想到的单元</th><th>具体例子</th><th>还要检查什么</th></tr></thead>
     <tbody>
-      <tr><td>晶体管排序</td><td>扩散网络</td><td>MOS，连接两个 S/D 网络</td><td>栅名、器件对象、NMOS/PMOS</td></tr>
-      <tr><td>网格布线</td><td><code>(layer, x, y)</code> 布线点</td><td>同层相邻线段或跨层通孔</td><td>方向、层、长度代价、通孔代价、冲突</td></tr>
-      <tr><td>电路连通</td><td>网络或器件</td><td>端口连接</td><td>器件类型、端子、方向</td></tr>
+      <tr><td>改变信号极性</td><td>INV</td><td><code>reset_n → reset</code></td><td>负载、转换时间、是否需要互补信号</td></tr>
+      <tr><td>“所有条件成立”或“任一条件成立”</td><td>AND/NAND、OR/NOR</td><td><code>fire=valid·ready</code>；<code>any_err=e0+e1+e2</code></td><td>输出极性、扇入数和串联堆叠延迟</td></tr>
+      <tr><td>把两级与或逻辑压成一级</td><td>AOI/OAI</td><td>请求—授权组合、译码、状态条件</td><td>方程分组、输入弧不对称</td></tr>
+      <tr><td>比较、奇偶或按条件翻转</td><td>XOR/XNOR</td><td>加法器和位、奇偶校验、单比特相等比较</td><td>通常比基本门复杂，延迟和功耗不能凭门数猜</td></tr>
+      <tr><td>在两路数据中选一路</td><td>MUX2</td><td>功能/旁路选择、数据/扫描输入选择</td><td>选择信号极性及到达时间</td></tr>
+      <tr><td>驱动大负载或时钟负载</td><td>BUF、CLKBUF、不同 X 后缀</td><td>长线、多个寄存器输入、时钟树</td><td>不要默认最大驱动最好；看 Liberty 与布线寄生</td></tr>
+      <tr><td>多个驱动器共享一根线</td><td>TBUF/TINV，或更常见的 MUX</td><td>内部共享总线</td><td>高阻、总线争用和浮空</td></tr>
+      <tr><td>加法</td><td>HA、FA</td><td>最低位半加，高位全加并串接进位</td><td>进位路径常是关键路径</td></tr>
+      <tr><td>保存状态</td><td>DLH/DLL/TLAT、DFF 系列</td><td>锁存、流水线寄存器、状态位</td><td>透明窗口或采样边沿、建立/保持时间</td></tr>
+      <tr><td>测试或降低时钟动态功耗</td><td>SDFF 系列、CLKGATE/CLKGATETST</td><td>扫描链、无毛刺时钟门控</td><td>测试模式、恢复/移除、时钟门控检查</td></tr>
+      <tr><td>满足物理实现规则</td><td>FILL、TAP、ANTENNA、LOGIC0/1</td><td>补齐行、体端连接、天线修复、常量网</td><td>它们不是可随意删除的“非逻辑单元”</td></tr>
     </tbody>
   </table>
-  <p>建模时第一件事不是选 Dijkstra，而是写清楚：“我的一个顶点代表什么？一条边代表什么？合法解在图上是什么？”</p>
+  <p class="small"><strong>分类跳转：</strong><a href="#layout-reading">版图识读</a> · <a href="#inverter">反相器</a> · <a href="#drive-strength">驱动强度</a> · <a href="#basic-gates">基本门</a> · <a href="#complex-gates">AOI/OAI</a> · <a href="#select-compare-buffer">XOR/MUX/BUF</a> · <a href="#tristate">三态</a> · <a href="#arithmetic-cells">算术</a> · <a href="#latch-cells">锁存器</a> · <a href="#sequential-cells">触发器/扫描/时钟门</a> · <a href="#physical-cells">物理单元</a></p>
+  <div class="callout"><strong>重要边界：</strong>下文的应用例子用于解释逻辑意图，不保证综合器一定映射成同名单元。真正映射结果还取决于 Liberty 中的时序/功耗数据、<code>dont_use</code> 等属性、面积目标、负载、约束和综合优化。</div>
 
-  <h2>9.2 必须分清的术语</h2>
+  <h2 id="layout-reading">11.2 截图怎样读：颜色不是物理，交叠才是证据</h2>
+  <p>截图由仓库内 <code>freepdk45.lyp</code> 配色，颜色只是显示约定：</p>
   <table>
-    <thead><tr><th>术语</th><th>定义</th><th>在本教程中的例子</th></tr></thead>
+    <thead><tr><th>显示</th><th>层</th><th>读图动作</th></tr></thead>
     <tbody>
-      <tr><td>游走（walk）</td><td>沿边经过的一串顶点，顶点和边可重复</td><td>任意沿布线图移动</td></tr>
-      <tr><td>迹（trail）</td><td>边不重复的游走</td><td>Euler 迹要求每条边只用一次</td></tr>
-      <tr><td>路径（path）</td><td>通常指顶点不重复的游走</td><td>一条无环的点到点布线路径</td></tr>
-      <tr><td>环（cycle）</td><td>起点终点相同的闭合路径</td><td>闭合连通结构</td></tr>
-      <tr><td>度（degree）</td><td>与顶点相接的边数；自环需按定义计数</td><td>判断 Euler 迹的奇度顶点</td></tr>
-      <tr><td>连通分量（connected component）</td><td>内部互相可达的最大顶点集合</td><td>把晶体管图拆为子电路</td></tr>
-      <tr><td>树（tree）</td><td>连通且无环的图</td><td>一个多端网络的布线树</td></tr>
+      <tr><td>上半部红色斜线 / 下半部蓝色斜线</td><td>N-well / P-well</td><td>先把 PMOS 区和 NMOS 区分开</td></tr>
+      <tr><td>青蓝轮廓并叠加注入色</td><td>Active + implant</td><td>找连续扩散；Poly 切过一次形成一只 MOS</td></tr>
+      <tr><td>紫色细长条</td><td>Poly</td><td>交叠 Active 的部分是 gate；离开 Active 后只是栅连线</td></tr>
+      <tr><td>黑色小方块</td><td>Contact</td><td>把 Active/Poly 接到 M1；黑方块本身不是晶体管</td></tr>
+      <tr><td>黄色/金色</td><td>Metal1</td><td>追 A、B、Z、VDD、VSS 和内部网络</td></tr>
     </tbody>
   </table>
-
-  <h2>9.3 四个看似相近、实际不同的问题</h2>
-  <table>
-    <thead><tr><th>问题</th><th>要求</th><th>标准单元用途</th></tr></thead>
-    <tbody>
-      <tr><td>Euler 迹/回路</td><td>每条<strong>边</strong>恰好使用一次</td><td>排列每只晶体管一次并连续共享扩散</td></tr>
-      <tr><td>最短路径（shortest path）</td><td>连接两个点，路径总成本最小</td><td>连接一个源和一个目标布线点</td></tr>
-      <tr><td>最小生成树（minimum spanning tree）</td><td>连接图中全部顶点，选边总权重最小</td><td>通常不是直接的多端网络问题，因为不必连接全部布线点</td></tr>
-      <tr><td>Steiner 树</td><td>连接指定端点，可使用额外 Steiner 点</td><td>连接多端网络，允许在中间布线点分叉</td></tr>
-    </tbody>
-  </table>
-  <p>Euler 关注“每条晶体管边都走一次”；Dijkstra 关注“到目标的代价”；Steiner 关注“把多个 terminal 用较小总线长连成树”。不能用一个名字代替另一个目标。</p>
-
-  <h2>9.4 权重、容量与冲突</h2>
-  <p>无权图只关心有没有边；加权图给边或点附加成本。LibreCell 布线中的成本可能来自：</p>
-  <ul>
-    <li>水平/垂直线段长度 × 对应层的权重；</li>
-    <li>跨层通孔的固定代价；</li>
-    <li>从水平改为垂直的方向变化代价；</li>
-    <li>当前迭代被其他 net 占用的 present cost；</li>
-    <li>历史上持续拥塞位置的 history cost。</li>
-  </ul>
-  <p>有些布线器把资源表示为有容量的边；本地 PathFinder 实现主要通过节点占用、冲突集合和动态成本阻止不同网络同时使用不兼容资源。模型不同，但目的都是表达“这条最短路是否会和其他走线冲突”。</p>
-
-  <h2>9.5 手工走一次 Dijkstra</h2>
-  <pre><code>A --1-- B --2-- D
- \      |
-  4     1
-   \    |
-     C--1--D</code></pre>
-  <p>从 A 出发：</p>
-  <ol>
-    <li>初始 <code>dist(A)=0</code>，其他为无穷。</li>
-    <li>松弛 A 的邻边：<code>dist(B)=1</code>、<code>dist(C)=4</code>。</li>
-    <li>取当前最小的 B，松弛后得到 <code>dist(C)=2</code>、<code>dist(D)=3</code>。</li>
-    <li>取 C，再到 D 的候选也是 3；最终 A→B→D 或 A→B→C→D 都是最短成本 3。</li>
+  <ol class="steps">
+    <li>隐藏 M1，只看 well、implant、Active、Poly；数出 <code>Poly ∩ Active</code> 交叠。</li>
+    <li>按阱和注入区分 PMOS/NMOS，不要靠“在上面/下面”作为唯一证据。</li>
+    <li>把每条连续扩散按 Poly 切割成若干源漏段；同一段可被相邻 MOS 共用。</li>
+    <li>打开 Contact/M1，从电源轨、输入标注和输出标注反向追网。</li>
+    <li>与 CDL 的 <code>Mname D G S B model W L</code> 逐端核对；D/S 可因结构对称而交换，网络关系不能变。</li>
   </ol>
-  <p>Dijkstra 要求参与比较的成本非负。若给拥塞资源增加正代价，最短路径会主动绕开它；PathFinder 正是通过多轮更新代价实现协商。</p>
+  <div class="callout good"><strong>最可靠的三条证据：</strong>器件数看 Poly×Active；器件类型看 well/implant；连接看扩散连续性 + Contact/Via + Metal。只看颜色或只看器件摆放位置都不够。</div>
+  <p class="small muted">排版约定：普通单元每行只放“版图 + 电路图”一对；FA、DFF、CLKGATE 等宽图每张独占一行。点击任意图片可打开原始分辨率。</p>
 
-  <h2>9.6 搜索与复杂度只需先懂数量级</h2>
+  <h3>一只 MOS 在俯视版图里是什么形状</h3>
+  <p>电路图把 MOS 画成一个符号，版图却是若干层的交叠。对一条 Poly 横跨一块 Active 的最简单结构：</p>
+  <pre><code>扩散端 1 │ Poly×Active（沟道/栅）│ 扩散端 2
+         └──── 受栅电压控制 ────┘
+Body 不在这条横线里：它由 P-well/N-well 和 tap 网络决定</code></pre>
+  <p>在对称数字 MOS 中，制造出来的两个扩散端形状常相似，哪边叫 source、哪边叫 drain 由工作时的网络电位和网表连接决定；不要仅凭“左边/右边”命名。Contact 落在扩散端上只是把它接到金属，并不会新增 MOS。</p>
   <table>
-    <thead><tr><th>算法/操作</th><th>典型复杂度</th><th>直觉</th></tr></thead>
+    <thead><tr><th>常见版图形态</th><th>俯视图特征</th><th>电路含义/检查点</th></tr></thead>
     <tbody>
-      <tr><td>BFS/DFS、连通分量</td><td><code>O(V+E)</code></td><td>每个顶点和边大致看一次</td></tr>
-      <tr><td>Hierholzer 找一条 Euler tour</td><td><code>O(E)</code></td><td>每条边恰好被处理</td></tr>
-      <tr><td>Dijkstra（二叉堆）</td><td>约 <code>O((V+E) log V)</code></td><td>反复从优先队列取当前最小候选</td></tr>
-      <tr><td>枚举所有 Euler tours/排列组合</td><td>可能指数或阶乘增长</td><td>小门可行，复杂单元很快爆炸</td></tr>
-      <tr><td>精确 Steiner tree</td><td>一般情形 NP-hard</td><td>实际工具使用近似、启发式或限制问题规模</td></tr>
+      <tr><td>单指 MOS</td><td>一条 gate 跨一块 Active</td><td>一只 MOS；两侧为两个扩散端，body 另查 well/tap</td></tr>
+      <tr><td>多指 MOS</td><td>同一 gate 网络多次跨 Active，扩散端交替出现</td><td>多个 finger 并联归为一只等效宽管；总 W 和端部寄生按 PDK/提取规则算</td></tr>
+      <tr><td>串联堆叠</td><td>多条不同 gate 连续切过同一条 Active，中间段常无 Contact</td><td>中间扩散是串联内部节点；NAND 下拉、NOR 上拉是典型</td></tr>
+      <tr><td>并联网络</td><td>多个 gate 控制的支路最终接到同一对网络，可能折指或由 M1 汇合</td><td>不能只看 Active 是否连成一条；必须用 Contact/M1 证明两端同网</td></tr>
+      <tr><td>源漏共享</td><td>两只同类型 MOS 相邻，中间只保留一段公共扩散</td><td>CDL 中相邻端必须是同一节点；共享减少面积，也改变结电容/电阻</td></tr>
+      <tr><td>扩散断开</td><td>两块 Active 之间有真实间隙</td><td>即使 M1 从上方跨过也不自动连通；需要各自 Contact 和金属连接</td></tr>
+      <tr><td>well/substrate tap</td><td>井/衬底中的扩散 + Contact 接电源或 body-bias</td><td>它不是逻辑栅，但决定 B 端、闩锁与 ERC/LVS 是否正确</td></tr>
+      <tr><td>传输/三态结构</td><td>信号节点位于受互补控制的 NMOS/PMOS 通路之间</td><td>可能双向或高阻；不能套用只有 VDD→输出→VSS 的静态 CMOS 识读法</td></tr>
     </tbody>
   </table>
-  <p><code>O(...)</code> 描述输入规模变大时的增长趋势，不是精确运行秒数。对标准单元这种小图，常可以用更重的枚举换取质量；但单元复杂度提高后仍会遇到组合爆炸。</p>
+  <p>后面的 INV 展示单指互补对，NAND/NOR 展示串联堆叠与共享，TINV/TBUF 展示受控高阻，DFF 则把这些结构组合成状态单元。读复杂单元时始终退回这几种基本形态。</p>
 
-  <h2>9.7 在 Python/NetworkX 中长什么样</h2>
-  <pre><code>import networkx as nx
+  <p id="inverter">本主题已独立成章：<a href="cells-basic.html#inverter">反相器：先把一只 PMOS 和一只 NMOS 看透</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
 
-g = nx.MultiGraph()          # 同一对网络间可有多只 MOS
-g.add_edge("Y", "X", gate="A", device="MNA")
-g.add_edge("X", "VSS", gate="B", device="MNB")
+  <p id="drive-strength">本主题已独立成章：<a href="cells-basic.html#drive-strength">驱动强度后缀不改变逻辑</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
 
-components = list(nx.connected_components(g))
-degrees = dict(g.degree())</code></pre>
-  <p><code>Graph</code> 不保留平行边，<code>MultiGraph</code> 保留。并联晶体管可能连接同一对扩散网络，因此晶体管网络采用多重图更自然。读取代码时同时关注 node/edge data，算法需要的信息往往存放在属性里。</p>
+  <p id="basic-gates">本主题已独立成章：<a href="cells-basic.html#basic-gates">基本组合门：AND/NAND 与 OR/NOR</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <p id="complex-gates">本主题已独立成章：<a href="cells-compound.html#complex-gates">AOI/OAI：先算中间项，再看最后一级反相</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <p id="select-compare-buffer">本主题已独立成章：<a href="cells-select.html#select-compare-buffer">XOR/XNOR、MUX2 与缓冲器</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <p id="tristate">本主题已独立成章：<a href="cells-select.html#tristate">三态单元：Z 不是逻辑 0</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <p id="arithmetic-cells">本主题已独立成章：<a href="cells-arithmetic.html#arithmetic-cells">算术单元：半加器与全加器</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <p id="latch-cells">本主题已独立成章：<a href="cells-latches.html#latch-cells">锁存器：真值表要带“上一状态”</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <p id="sequential-cells">本主题已独立成章：<a href="cells-sequential.html#sequential-cells">触发器、扫描与时钟门</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <p id="physical-cells">本主题已独立成章：<a href="cells-physical.html#physical-cells">常量、填充、天线与 tap：没有真值表也是一种答案</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
+
+  <h2 id="section-3">11.3 全库单元族覆盖清单</h2>
+  <p>下表是本地 CDL 的全部基础族。每行的功能/状态表已移到对应独立章节；同族 X 后缀变体共享功能，物理与时序参数另查各变体。</p>
+  <table>
+    <thead><tr><th>类别</th><th>基础族与本地变体</th><th>功能表位置</th></tr></thead>
+    <tbody>
+      <tr><td>反相/缓冲</td><td>INV X1/2/4/8/16/32；BUF X1/2/4/8/16/32；CLKBUF X1/2/3</td><td><a href="cells-basic.html">反相器</a> / <a href="cells-select.html">缓冲器</a></td></tr>
+      <tr><td>AND/NAND</td><td>AND2、AND3、AND4、NAND2、NAND3、NAND4，均 X1/2/4</td><td><a href="cells-basic.html#basic-gates">基本门完整压缩表</a></td></tr>
+      <tr><td>OR/NOR</td><td>OR2、OR3、OR4、NOR2、NOR3、NOR4，均 X1/2/4</td><td><a href="cells-basic.html#basic-gates">基本门完整压缩表</a></td></tr>
+      <tr><td>复合门</td><td>AOI21/211/22/221/222，均 X1/2/4</td><td><a href="cells-compound.html">AOI 中间项与完整算例</a></td></tr>
+      <tr><td>复合门</td><td>OAI21/211/22/221/222，均 X1/2/4；OAI33_X1</td><td><a href="cells-compound.html">OAI 中间项与完整算例</a></td></tr>
+      <tr><td>异或/选择</td><td>XOR2 X1/2；XNOR2 X1/2；MUX2 X1/2</td><td><a href="cells-select.html">比较与选择</a></td></tr>
+      <tr><td>三态</td><td>TINV_X1；TBUF X1/2/4/8/16</td><td><a href="cells-select.html#tristate">三态表与总线争用</a></td></tr>
+      <tr><td>算术</td><td>HA_X1；FA_X1</td><td><a href="cells-arithmetic.html">和/进位真值表</a></td></tr>
+      <tr><td>锁存</td><td>DLH X1/2；DLL X1/2；TLAT_X1</td><td><a href="cells-latches.html">状态表与透明窗口</a></td></tr>
+      <tr><td>触发器</td><td>DFF/DFFR/DFFS/DFFRS，均 X1/2</td><td><a href="cells-sequential.html">状态/异步控制表</a></td></tr>
+      <tr><td>扫描触发器</td><td>SDFF/SDFFR/SDFFS/SDFFRS，均 X1/2</td><td><a href="cells-sequential.html">选择表、DFF 控制表与逐拍移位</a></td></tr>
+      <tr><td>时钟门</td><td>CLKGATE、CLKGATETST，均 X1/2/4/8</td><td><a href="cells-sequential.html">门控功能表</a></td></tr>
+      <tr><td>常量/物理</td><td>LOGIC0_X1、LOGIC1_X1、FILLCELL X1/2/4/8/16/32、ANTENNA_X1、TAPCELL_X1</td><td><a href="cells-physical.html">功能表及 N/A 的物理验收</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="section-4">11.4 版图与 CDL 一致性：不要把“长得像”当作 LVS</h2>
+  <p>手工读图的目标是建立直觉和定位错误，不是替代提取器。建议对每个代表单元填写：</p>
+  <table>
+    <thead><tr><th>检查项</th><th>从 GDS 得到</th><th>与 CDL 比较</th></tr></thead>
+    <tbody>
+      <tr><td>MOS 数量</td><td>按 Poly×Active、器件类型计数</td><td>NMOS/PMOS 行数；并联 finger 需考虑归并</td></tr>
+      <tr><td>栅网络</td><td>Poly + Poly contact + M1 标签</td><td>每行第 2 个节点 G</td></tr>
+      <tr><td>源漏网络</td><td>连续扩散段、Contact 和 M1</td><td>每行 D/S；允许对称交换但不允许换网</td></tr>
+      <tr><td>体端</td><td>N-well/P-well/tap 与电源轨</td><td>第 4 节点 B，通常 PMOS→VDD、NMOS→VSS</td></tr>
+      <tr><td>尺寸</td><td>栅长、有效宽度、finger/并联结构</td><td>W/L 与提取归并规则</td></tr>
+    </tbody>
+  </table>
+  <p>源漏共享只说明相邻 MOS 可共用一段连续扩散；它不自动证明共享段属于正确网络。先从 CDL 找共同节点，再确认两栅之间的 Active 确实连续，没有真实的扩散断开或隔离。Contact 不会切断扩散；它把该段引到金属，因此还要检查接出的金属有没有误接到别的网络。</p>
+
+  <h2 id="section-5">11.5 重现本章截图</h2>
+  <p>版图截图由 KLayout 直接打开逐单元 GDS：</p>
+  <pre><code>QT_QPA_PLATFORM=offscreen klayout -z -nc -rx \
+  -l examples/FreePDK45/freepdk45.lyp \
+  examples/FreePDK45/gds/INV_X1.gds \
+  -r examples/FreePDK45/render_layout.rb \
+  -rd output=/tmp/inv_x1-layout.png</code></pre>
+  <p>电路图由 OpenSchematic 读取本章同一份 CDL；在 OpenSchematic 仓库和相应 Python 环境中运行：</p>
+  <pre><code>cd /home/jasper/code/github/openschematic
+QT_QPA_PLATFORM=offscreen python3 \
+  /home/jasper/code/docs/std-cell/examples/FreePDK45/render_schematics.py \
+  /home/jasper/code/docs/std-cell/examples/FreePDK45/NangateOpenCellLibrary.cdl \
+  /tmp/schematics INV_X1 NAND2_X1 MUX2_X1 DFF_X1</code></pre>
+  <p>图像是认知辅助，不是电气证明。OpenSchematic 对静态 CMOS、传输结构和时序单元会采用不同识别/回退布局；线画得整齐不代表已通过 LVS。</p>
 
   <div class="lab">
-    <strong>建模练习</strong>
-    <p>把 NAND2 的 NMOS 与 PMOS 分别建成多重图，写出每个顶点的度，并判断是否存在 Euler trail/circuit。再解释为什么 VDD/VSS 在做层次分区时可能需要特殊处理。</p>
-    <details><summary>参考思路</summary><p>NMOS 图 Y—X—VSS，Y/VSS 度为 1、X 度为 2，有 Euler trail。PMOS 图在 Y/VDD 间有两条平行边，两点度均为 2，有 Euler circuit。多个互不相关逻辑分支可能都因连接同一电源而看似属于一个连通分量，因此分区时会拆分 supply node。</p></details>
+    <strong>本章必做一：从需求选单元</strong>
+    <ol>
+      <li>写出 <code>fire=valid·ready</code> 和低有效 <code>fire_n</code> 的候选单元，并说明为什么综合器可能选择不同形式。</li>
+      <li>设计“load=0 保持 Q，load=1 装入 D”的一位寄存器，指出 MUX 与 DFF 分别负责什么。</li>
+      <li>用 4 个 XNOR2 和一个 AND4 表达 4 位相等比较；再思考为何实际映射可能改成其他门树。</li>
+      <li>解释 8 位串行进位加法器中 CI→CO 为什么会成为关键路径，以及更大驱动不一定能彻底解决什么问题。</li>
+      <li>列出双 TBUF 共享总线的合法、浮空、争用三种状态，再说明用 MUX2 替代后的差别。</li>
+    </ol>
+    <details><summary>参考思路</summary><p>fire 可用 AND2，fire_n 可用 NAND2，但综合会结合后级极性、负载、时序和可用复合门重构。MUX 只选择旧值/新值，DFF 才在时钟沿保存状态。逐位 XNOR 后做 AND 可表达相等，但工具可能平衡门树或用 AOI/OAI 及反相极性。串行进位必须逐级传播，增大单元只能改善每级延迟，不能消除与位数相关的逻辑深度。两个三态驱动必须互斥且还要处理全关闭；MUX 始终给出确定的被选数据。</p></details>
+  </div>
+
+  <div class="lab">
+    <strong>本章必做二：三张透明纸</strong>
+    <p>选择 NAND2_X1。第一张只描 Active/Poly 并给每个交叠编号；第二张按 CDL 写每只 MOS 的 D/G/S/B；第三张只画网络节点。把三张叠起来，解释哪一段是串联中点、哪一段发生源漏共享、为什么输出 Contact 在那一侧。完成后用 NOR2_X1 复做一次。</p>
   </div>
 
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li>为什么晶体管图和布线图的“边”含义不同？</li>
-      <li>为什么两端最短路不能直接解决多端网络最小树？</li>
-      <li>为什么枚举所有 Euler 路比找到任意一条更容易爆炸？</li>
+      <li>为什么 Poly 跨 Active 才是 MOS，而 Poly 上的 Contact 不是 MOS？</li>
+      <li>为什么 TINV/TBUF 的 <code>*.EQN</code> 不能作为完整真值表？</li>
+      <li>AOI222 的压缩真值表为什么仍然覆盖全部 64 种原始输入？</li>
+      <li>DLH 在 G=0、D 改变时为什么不能写成 Q=0 或 Q=1？</li>
+      <li>TAPCELL_X1 的 CDL 存在为何仍不能说库视图完整？</li>
     </ol>
+    <details><summary>参考答案</summary><p>沟道由栅层和有源区交叠形成，Contact 只是垂直连接。普通 Boolean 方程没有高阻态及使能维度。AOI222 先把三对 AND 压成 T1/T2/T3，三项全 0/至少一项为 1 已穷尽所有组合。锁存器关闭时保留先前状态，必须引入 Q(previous)。TAPCELL 还缺 GDS/LEF，无法验证物理结构和后端接口。</p></details>
   </div>
 
-  <div class="source-note"><strong>阅读依据：</strong><code>EDA_routing.pdf</code>用于布线图、全局/详细布线和约束背景；本章的具体建模以 LibreCell 的 NetworkX 数据结构为准。</div>
-  <nav class="bottom-nav"><a href="chapter8.html">← 第 8 章</a><a href="chapter10.html">第 10 章：晶体管布局 →</a></nav>
-  <footer>第 9 章 · 算法小白也能用的图论</footer>
+  <div class="source-note"><strong>数据依据：</strong><code>NangateOpenCellLibrary.cdl</code> 的端口、方程和 MOS 实例；逐单元 GDS；<code>layer.inc</code> 层号。三态、锁存、时钟门和异步控制的表来自对应晶体管拓扑的逻辑分析；用于实际设计前还应与 Liberty、SPICE 仿真和目标 PDK LVS 交叉验证。</div>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter8.html">← 第 10 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-basic.html">第 12 章 →</a></nav>
+  <footer>第 11 章　FreePDK45 图谱入口与 MOS 识读 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

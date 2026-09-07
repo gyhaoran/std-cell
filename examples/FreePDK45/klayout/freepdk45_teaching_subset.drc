@@ -1,0 +1,23 @@
+# A deliberately small KLayout translation of unambiguous geometric rules from
+# calibre/calibreDRC.rul. It is for learning and regression experiments only;
+# it is not a replacement for the original Calibre deck or a foundry deck.
+
+source($input)
+report("FreePDK45 teaching subset", $report)
+
+active = input(1, 0)
+pwell = input(2, 0)
+nwell = input(3, 0)
+poly = input(9, 0)
+contact = input(10, 0)
+metal1 = input(11, 0)
+
+(nwell & pwell).output("Well.1", "N-well and P-well overlap")
+(active - (nwell | pwell)).output("Active.4", "Active outside well")
+active.width(0.09).output("Active.1", "Active width < 0.09 um")
+active.space(0.08).output("Active.2", "Active spacing < 0.08 um")
+poly.width(0.05).output("Poly.1", "Poly width < 0.05 um")
+contact.width(0.065).output("Contact.1", "Contact width < 0.065 um")
+contact.space(0.075).output("Contact.2", "Contact spacing < 0.075 um")
+metal1.width(0.065).output("Metal1.1", "Metal1 width < 0.065 um")
+metal1.space(0.065).output("Metal1.2", "Metal1 spacing < 0.065 um")

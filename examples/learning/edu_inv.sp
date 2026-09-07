@@ -1,0 +1,7 @@
+* EDU_INV: idealized Level-1 MOS teaching circuit, NOT FreePDK45.
+.model N_EDU NMOS (LEVEL=1 VTO=0.45 KP=200u LAMBDA=0.04)
+.model P_EDU PMOS (LEVEL=1 VTO=-0.45 KP=100u LAMBDA=0.04)
+.subckt EDU_INV A Y VDD VSS
+MN Y A VSS VSS N_EDU W=1u L=0.18u
+MP Y A VDD VDD P_EDU W=2u L=0.18u
+.ends EDU_INV

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">NLDM 延迟、输出转换时间与翻转失败</title>
+  <desc id="desc">左侧展示 CKB 下降沿触发 Q 上升时，传播延迟和二成至八成转换时间的测量方法；右侧展示 Q 未跨过阈值时无法形成有效表格值。</desc>
+  <defs>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#2457d6"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#b42318"/>
+    </marker>
+    <style>
+      text { font-family: Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #172033; }
+      .panel { fill: #fff; stroke: #dce3ee; stroke-width: 2; }
+      .axis { stroke: #667085; stroke-width: 2; }
+      .grid { stroke: #b8c2d3; stroke-width: 1.5; stroke-dasharray: 7 7; }
+      .clock { fill: none; stroke: #147a4b; stroke-width: 6; }
+      .q { fill: none; stroke: #2457d6; stroke-width: 6; }
+      .fail { fill: none; stroke: #b42318; stroke-width: 6; }
+      .measure { stroke: #2457d6; stroke-width: 2.5; marker-end: url(#arrow-blue); }
+      .badmeasure { stroke: #b42318; stroke-width: 2.5; marker-end: url(#arrow-red); }
+      .guide { stroke: #2457d6; stroke-width: 1.5; stroke-dasharray: 4 5; }
+      .badguide { stroke: #b42318; stroke-width: 1.5; stroke-dasharray: 4 5; }
+      .label { font-size: 22px; font-weight: 700; }
+      .small { font-size: 18px; fill: #475467; }
+      .blue { fill: #2457d6; }
+      .red { fill: #b42318; }
+      .green { fill: #147a4b; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="620" fill="#f8fafc"/>
+  <rect class="panel" x="28" y="28" width="708" height="564" rx="18"/>
+  <rect class="panel" x="760" y="28" width="412" height="564" rx="18"/>
+
+  <text class="label" x="58" y="72">有效测量：CKB↓ 触发 Q↑</text>
+  <text class="small" x="58" y="102">阈值百分比来自 Liberty 库级属性，并非永远固定为图中的数值</text>
+
+  <line class="axis" x1="92" y1="500" x2="696" y2="500"/>
+  <line class="axis" x1="92" y1="120" x2="92" y2="500"/>
+  <text class="small" x="62" y="126">VDD</text>
+  <text class="small" x="72" y="523">0</text>
+  <text class="small" x="658" y="530">时间</text>
+
+  <line class="grid" x1="92" y1="424" x2="696" y2="424"/>
+  <line class="grid" x1="92" y1="310" x2="696" y2="310"/>
+  <line class="grid" x1="92" y1="196" x2="696" y2="196"/>
+  <text class="small" x="40" y="430">20%</text>
+  <text class="small" x="40" y="316">50%</text>
+  <text class="small" x="40" y="202">80%</text>
+
+  <path class="clock" d="M112 132 L220 132 C245 132 258 168 275 310 C292 452 310 486 340 486 L680 486"/>
+  <path class="q" d="M112 486 L300 486 C327 486 342 450 360 424 C385 385 405 340 420 310 C445 260 466 215 490 196 C512 176 535 146 575 132 L680 132"/>
+  <text class="green label" x="120" y="164">CKB</text>
+  <text class="blue label" x="610" y="164">Q</text>
+
+  <line class="guide" x1="275" y1="310" x2="275" y2="562"/>
+  <line class="guide" x1="420" y1="310" x2="420" y2="562"/>
+  <line class="measure" x1="278" y1="550" x2="416" y2="550"/>
+  <text class="blue small" x="300" y="580">cell_rise：输入 50% → 输出 50%</text>
+
+  <line class="guide" x1="360" y1="424" x2="360" y2="470"/>
+  <line class="guide" x1="490" y1="196" x2="490" y2="470"/>
+  <line class="measure" x1="363" y1="458" x2="486" y2="458"/>
+  <text class="blue small" x="500" y="464">rise_transition：Q 的 20% → 80%</text>
+
+  <text class="label" x="790" y="72">“翻转不过去”</text>
+  <text class="small" x="790" y="102">期望 Q↑，但波形没有跨过测量阈值</text>
+  <line class="axis" x1="804" y1="500" x2="1136" y2="500"/>
+  <line class="axis" x1="804" y1="120" x2="804" y2="500"/>
+  <line class="grid" x1="804" y1="310" x2="1136" y2="310"/>
+  <line class="grid" x1="804" y1="196" x2="1136" y2="196"/>
+  <text class="small" x="770" y="316">50%</text>
+  <text class="small" x="770" y="202">80%</text>
+  <path class="clock" d="M820 132 L875 132 C895 132 906 180 920 310 C934 440 950 486 970 486 L1120 486"/>
+  <path class="fail" d="M820 486 L935 486 C965 486 990 455 1010 420 C1035 378 1060 354 1090 344 C1104 339 1115 337 1120 337"/>
+  <text class="green small" x="826" y="162">CKB</text>
+  <text class="red small" x="1050" y="372">Q 只到约 43% VDD</text>
+  <line class="badguide" x1="920" y1="310" x2="920" y2="548"/>
+  <line class="badmeasure" x1="923" y1="536" x2="1095" y2="536"/>
+  <text class="red small" x="804" y="580">没有 Q 的 50%/80% 交点 → 延迟/转换时间无法测量</text>
+</svg>

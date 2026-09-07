@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-properties>
+ <properties><frame-color>#2f6fe4</frame-color><fill-color>#58a6ff</fill-color><dither-pattern>I3</dither-pattern><visible>true</visible><transparent>false</transparent><name>Active (1/0)</name><source>1/0@1</source></properties>
+ <properties><frame-color>#2b59c3</frame-color><fill-color>#8ab4f8</fill-color><dither-pattern>I6</dither-pattern><visible>true</visible><transparent>false</transparent><name>P-well (2/0)</name><source>2/0@1</source></properties>
+ <properties><frame-color>#a33a3a</frame-color><fill-color>#f28b82</fill-color><dither-pattern>I6</dither-pattern><visible>true</visible><transparent>false</transparent><name>N-well (3/0)</name><source>3/0@1</source></properties>
+ <properties><frame-color>#166534</frame-color><fill-color>#58c878</fill-color><dither-pattern>I4</dither-pattern><visible>true</visible><transparent>false</transparent><name>N-implant (4/0)</name><source>4/0@1</source></properties>
+ <properties><frame-color>#b45309</frame-color><fill-color>#ffb347</fill-color><dither-pattern>I4</dither-pattern><visible>true</visible><transparent>false</transparent><name>P-implant (5/0)</name><source>5/0@1</source></properties>
+ <properties><frame-color>#7e22ce</frame-color><fill-color>#d946ef</fill-color><dither-pattern>I1</dither-pattern><visible>true</visible><transparent>false</transparent><name>Poly (9/0)</name><source>9/0@1</source></properties>
+ <properties><frame-color>#111827</frame-color><fill-color>#111827</fill-color><dither-pattern>I0</dither-pattern><visible>true</visible><transparent>false</transparent><name>Contact (10/0)</name><source>10/0@1</source></properties>
+ <properties><frame-color>#b08d00</frame-color><fill-color>#f4d03f</fill-color><dither-pattern>I2</dither-pattern><visible>true</visible><transparent>false</transparent><name>Metal1 (11/0)</name><source>11/0@1</source></properties>
+ <properties><frame-color>#d92d20</frame-color><fill-color>#f04438</fill-color><dither-pattern>I1</dither-pattern><visible>true</visible><transparent>false</transparent><name>DRC marker (238/0)</name><source>238/0@1</source></properties>
+ <properties><frame-color>#404040</frame-color><fill-color>#ffffff</fill-color><dither-pattern>I0</dither-pattern><visible>false</visible><transparent>false</transparent><name>Boundary (63/63)</name><source>63/63@1</source></properties>
+ <properties><frame-color>#101828</frame-color><fill-color>#ffffff</fill-color><dither-pattern>I0</dither-pattern><visible>false</visible><transparent>false</transparent><name>Cell marker (235/0)</name><source>235/0@1</source></properties>
+</layer-properties>

@@ -1,0 +1,49 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 29 章　从 SPICE deck 到实测翻转波形</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="porting-lab.html">← 第 28 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="liberty.html">第 30 章 →</a></nav><h1>第 29 章　从 SPICE deck 到实测翻转波形</h1><p class="subtitle">先跑一个正常反相器，再理解表征软件为什么会说“翻转不过去”</p>
+<!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="porting-lab.html">工艺迁移小实验与证据分级</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能运行 .tran/.measure 并区分 delay 与 slew。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>重现 EDU_INV 的 9 个负载/转换时间测点。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">“刻库 / k 库”实际在测什么</a></li><li><a href="#section-2">deck：交给工具的一套输入说明</a></li><li><a href="#section-3">先明确示例身份，避免把不同 INV 串成假流水线</a></li><li><a href="#section-4">逐行读一个足够小的反相器测试平台</a></li><li><a href="#section-5">PULSE 的 TR 不等于 Liberty 的 slew 索引</a></li><li><a href="#section-6">运行九个测点，保留 deck、日志和原始波形</a></li><li><a href="#section-7">“翻转不过去”至少有四种不同情况</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">29.1 “刻库 / k 库”实际在测什么</h2>
+<p>库表征把晶体管级电路变成综合、静态时序和功耗分析能使用的模型。它在指定工艺模型、供电和温度下，施加一组输入激励、负载和状态，运行电路仿真，然后从波形提取延迟、转换时间、输入电容、功耗或时序约束。Liberty 是常见结果格式，表征不是只把网表改个后缀。</p>
+<p>可以把每个测点想成一次有严格条件的实验：<strong>测哪只单元、哪条弧、哪个方向、什么旧状态、其他输入怎样固定、slew/load 多大、测量阈值是什么</strong>。只要其中一项错了，就可能没有可用结果。先学会独立检查一个测点，再批量生成二维表。</p>
+<h2 id="section-2">29.2 deck：交给工具的一套输入说明</h2>
+<p><em>Deck</em> 原意来自成叠的输入卡片，今天在 EDA 中泛指一套可执行输入描述。SPICE simulation deck 通常包括电路实例、模型引用、电源、输入波形、负载、分析和测量命令；DRC rule deck 则是图层定义与检查规则。两个都叫 deck，但内容和执行工具不同。</p>
+<table><thead><tr><th>对象</th><th>职责</th><th>是否单独足够完成本实验</th></tr></thead><tbody><tr><td>单元 subckt</td><td>声明端口与晶体管连接</td><td>不够，还缺模型和测试平台</td></tr><tr><td>MOS model</td><td>给定偏置下的电流/电荷等行为</td><td>不够，还缺电路与激励</td></tr><tr><td>testbench / simulation deck</td><td>把被测单元接入可运行的实验</td><td>模型与文件路径正确时可执行</td></tr><tr><td>Liberty</td><td>总结测量模型供下游使用</td><td>不是 SPICE 的器件模型文件</td></tr></tbody></table>
+<h2 id="section-3">29.3 先明确示例身份，避免把不同 INV 串成假流水线</h2>
+<table><thead><tr><th>名字</th><th>来源</th><th>用途</th><th>不能混用的地方</th></tr></thead><tbody><tr><td>INV_X1</td><td>本地 Nangate/FreePDK45 CDL/GDS/LEF</td><td>真实平面 CMOS 识图与跨视图对照</td><td>这里没有把它宣称为本文 Level-1 模型的版图</td></tr><tr><td>INVX1</td><td>LibreCell layout 的 examples/cells.sp 与 dummy_tech.py</td><td>生成器接口练习</td><td>不能只因名字近似就配用 Nangate LEF 或 .lib</td></tr><tr><td>EDU_INV</td><td>本书自拟 Level-1 两管电路</td><td>可完全复现的波形、阈值与 NLDM 入门</td><td>不是 FreePDK45 模型；没有 PEX，不用于签核</td></tr><tr><td>librecell-lib 中的 INVX1 PEX 例子</td><td>其 examples 自带网表与模型</td><td>理解 lctime 接口和历史实现</td><td>不是上述三个对象的自动提取结果</td></tr></tbody></table>
+<h2 id="section-4">29.4 逐行读一个足够小的反相器测试平台</h2>
+<p>被测电路 <a href="examples/learning/edu_inv.sp">edu_inv.sp</a> 声明 NMOS W=1 μm、PMOS W=2 μm、L=0.18 μm，使用自拟 Level-1 参数。下面展示一个 80 ps 输入 slew、20 fF 负载测点的结构；可执行完整文件由脚本生成。</p>
+<pre><code>.include ".../edu_inv.sp"
+VDD VDD 0 1.8
+VA A 0 PULSE(0 1.8 2n 133.333333333p 133.333333333p 8n 20n)
+XU A Y VDD 0 EDU_INV
+CL Y 0 20f
+.tran 2p 18n
+.measure tran cell_fall TRIG v(A) VAL=0.9 RISE=1 TARG v(Y) VAL=0.9 FALL=1
+.measure tran cell_rise TRIG v(A) VAL=0.9 FALL=1 TARG v(Y) VAL=0.9 RISE=1
+.measure tran rise_transition TRIG v(Y) VAL=0.36 RISE=1 TARG v(Y) VAL=1.44 RISE=1
+.measure tran fall_transition TRIG v(Y) VAL=1.44 FALL=1 TARG v(Y) VAL=0.36 FALL=1</code></pre>
+<table><thead><tr><th>行/参数</th><th>含义</th><th>检查方法</th></tr></thead><tbody><tr><td>VDD VDD 0 1.8</td><td>名为 VDD 的电压源，让节点 VDD 比节点 0 高 1.8 V</td><td>0 是 SPICE 参考地；器件名和网名可以相同但角色不同</td></tr><tr><td>PULSE(V1 V2 TD TR TF PW PER)</td><td>低/高值、延迟、上升/下降时间、高平台宽度、周期</td><td>先手画一周期，确认何时有第一次上升与下降</td></tr><tr><td>XU ... EDU_INV</td><td>实例化 subckt，按声明顺序传入节点</td><td>把 A/Y/VDD/VSS 四个位置逐一对照</td></tr><tr><td>CL Y 0 20f</td><td>输出到参考地的 20 fF 集总负载</td><td>20f 不等于 20p；不要跨 1000 倍还只查晶体管尺寸</td></tr><tr><td>.tran 2p 18n</td><td>请求瞬态分析，时间步参数 2 ps、终止 18 ns</td><td>仿真器还会自适应选取内部步长；过粗采样影响交越测量</td></tr><tr><td>TRIG / TARG</td><td>起点事件与终点事件；两时刻之差是结果</td><td>既检查阈值，也检查 RISE/FALL 和第几次事件</td></tr></tbody></table>
+<div class="callout warn"><strong>单位陷阱：</strong>SPICE 的 M/m 通常表示 milli（10⁻³），百万用 MEG；U/u 表示微，N/n 表示纳，P/p 表示皮，F/f 表示飞。不同输入格式的单位规则不同，不能把 SPICE、Python 和 Liberty 的数字直接互抄。具体语法以所用仿真器文档为准。</div>
+<h2 id="section-5">29.5 PULSE 的 TR 不等于 Liberty 的 slew 索引</h2>
+<p>本例测量阈值明确设为 20%～80%。对于线性上升的 PULSE，20% 到 80% 只占完整上升时间的 60%。因此想得到 <code>input_slew=80 ps</code>，需设置完整爬升 <code>TR=80/0.6≈133.333 ps</code>；脚本还对输入波形做测量，验证实际 20%～80% 时间确实等于目标。</p>
+<p>这条换算仅适用于本例线性斜坡。真实输入驱动器产生的非线性波形、不同 slew 阈值和波形缩放模型不能机械套 0.6。图里电压经过 0.9 V 的时刻用于延迟测量，不代表 slew 也用 50% 一个点来定义。</p>
+<figure class="diagram"><a href="examples/learning/reference-run/waveform.svg"><img src="examples/learning/reference-run/waveform.svg" alt="ngspice 实测反相器输入上升输出下降波形"></a><figcaption>真实 ngspice 运行结果，不是手画一条理想延迟曲线。蓝线 A↑、红线 Y↓，两线跨过 50% 虚线的时刻差是 cell_fall。</figcaption></figure>
+<h2 id="section-6">29.6 运行九个测点，保留 deck、日志和原始波形</h2>
+<pre><code>cd /home/jasper/code/docs/std-cell
+ngspice --version
+TUTORIAL_CHAR_OUT=$(mktemp -d /tmp/stdcell-characterize.XXXXXX)
+python examples/learning/characterize.py --output "$TUTORIAL_CHAR_OUT"</code></pre>
+<p>输入 slew={20,80,200} ps，负载={5,20,50} fF，共 9 点；每点测四个 NLDM 值及输入 slew。脚本发现测量缺失或不在本实验合理范围内就报错，不使用 1e31 或 0 代替。它拒绝非空输出目录，避免新结果覆盖旧排错证据。</p>
+<p>本机使用 ngspice 42 实测：80 ps、20 fF 点的 <code>cell_rise≈47.74482 ps</code>、<code>cell_fall≈47.74482 ps</code>、<code>rise_transition≈37.95824 ps</code>、<code>fall_transition≈37.95824 ps</code>。这组接近对称的数值来自特意简化的模型参数，不能推导真实 PMOS/NMOS 必然对称。全部数据在<a href="examples/learning/reference-run/measurements.csv">CSV</a>，模型哈希与仿真器版本在<a href="examples/learning/reference-run/provenance.json">运行来源记录</a>。</p>
+<h2 id="section-7">29.7 “翻转不过去”至少有四种不同情况</h2>
+<table><thead><tr><th>波形证据</th><th>可能解释</th><th>下一步</th></tr></thead><tbody><tr><td>输入没有到预期电平</td><td>激励、电源、端口顺序或单位错</td><td>先看测试平台，不先扩大晶体管</td></tr><tr><td>输入正常，输出一直保持旧值</td><td>弧未敏化、时序单元未初始化、复位压住，也可能连接错误</td><td>逐个核对逻辑条件与旧状态</td></tr><tr><td>输出朝目标变化，却未在窗口内过阈值</td><td>负载大、驱动弱、窗口短或供电异常</td><td>对比轻负载与更长窗口，观察是否最终完整到轨</td></tr><tr><td>过了 50%，却没到 80%</td><td>能测到某种延迟，仍可能测不到输出 slew</td><td>检查波形终值、争用、浮空与阈值；“有 delay”不等于全部合格</td></tr></tbody></table>
+<p>因此你同事说的“翻转不过去”常包含你理解的“低到高或高到低没有完成”，但工程判据更具体：所需事件是否在规定状态、方向、窗口内跨过规定阈值。截图中 1e31 常是失败/无效占位的线索，不是一个物理上极大的有效延迟，也不能仅凭它锁定根因。</p>
+<div class="checkpoint"><strong>练习</strong><ol><li>把负载从 20 fF 加到 50 fF，先预测 delay/slew 趋势，再查 CSV。</li><li>把反相器输入固定为 0，为何测不到 cell_fall？</li><li>若采用 10%～90% slew，完整线性 TR=100 ps 时索引应是多少？</li></ol><details><summary>答案</summary><p>① 本实验同 slew 下两者增大：80 ps 输入时，50 fF 的 delay≈76.77878 ps、输出 slew≈68.33558 ps。② 没有输入上升/输出下降事件，保持高是正确功能。③ 80 ps；延迟的 50% 阈值可以独立保持不变。</p></details></div>
+<div class="source-note">语法参考：<a href="https://ngspice.sourceforge.io/docs/ngspice-manual.pdf">ngspice 官方手册</a>的 Circuit Description、PULSE、Transient Analysis 与 Measurements 条目。在线手册会随版本更新，运行证据以本页记录的 ngspice 42 为准。实验不测功耗/输入电容/顺序约束，也未运行工艺角扫描。</div>
+<nav class="bottom-nav" aria-label="全书导航"><a href="porting-lab.html">← 第 28 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="liberty.html">第 30 章 →</a></nav><footer>第 29 章　从 SPICE deck 到实测翻转波形 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+</main></body></html>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">最小宽度、最小间距与包围规则示意图</title>
+  <desc id="desc">左图标注单个图形的宽度，中图标注两个图形边到边的间距，右图标注外层边界到内部通孔边界的包围量。</desc>
+  <defs>
+    <marker id="arrow-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 10 0 L 0 5 L 10 10" fill="none" stroke="#2457d6" stroke-width="1.8"/>
+    </marker>
+    <marker id="arrow-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#2457d6" stroke-width="1.8"/>
+    </marker>
+    <style>
+      text { font-family: Arial, "Noto Sans SC", sans-serif; fill: #172033; }
+      .title { font-size: 25px; font-weight: 700; }
+      .label { font-size: 20px; font-weight: 700; }
+      .small { font-size: 17px; fill: #475467; }
+      .panel { fill: #f8fafc; stroke: #d0d5dd; stroke-width: 2; }
+      .shape { fill: #dcecff; stroke: #2457d6; stroke-width: 3; }
+      .outer { fill: #fff1cc; stroke: #9a5b00; stroke-width: 3; }
+      .via { fill: #aa8ac4; stroke: #57346f; stroke-width: 3; }
+      .dim { fill: none; stroke: #2457d6; stroke-width: 2.5; marker-start: url(#arrow-start); marker-end: url(#arrow-end); }
+      .guide { fill: none; stroke: #667085; stroke-width: 1.8; stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="430" rx="18" fill="#ffffff"/>
+
+  <!-- Minimum width -->
+  <rect class="panel" x="25" y="25" width="350" height="380" rx="16"/>
+  <text class="title" x="200" y="68" text-anchor="middle">最小宽度 width</text>
+  <rect class="shape" x="92" y="145" width="216" height="130" rx="5"/>
+  <line class="guide" x1="65" y1="145" x2="92" y2="145"/>
+  <line class="guide" x1="65" y1="275" x2="92" y2="275"/>
+  <line class="dim" x1="70" y1="145" x2="70" y2="275"/>
+  <text class="label" x="53" y="216" text-anchor="middle">w</text>
+  <text class="small" x="200" y="368" text-anchor="middle">此矩形的窄尺寸（非长边）</text>
+
+  <!-- Minimum spacing -->
+  <rect class="panel" x="425" y="25" width="350" height="380" rx="16"/>
+  <text class="title" x="600" y="68" text-anchor="middle">最小间距 spacing</text>
+  <rect class="shape" x="466" y="145" width="105" height="130" rx="5"/>
+  <rect class="shape" x="629" y="145" width="105" height="130" rx="5"/>
+  <line class="guide" x1="571" y1="135" x2="571" y2="315"/>
+  <line class="guide" x1="629" y1="135" x2="629" y2="315"/>
+  <line class="dim" x1="571" y1="315" x2="629" y2="315"/>
+  <text class="label" x="600" y="304" text-anchor="middle">s</text>
+  <text class="small" x="600" y="368" text-anchor="middle">两个相邻边界之间的净距</text>
+
+  <!-- Enclosure -->
+  <rect class="panel" x="825" y="25" width="350" height="380" rx="16"/>
+  <text class="title" x="1000" y="68" text-anchor="middle">包围 enclosure</text>
+  <rect class="outer" x="898" y="118" width="204" height="204" rx="5"/>
+  <rect class="via" x="968" y="188" width="64" height="64" rx="3"/>
+  <line class="guide" x1="898" y1="108" x2="898" y2="342"/>
+  <line class="guide" x1="968" y1="178" x2="968" y2="342"/>
+  <line class="dim" x1="898" y1="342" x2="968" y2="342"/>
+  <text class="label" x="933" y="331" text-anchor="middle">e</text>
+  <line class="guide" x1="1032" y1="178" x2="1032" y2="342"/>
+  <line class="guide" x1="1102" y1="108" x2="1102" y2="342"/>
+  <line class="dim" x1="1032" y1="342" x2="1102" y2="342"/>
+  <text class="label" x="1067" y="331" text-anchor="middle">e</text>
+  <text class="label" x="1000" y="224" text-anchor="middle" fill="#ffffff">Via</text>
+  <text class="small" x="1000" y="375" text-anchor="middle">外层边界越过内层边界的距离</text>
+</svg>

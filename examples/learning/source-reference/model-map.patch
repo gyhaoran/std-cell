@@ -1,0 +1,31 @@
+--- a/librecell-common/lccommon/net_util.py
++++ b/librecell-common/lccommon/net_util.py
+@@ -64,7 +64,7 @@
+     return netlist, circuit
+ 
+ 
+-def load_transistor_netlist(path: str, circuit_name: str, force_lowercase: bool = False) -> Tuple[List[Transistor], Set[str]]:
++def load_transistor_netlist(path: str, circuit_name: str, force_lowercase: bool = False, model_channel_types=None) -> Tuple[List[Transistor], Set[str]]:
+     """ Load a transistor level circuit from a spice netlist.
+ 
+     :param path: The path to the netlist.
+@@ -94,9 +94,16 @@
+     def get_channel_type(s: str):
+         """Determine the channel type of transistor from the model name.
+         """
+-        if s.lower().startswith('n'):
+-            return ChannelType.NMOS
+-        return ChannelType.PMOS
++        mapping = model_channel_types
++        if mapping is None:
++            mapping = {'nmos': ChannelType.NMOS, 'pmos': ChannelType.PMOS}
++        normalized = {name.lower(): kind for name, kind in mapping.items()}
++        if s.lower() not in normalized:
++            raise ValueError(f"Unknown MOS model: {s}; supply model_channel_types")
++        kind = normalized[s.lower()]
++        if kind not in (ChannelType.NMOS, ChannelType.PMOS):
++            raise ValueError(f"Invalid channel type for MOS model: {s}")
++        return kind
+ 
+     mos4 = db.DeviceClassMOS4Transistor()
+     id_gate_4 = mos4.terminal_id('G')

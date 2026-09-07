@@ -1,0 +1,133 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 12 章　反相器、基本门与驱动强度</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="chapter9.html">← 第 11 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-compound.html">第 13 章 →</a></nav><h1>第 12 章　反相器、基本门与驱动强度</h1><p class="subtitle">先把四个网络认清，再把串并联关系扩展到更多输入</p>
+<p>本章以真实 Nangate/FreePDK45 INV_X1 为读图基准。下文的 CDL、截图和尺寸属于同一份库；它不是生成器 examples 中的 INVX1，也不是后续 Level-1 仿真用的 EDU_INV。</p>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter9.html">FreePDK45 图谱入口与 MOS 识读</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能推导 NAND/NOR 网络并解释为何大驱动也有代价。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>完成 INV_X1/X4 和 NAND/NOR 的对照练习。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#inverter">反相器：先把一只 PMOS 和一只 NMOS 看透</a></li><li><a href="#drive-strength">驱动强度后缀不改变逻辑</a></li><li><a href="#basic-gates">基本组合门：AND/NAND 与 OR/NOR</a></li><li><a href="#section-4">把 NAND 的一个输入翻转，观察另一个输入在做什么</a></li><li><a href="#section-5">共享扩散的三种证据，不把 Contact 当作切刀</a></li><li><a href="#section-6">从 INV_X1 到 INV_X4：指、宽度与输入负担</a></li><li><a href="#section-7">逻辑应用要把“输入已经同步”写成前提</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="inverter">12.1 反相器：先把一只 PMOS 和一只 NMOS 看透</h2>
+  <table>
+    <thead><tr><th>这一类解决什么</th><th>本库成员</th><th>常见应用</th><th>初学者易错点</th></tr></thead>
+    <tbody><tr><td>翻转逻辑极性，并恢复为完整的 0/1 电平</td><td>INV_X1/X2/X4/X8/X16/X32</td><td>低有效/高有效转换、生成互补控制、逻辑映射中的反相级</td><td>INV 不是“没有代价的 NOT”；它有输入电容、延迟、短路功耗和输出负载上限</td></tr></tbody>
+  </table>
+  <pre><code>.SUBCKT INV_X1 A ZN VDD VSS
+M_i_0 ZN A VSS VSS NMOS_VTL W=0.415U L=0.050U
+M_i_1 ZN A VDD VDD PMOS_VTL W=0.630U L=0.050U</code></pre>
+  <table class="truth-table">
+    <thead><tr><th>A</th><th>PMOS</th><th>NMOS</th><th>ZN</th></tr></thead>
+    <tbody><tr><td>0</td><td>导通</td><td>关断</td><td>1</td></tr><tr><td>1</td><td>关断</td><td>导通</td><td>0</td></tr></tbody>
+  </table>
+  <div class="figure-grid">
+    <figure class="diagram"><a href="assets/freepdk45/inv_x1-layout.png"><img src="assets/freepdk45/inv_x1-layout.png" alt="FreePDK45 INV_X1 真实 GDS 版图"></a><figcaption>INV_X1 版图。中央一条 Poly 同时切过上方 PMOS Active 与下方 NMOS Active；右侧 M1 将两只漏端接为 ZN。</figcaption></figure>
+    <figure class="diagram"><a href="assets/freepdk45/inv_x1-schematic.png"><img src="assets/freepdk45/inv_x1-schematic.png" alt="OpenSchematic 从 CDL 生成的 INV_X1 电路图"></a><figcaption>由本地 CDL 生成的晶体管图。上拉接 VDD，下拉接 VSS，两栅同接 A，两漏同接 ZN。</figcaption></figure>
+  </div>
+  <p>版图里的 VDD/VSS 是上下横向 M1 电源轨；A 通过中部接触接到 Poly；ZN 通过右侧竖向 M1 同时接上下扩散。PMOS 的 W=0.630 μm 大于 NMOS 的 0.415 μm，是为了补偿迁移率差异、调整驱动和延迟；这不是“所有工艺都固定 1.5 倍”的公式。</p>
+  <h3>功能解释与应用实例</h3>
+  <table>
+    <thead><tr><th>场景</th><th>信号代入</th><th>为什么需要 INV</th></tr></thead>
+    <tbody>
+      <tr><td>复位极性转换</td><td><code>reset = !reset_n</code></td><td>外部接口给低有效复位，而某段组合逻辑使用高有效复位条件</td></tr>
+      <tr><td>生成互补选择</td><td><code>SN = !S</code></td><td>传输门或某些 MUX 拓扑需要 S/SN 成对控制；应关注两条控制路径的延迟差</td></tr>
+      <tr><td>恢复逻辑电平</td><td>弱或内部节点 → INV → 后级逻辑</td><td>反相级把有限斜率的内部节点重新驱动为接近电源轨的数字电平</td></tr>
+      <tr><td>综合映射</td><td><code>n1=!(a·b)</code>，再经 INV 得 <code>a·b</code></td><td>AND 在静态 CMOS 中常由 NAND 核心加反相级组成</td></tr>
+    </tbody>
+  </table>
+  <p><strong>具体例子：</strong>设 <code>reset_n=0</code>，INV 输出 <code>reset=1</code>，表示复位条件成立；<code>reset_n=1</code> 时输出 0，电路离开复位。工程上不能只看逻辑正确：若这个输出同时驱动几百个寄存器，单个 INV_X1 的负载会过大，应由复位树、缓冲链和时序/转换时间约束共同决定实现。</p>
+
+
+  <h2 id="drive-strength">12.2 驱动强度后缀不改变逻辑</h2>
+  <p><code>_X1/_X2/_X4...</code> 通常表示不同驱动能力。它可能通过增大 W、并联 finger、增加输出级或改变版图宽度实现，不能简单理解为“所有晶体管 W 乘后缀”。本库中：</p>
+  <ul>
+    <li>INV：X1/X2/X4/X8/X16/X32；BUF：X1/X2/X4/X8/X16/X32；</li>
+    <li>AND/OR/NAND/NOR/AOI/OAI 多数为 X1/X2/X4；</li>
+    <li>DFF/锁存/扫描触发器多数为 X1/X2；TBUF 为 X1/X2/X4/X8/X16；</li>
+    <li><code>CLKBUF_X3</code> 说明后缀不是必须为 2 的幂。</li>
+  </ul>
+  <p>因此本章按<strong>基础单元族</strong>给真值/状态表；同族所有驱动变体都适用。版图、电容、延迟、功耗和晶体管数则必须逐 variant 检查。</p>
+  <h3>为什么同一个功能要做很多尺寸</h3>
+  <table>
+    <thead><tr><th>选择</th><th>好处</th><th>代价</th><th>更适合的情形</th></tr></thead>
+    <tbody>
+      <tr><td>较小驱动（如 X1）</td><td>面积、输入电容和漏电通常较小</td><td>带大负载时输出转换慢、延迟大</td><td>短线、少量门输入、非关键路径</td></tr>
+      <tr><td>较大驱动（如 X8/X16）</td><td>能更快充放较大的线电容和门电容</td><td>自身面积、输入负载和动态/漏电代价增大</td><td>较长布线、较高扇出或时序关键节点</td></tr>
+      <tr><td>多级缓冲链</td><td>逐级放大，避免前级直接看到巨大的输入/线负载</td><td>增加级数、面积和每级延迟</td><td>一处信号驱动很多寄存器或跨较长距离</td></tr>
+      <tr><td>CLKBUF</td><td>针对时钟转换、负载和上/下沿特性进行表征</td><td>不一定允许当普通数据缓冲器使用</td><td>CTS 构造时钟树；具体用途以 Liberty 属性为准</td></tr>
+    </tbody>
+  </table>
+  <p><strong>具体例子：</strong>一个控制门要驱动分散在版图上的 32 个 DFF 输入。直接把 X1 换成“库里最大单元”不一定最优，因为大单元会反过来加重前一级负载。后端优化通常结合实际布线寄生，选择 X1→X4→X16 一类渐增链，或复制驱动器形成分支；尺寸与级数要靠静态时序分析和 slew/capacitance 限制验证。</p>
+
+
+  <h2 id="basic-gates">12.3 基本组合门：AND/NAND 与 OR/NOR</h2>
+  <table>
+    <thead><tr><th>这一类解决什么</th><th>本库成员举例</th><th>常见应用</th><th>版图/时序特征</th></tr></thead>
+    <tbody>
+      <tr><td>全部条件同时成立</td><td>AND2/3/4、NAND2/3/4</td><td>握手、使能、地址译码、全 1 检测</td><td>NAND 的 NMOS 串联；扇入越大，堆叠路径通常越难驱动</td></tr>
+      <tr><td>至少一个条件成立</td><td>OR2/3/4、NOR2/3/4</td><td>中断/错误汇总、请求汇总、全 0 检测</td><td>NOR 的 PMOS 串联；宽扇入也会带来延迟与面积代价</td></tr>
+    </tbody>
+  </table>
+  <h3>二输入完整真值表</h3>
+  <table class="truth-table">
+    <thead><tr><th>A1</th><th>A2</th><th>AND</th><th>NAND</th><th>OR</th><th>NOR</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td><td>1</td></tr>
+      <tr><td>0</td><td>1</td><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+      <tr><td>1</td><td>0</td><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+      <tr><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
+    </tbody>
+  </table>
+  <h3>2/3/4 输入族的完整压缩表</h3>
+  <table class="truth-table">
+    <thead><tr><th>适用单元</th><th>输入条件</th><th>输出</th></tr></thead>
+    <tbody>
+      <tr><td>AND2、AND3、AND4</td><td>全部输入为 1</td><td>1</td></tr><tr><td>AND2、AND3、AND4</td><td>至少一个输入为 0</td><td>0</td></tr>
+      <tr><td>NAND2、NAND3、NAND4</td><td>全部输入为 1</td><td>0</td></tr><tr><td>NAND2、NAND3、NAND4</td><td>至少一个输入为 0</td><td>1</td></tr>
+      <tr><td>OR2、OR3、OR4</td><td>至少一个输入为 1</td><td>1</td></tr><tr><td>OR2、OR3、OR4</td><td>全部输入为 0</td><td>0</td></tr>
+      <tr><td>NOR2、NOR3、NOR4</td><td>至少一个输入为 1</td><td>0</td></tr><tr><td>NOR2、NOR3、NOR4</td><td>全部输入为 0</td><td>1</td></tr>
+    </tbody>
+  </table>
+  <p>压缩表穷尽了 n 输入的所有情况：例如“至少一个为 0”覆盖除全 1 之外的所有行。NAND 的 NMOS 下拉串联、PMOS 上拉并联；NOR 正好相反。AND/OR 在本库中由 NAND/NOR 核心再接反相输出级，因此版图和晶体管数更大。</p>
+  <h3>同一类单元的多个工程例子</h3>
+  <table>
+    <thead><tr><th>目标</th><th>方程</th><th>可对应的单元</th><th>信号解释</th></tr></thead>
+    <tbody>
+      <tr><td>握手成功</td><td><code>fire=valid·ready</code></td><td>AND2</td><td>数据有效并且接收端准备好时，才允许本周期传输</td></tr>
+      <tr><td>低有效片选</td><td><code>cs_n=!(addr_hit·enable)</code></td><td>NAND2</td><td>地址命中且总使能打开时，低有效片选被拉低</td></tr>
+      <tr><td>三个条件全部满足</td><td><code>start=power_ok·pll_lock·cfg_done</code></td><td>AND3</td><td>电源、时钟和配置都准备好后启动</td></tr>
+      <tr><td>错误汇总</td><td><code>any_err=e0+e1+e2+e3</code></td><td>OR4</td><td>任一错误源有效就报告总错误</td></tr>
+      <tr><td>总线空闲检测</td><td><code>idle=!(req0+req1+req2)</code></td><td>NOR3</td><td>所有请求均为 0 时 idle 才为 1</td></tr>
+      <tr><td>低有效“并非全授权”</td><td><code>all_grant_n=!(g0·g1·g2·g3)</code></td><td>NAND4</td><td>只要有一路未授权，输出就保持 1</td></tr>
+    </tbody>
+  </table>
+  <p>德摩根律说明 <code>!(A·B)=!A+!B</code>、<code>!(A+B)=!A·!B</code>。因此综合器会结合信号已有极性，把逻辑映射成 NAND/NOR/AOI/OAI，而不一定照 RTL 表面写法使用 AND/OR。也不要从输出名 <code>Z</code> 或 <code>ZN</code> 猜极性；本章始终以 CDL 方程、Liberty function 或仿真为准。</p>
+  <div class="figure-grid">
+    <figure class="diagram"><a href="assets/freepdk45/nand2_x1-layout.png"><img src="assets/freepdk45/nand2_x1-layout.png" alt="NAND2_X1 版图"></a><figcaption>NAND2_X1 版图：两条输入 Poly；下方连续扩散构成串联下拉并提供共享源漏段。</figcaption></figure>
+    <figure class="diagram"><a href="assets/freepdk45/nand2_x1-schematic.png"><img src="assets/freepdk45/nand2_x1-schematic.png" alt="NAND2_X1 电路图"></a><figcaption>NAND2_X1：PMOS 并联、NMOS 串联。</figcaption></figure>
+    <figure class="diagram"><a href="assets/freepdk45/nor2_x1-layout.png"><img src="assets/freepdk45/nor2_x1-layout.png" alt="NOR2_X1 版图"></a><figcaption>NOR2_X1 版图：上方 PMOS 串联网络是关键识别点。</figcaption></figure>
+    <figure class="diagram"><a href="assets/freepdk45/nor2_x1-schematic.png"><img src="assets/freepdk45/nor2_x1-schematic.png" alt="NOR2_X1 电路图"></a><figcaption>NOR2_X1：PMOS 串联、NMOS 并联。</figcaption></figure>
+  </div>
+
+
+<h2 id="section-4">12.4 把 NAND 的一个输入翻转，观察另一个输入在做什么</h2>
+<p>考虑 <code>ZN=!(A1·A2)</code>。把 A2 固定为 1，令 A1 从 0 变 1：原来一支 PMOS 把 ZN 拉高；A1 上升后，对应 PMOS 关断、NMOS 导通，下拉串联路径完整，ZN 才下降。这时 A1→ZN 路径被<strong>敏化</strong>，也就是其他输入已设置成允许这一输入影响输出的状态。</p>
+<p>若把 A2 固定为 0，即使 A1 翻转，另一个 NMOS 仍关断且另一支 PMOS 仍上拉，ZN 应保持 1。这不是“门坏了”，而是选错了测量条件。以后看到表征软件说“不翻转”，先问测试的那条弧是否被敏化。</p>
+<table><thead><tr><th>门</th><th>测 A1→输出时其他输入</th><th>A1↑ 导致</th><th>为什么</th></tr></thead><tbody>
+<tr><td>NAND2 / NAND3 / NAND4</td><td>其余全部置 1</td><td>ZN↓</td><td>其余串联 NMOS 已打开；A1 决定最后的通断</td></tr>
+<tr><td>NOR2 / NOR3 / NOR4</td><td>其余全部置 0</td><td>ZN↓</td><td>其他并联下拉支路都关断，避免输出先被拉低</td></tr>
+<tr><td>AND / OR</td><td>沿用其 NAND/NOR 核心的敏化设置</td><td>输出↑</td><td>后级再次反相，输出与输入同向；本库这些门的输出名仍可为 ZN，不能凭名字判断极性</td></tr>
+</tbody></table>
+<h2 id="section-5">12.5 共享扩散的三种证据，不把 Contact 当作切刀</h2>
+<p>NAND2 下拉网络的内部节点是两只 NMOS 的连接处。在版图中，若两根栅之间是一段连续 Active，它可以直接承担这个内部节点，不需要先引到 M1 再接回去。Contact 可落在共享段上把节点引出，但不会把连续扩散分成两网。</p>
+<ol><li><strong>逻辑上允许：</strong>CDL 两个相邻端点是同一个网络。</li><li><strong>物理上发生：</strong>相邻栅之间的扩散连续，器件类型/井/注入兼容，没有扩散断开。</li><li><strong>连接是正确的：</strong>所有 Contact/M1 都接在应接的网上，没有把共享内部节点短到电源或输出。</li></ol>
+<p>并联管也可能共享扩散。例如用 <code>VSS—A1—ZN—A2—VSS</code> 的扩散序列构造并联 NMOS，中间共享 ZN，左右 VSS 再由金属并起来。是否串联/并联看最终网的连接，不看栅条是否排成一列。</p>
+<h2 id="section-6">12.6 从 INV_X1 到 INV_X4：指、宽度与输入负担</h2>
+<figure class="diagram"><a href="assets/freepdk45/inv-strength-compare.svg"><img src="assets/freepdk45/inv-strength-compare.svg" alt="从真实 GDS 导出的 INV_X1 与 INV_X4 有源区栅指对照"></a><figcaption>只显示器件与接触层以便数栅指。两栏分别适配画框，不能拿屏幕上的整体宽度比直接算面积；面积需回到 GDS/LEF 的尺寸。</figcaption></figure>
+<p>第一遍只数 Active×Poly 的交叠，第二遍恢复 M1，确认多个指的栅都接 A、源漏两组分别接到电源和 ZN。只有端子网络满足并联关系，才能把多个指的 W 相加；两只串联管不是一个更宽的管。CDL 可能已把若干并联指归并成一行，所以版图交叠数不一定等于 CDL 的行数。</p>
+<p>较大输出级通常能更快给同样负载充放电，但它的栅也更大：前一级需要驱动更多输入电容。尺寸优化应比较整条路径 <code>前级 → 当前门 → 负载</code>，不能只盯当前门输出更快。更宽还可能增加扩散电容、布线长度和漏电，最终以提取与表征为准。</p>
+<h2 id="section-7">12.7 逻辑应用要把“输入已经同步”写成前提</h2>
+<p>本章的 <code>start=power_ok·pll_lock·cfg_done</code> 用来解释 AND3 的功能，不表示把三个异步模拟/时钟域信号直接相与就可安全驱动寄存器。真实设计还需要同步、毛刺处理和复位/时序约束。类似地，用 INV 改复位极性不自动完成复位释放同步。学标准单元功能时应把“组合逻辑正确”和“系统时序安全”分开。</p>
+<div class="checkpoint"><strong>从识图到解释的练习</strong><ol><li>测 NAND3 的 A2 输入弧，A1/A3 应设多少？给出输出上升所需的输入边沿。</li><li>两个 NMOS 的共同端叫 net_0，网表是否足以证明已经扩散共享？</li><li>为什么把 X1 换成 X4 后，整条路径可能反而变慢？</li></ol><details><summary>参考答案</summary><p>① A1=A3=1，A2 从 1 降为 0 时下拉被切断、对应 PMOS 打开，输出上升。② 不足，只有共享机会；还需要 GDS 连续扩散与正确网络证据。③ 前级驱动更大的输入电容，新增的前级延迟可能超过当前级省下的时间，也可能因布线变化增加负担。</p></details></div>
+<nav class="bottom-nav" aria-label="全书导航"><a href="chapter9.html">← 第 11 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-compound.html">第 13 章 →</a></nav><footer>第 12 章　反相器、基本门与驱动强度 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+</main></body></html>

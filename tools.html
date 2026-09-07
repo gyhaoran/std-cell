@@ -1,0 +1,55 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 5 章　终端、文件与 KLayout 上手实验</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="chapter3.html">← 第 4 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter4.html">第 6 章 →</a></nav><h1>第 5 章　终端、文件与 KLayout 上手实验</h1><p class="subtitle">把“打开版图看看”拆成可以执行、可以核对的动作</p>
+<!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter3.html">版图如何变成晶体管</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能打开指定 GDS、隐藏图层、量栅长并保存截图。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>交付 INV_X1 的分层截图、坐标与尺寸记录。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">终端不是另一个仿真器</a></li><li><a href="#section-2">打开一个明确的单元，不先打开整个库</a></li><li><a href="#section-3">同一只 INV 分三轮看，不一次打开所有填充色</a></li><li><a href="#section-4">量一次 L 和 W，确认不是把图长当成沟道长度</a></li><li><a href="#section-5">把版图坐标写成四端核对表</a></li><li><a href="#section-6">从截图退回数据：可重复导图</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">5.1 终端不是另一个仿真器</h2>
+<p>终端负责启动程序、切换目录、传参数和查看输出；真正读 GDS 的是 KLayout，算电路波形的是 SPICE 仿真器。相对路径从当前工作目录出发，绝对路径从 <code>/</code> 出发。第一步用 <code>pwd</code> 确认位置，命令找不到文件时先排除目录错误。</p>
+<pre><code>cd /home/jasper/code/docs/std-cell
+pwd
+ls examples/FreePDK45/gds/INV_X1.gds
+command -v klayout
+command -v ngspice
+python --version</code></pre>
+<p>示例中的 <code>$TUTORIAL_OUT</code> 是变量，使用前必须赋值；行末 <code>\</code> 表示同一条命令延续到下一行，后面不要再加空格或注释。<code>--output</code> 是某个程序的选项，不是所有 EDA 工具通用的语法。复制时不包含终端提示符 <code>$</code>。</p>
+<p><code>python</code> 和 <code>pip</code> 可能属于不同环境，优先使用 <code>python -m pip</code>。虚拟环境只隔离 Python 包，不会自动装好 ngspice/Calibre 这类外部程序。遇到缺依赖先记录解释器路径和错误，不要用 sudo 向共享环境试装。</p>
+<h2 id="section-2">5.2 打开一个明确的单元，不先打开整个库</h2>
+<pre><code>klayout -l examples/FreePDK45/freepdk45.lyp \
+  examples/FreePDK45/gds/INV_X1.gds</code></pre>
+<ol class="steps"><li>GUI 中也可通过 <strong>File → Open</strong> 选择同一文件。左侧 Cells 面板选 <code>INV_X1</code>；若加载了多个布局，确认当前标签页。</li><li>使用视图的 Zoom Fit/全图显示功能让单元进入窗口。不同版本可在 View 菜单或工具栏找到相同功能，不要求死记快捷键。</li><li>Layers 面板中的 <code>1/0</code> 表示 layer=1、datatype=0，不是尺寸。加载提供的 <code>.lyp</code> 是加载显示方案，不会修改 GDS 中的图形或层号。</li><li>若只看到外框，检查层可见性、当前 cell、层次显示深度。不要立即断言 GDS 没有晶体管。</li></ol>
+<p>菜单依据 <a href="https://www.klayout.de/doc/manual/basic.html">KLayout 官方基础操作手册</a>；界面语言和键位可随版本/设置变化。对应条目是 Loading a File、Choosing a Cell、Changing Layer Visibility、Doing Measurements、Creating a Screenshot。下列尺寸由本地 GDS 数据库实际读取，不依赖截图缩放比例。</p>
+<h2 id="section-3">5.3 同一只 INV 分三轮看，不一次打开所有填充色</h2>
+<table><thead><tr><th>轮次</th><th>打开的层</th><th>你应回答的问题</th><th>先不要做什么</th></tr></thead><tbody>
+<tr><td>器件轮</td><td>Active 1/0、Poly 9/0；需要时加 well/implant</td><td>Poly 穿过几块 Active？交叠尺寸是多少？</td><td>不要把上/下位置本身当成 PMOS/NMOS 证明</td></tr>
+<tr><td>连接轮</td><td>再加 Contact 10/0、M1 11/0</td><td>A 怎样到两栅？两漏怎样接到 ZN？</td><td>不要把金属跨越当成自动连接，必须找接触结构</td></tr>
+<tr><td>体端与边界轮</td><td>再加 P-well 2/0、N-well 3/0、implant 4/0、5/0、边界</td><td>类型与 B 端在哪里得到证据？本单元是否含 tap？</td><td>不要把供电轨等同于井接触；无 tap 需在库/行架构中解决</td></tr>
+</tbody></table>
+<p>在 Layers 面板选择图层并切换可见性；可用面板右键菜单的显示/隐藏操作，批量选层后一起隐藏。颜色不清楚时改用轮廓或减少填充，修改的是显示方案。保存每轮截图并标上文件名、层列表和 cell 名，便于和同学讨论同一个对象。</p>
+<figure class="diagram"><a href="assets/freepdk45/inv_x1-layer-walk.svg"><img src="assets/freepdk45/inv_x1-layer-walk.svg" alt="同一 INV_X1 GDS 几何的 Active/Poly 和接触金属两轮分层图"></a><figcaption>从真实 GDS 多边形直接导出的分层矢量图，几何不手工重画。文字为教学标注，省略的 well/implant 不能据此判断缺失。</figcaption></figure>
+<h2 id="section-4">5.4 量一次 L 和 W，确认不是把图长当成沟道长度</h2>
+<p>本文件 KLayout <code>layout.dbu=0.0001</code>，单位是 μm/DBU，即每 DBU=0.1 nm。不要与 LibreCell 技术文件中以<strong>米</strong>表示的 <code>db_unit</code> 混淆。Poly 主栅条的 x 坐标是 1450～1950，栅长为 <code>(1950-1450)×0.0001=0.050 μm</code>。</p>
+<table><thead><tr><th>待测对象</th><th>数据库边界（DBU）</th><th>尺寸</th><th>CDL 对照</th></tr></thead><tbody>
+<tr><td>下方 Active 与 Poly 的交叠高</td><td>y=900～5050</td><td>W=0.415 μm</td><td>NMOS_VTL W=0.415U</td></tr>
+<tr><td>上方交叠高</td><td>y=6800～13100</td><td>W=0.630 μm</td><td>PMOS_VTL W=0.630U</td></tr>
+<tr><td>栅条在电流方向的宽度</td><td>x=1450～1950</td><td>L=0.050 μm</td><td>两管均 L=0.050U</td></tr>
+<tr><td>左下扩散接触孔之一</td><td>x=450～1100，y=1850～2500</td><td>0.065 μm 方孔</td><td>网表没有“Contact 器件行”，它是物理连接</td></tr>
+</tbody></table>
+<p>在 GUI 进入标尺/测量模式，在目标边界点击起点和终点，检查捕捉对象；必要时放大并查看图形属性。量的是边到边，不是填充图案的格子间距。若显示 0.5 μm 或 50 μm，先检查是否量错对象或看错单位，不要修改 GDS DBU 让数字“看起来正确”。</p>
+<h2 id="section-5">5.5 把版图坐标写成四端核对表</h2>
+<p>INV 的两块 Active 都从 x=400 延伸到 3000。栅条把每块 Active 分成左端、沟道和右端。上方左端经接触孔到 VDD，下面左端经接触孔到 VSS；两块右端通过右侧 M1 连接到 ZN；中间的 A 金属经接触孔接到 Poly。这就建立了网表两行 D/G/S 的证据，不只是“看到两个管”。</p>
+<p>B 端不是两端扩散中随便选一个。本文件需要结合 well/implant 与 tapless 库架构判断体网络；手工数接触孔不能代替四端 LVS。</p>
+<h2 id="section-6">5.6 从截图退回数据：可重复导图</h2>
+<pre><code>python examples/learning/render_walk.py
+QT_QPA_PLATFORM=offscreen klayout -z -nc -rx \
+  -l examples/FreePDK45/freepdk45.lyp \
+  examples/FreePDK45/gds/INV_X1.gds \
+  -r examples/FreePDK45/render_layout.rb \
+  -rd output=/tmp/INV_X1-check.png</code></pre>
+<p>第一条用 KLayout Python 数据库读取真实多边形，生成本页分层 SVG；第二条由 KLayout GUI 渲染器离屏导出原始截图。没有桌面不妨碍批量生成，但交互式测量仍建议你亲手做一次。OpenSchematic 电路图的复现入口保留在<a href="chapter9.html">图谱入口</a>。</p>
+<div class="checkpoint"><strong>验收</strong><ol><li>提交一张只含 Active/Poly 的图，标出两只 MOS 的 W/L。</li><li>再提交连接轮图，分别写出 A、ZN、VDD、VSS 的路径。</li><li>解释为什么 Active 总宽 0.26 μm 不是本例 MOS 的 W。</li></ol><details><summary>核对要点</summary><p>电流方向沿 x，L 量 Poly 的 x 向宽度，W 量交叠区 y 向尺寸。0.26 μm 是整个 Active 的 x 跨度，包含两侧源漏和沟道，既不是 W 也不是 L。A 接共同栅、ZN 接两漏，电源接各自左端；B 必须另查井/体接触。</p></details></div>
+<nav class="bottom-nav" aria-label="全书导航"><a href="chapter3.html">← 第 4 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter4.html">第 6 章 →</a></nav><footer>第 5 章　终端、文件与 KLayout 上手实验 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+</main></body></html>

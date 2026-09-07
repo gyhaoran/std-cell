@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第3章：版图如何变成晶体管</title>
+  <title>第 4 章　版图如何变成晶体管</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter2.html">← 上一章</a><a href="chapter4.html">下一章 →</a></nav>
-  <h1>第 3 章　版图如何变成晶体管</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter2.html">← 第 3 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="tools.html">第 5 章 →</a></nav>
+  <h1>第 4 章　版图如何变成晶体管</h1>
   <p class="subtitle">掌握一套不依赖配色的逐层读图法</p>
 
   <div class="objectives">
@@ -21,13 +21,21 @@
     </ul>
   </div>
 
-  <h2>3.1 版图是俯视的几何数据库</h2>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter2.html">从 MOS 到 CMOS 逻辑</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能由 Active×Poly 数沟道并逐网追踪 Contact/M1。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>写出一只 MOS 的四端证据表。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">版图是俯视的几何数据库</a></li><li><a href="#section-2">新手必须认识的层</a></li><li><a href="#section-3">识别一只 MOS：寻找 Active × Poly</a></li><li><a href="#section-4">Contact 不会“切断”Active</a></li><li><a href="#section-5">固定的六步追线法</a></li><li><a href="#section-6">串联、并联在版图里怎么看</a></li><li><a href="#section-7">第一次纸上读图实验</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">4.1 版图是俯视的几何数据库</h2>
   <p>GDS/OASIS 保存的是层号、datatype、polygon/path/text 等几何对象。版图工具把不同层叠加显示，好像多张透明胶片。颜色和填充图案只是显示配置，不是 GDS 的电气含义；换一个 PDK 或 layer-properties 文件，同一层可能完全变色。</p>
   <p>版图也不是晶圆剖面的照片。俯视图中的矩形往往表达“在这个平面范围执行某道工艺或形成某种材料”，制造后会变成有厚度、掺杂浓度和三维形貌的结构。</p>
 
   <div class="callout warn"><strong>第一条读图纪律：</strong>先查看目标 PDK 的 layer map 和显示文件，再解释颜色。不要说“绿色永远是有源区、红色永远是 Poly”。教程配色只为保持教学图一致。</div>
 
-  <h2>3.2 新手必须认识的层</h2>
+  <h2 id="section-2">4.2 新手必须认识的层</h2>
   <table>
     <thead><tr><th>层或层组</th><th>几何作用</th><th>电气含义/注意事项</th></tr></thead>
     <tbody>
@@ -47,7 +55,7 @@
     <figcaption>把剖面与俯视图联系起来：Poly 横跨 Active 的位置是沟道；两侧掺杂区域是源/漏扩散。</figcaption>
   </figure>
 
-  <h2>3.3 识别一只 MOS：寻找 Active × Poly</h2>
+  <h2 id="section-3">4.3 识别一只 MOS：寻找 Active × Poly</h2>
   <ol class="steps">
     <li><strong>找 Active。</strong>先只显示 Active/OD，观察连续条带和岛状区域。</li>
     <li><strong>叠加 Poly。</strong>每一处 gate-poly 穿过 Active 的有效交叠，通常对应一只 MOS 或一个 finger。</li>
@@ -63,14 +71,15 @@
 它表示两只晶体管共享中间扩散 N1。
 若 N0=Y、N1=X、N2=VSS，则电气路径是 Y → MOS(A) → X → MOS(B) → VSS。</code></pre>
 
-  <h2>3.4 Contact 不会“切断”Active</h2>
+  <h2 id="section-4">4.4 Contact 不会“切断”Active</h2>
   <p>Contact 的作用是建立垂直连接：把下方扩散或 Poly 接到上方金属。它不会把一条 Active 切成两个互相绝缘的区域。要让相邻晶体管无缝共享扩散，连接条件必须本来就满足：</p>
   <pre><code>左边晶体管的右侧网络 == 右边晶体管的左侧网络</code></pre>
   <p>如果两侧应属于不同网络，常见做法是分开 Active、调整晶体管顺序，或依照 PDK 使用专门的 diffusion break 结构；绝不是“放一个 contact 把它切开”。</p>
+  <p>本章只解决“看到连续 Active 时怎样识别共享扩散”。第 7 章会进一步用 <code>Mname D G S B</code> 网表判断共享机会，分析完整 OR2 的连续扩散序列，并说明传输门中哪些端子能共享、哪些绝对不能共享。</p>
 
   <div class="callout danger"><strong>另外两个常见误判：</strong>两个不同金属层的矩形上下重叠但没有通孔，电气上不连接；一个引脚标签压在金属附近，也必须确认引脚用途层和端口图形的定义，不能仅凭文字位置判定连接。</div>
 
-  <h2>3.5 固定的六步追线法</h2>
+  <h2 id="section-5">4.5 固定的六步追线法</h2>
   <p>面对任何陌生标准单元，按以下顺序做，不要一开始就试图猜逻辑门名称。</p>
   <ol class="steps">
     <li><strong>确认图层语义：</strong>从 PDK 层映射得到井、有源区、注入层、多晶硅、切割层、金属、通孔和引脚层。</li>
@@ -92,10 +101,10 @@
     </tbody>
   </table>
 
-  <h2>3.6 串联、并联在版图里怎么看</h2>
+  <h2 id="section-6">4.6 串联、并联在版图里怎么看</h2>
   <p><strong>串联</strong>看网络拓扑：两只晶体管仅共享一个中间网络 X，外端分别接 Y 与 VSS。<strong>并联</strong>则要求两只晶体管的两端分别属于同一对网络，例如都连接 VDD↔Y。并联器件也可以用一条折返的连续 Active 实现为 <code>Y-[A]-VDD-[B]-Y</code>，因此“并联晶体管必须分开画”也是错误的。</p>
 
-  <h2>3.7 第一次纸上读图实验</h2>
+  <h2 id="section-7">4.7 第一次纸上读图实验</h2>
   <div class="lab">
     <strong>实验：从几何序列还原网络</strong>
     <p>给定 NMOS 行 <code>Y-[A]-X-[B]-VSS</code>，PMOS 行 <code>VDD-[A]-Y-[B]-VDD</code>：</p>
@@ -117,8 +126,9 @@
   </div>
 
   <div class="source-note"><strong>阅读依据：</strong><em>Fundamentals of Layout Design for Electronic Circuits</em> §3.2 “How to Read a Layout View”、§6.3；《CMOS版图设计基础》的基本工艺层、串并联 MOS 和标准单元图例。</div>
-  <nav class="bottom-nav"><a href="chapter2.html">← 第 2 章</a><a href="chapter4.html">第 4 章：反相器完整读图实验 →</a></nav>
-  <footer>第 3 章 · 版图如何变成晶体管</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter2.html">← 第 3 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="tools.html">第 5 章 →</a></nav>
+  <footer>第 4 章　版图如何变成晶体管 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

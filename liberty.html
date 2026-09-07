@@ -1,0 +1,65 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 30 章　从正常测量读懂完整 Liberty 层次</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="simulation.html">← 第 29 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter17.html">第 31 章 →</a></nav><h1>第 30 章　从正常测量读懂完整 Liberty 层次</h1><p class="subtitle">先读对一张正常表，再回头诊断 1e31、空行与不完整表征</p>
+<!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="simulation.html">从 SPICE deck 到实测翻转波形</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能按 template 查二维表并正确做双线性插值。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>定位真实测点并计算中间点，列出模型遗漏项。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">从外向内：别只截出 values 就开始解释</a></li><li><a href="#section-2">四张表：两张问“等多久”，两张问“边沿多慢”</a></li><li><a href="#section-3">index_1/index_2 是坐标，values 才是测量结果</a></li><li><a href="#section-4">两轴都不在采样点上：亲手做一次双线性插值</a></li><li><a href="#section-5">时序单元的表不都是输出负载乘输入 slew</a></li><li><a href="#section-6">功耗表的 rise/fall 也要先看所属 pin</a></li><li><a href="#section-7">从“可解析文件”到“可发布库”的检查清单</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">30.1 从外向内：别只截出 values 就开始解释</h2>
+<p>完整例子是<a href="examples/learning/reference-run/edu_inv.lib">EDU_INV 的教学 Liberty</a>。它具备 library/cell/pin/timing/template 的完整嵌套，便于学习语法和表索引；但缺少发布库所需的输入电容、功耗、物理面积等信息，不应交给生产流程当成完整库。</p>
+<pre><code>library (EDU_TT) {                    /* 一组共同单位与条件 */
+  time_unit : "1ns";
+  capacitive_load_unit (1, pf);
+  lu_table_template (delay_3x3) {      /* 每个轴是什么 */
+    variable_1 : input_net_transition;
+    variable_2 : total_output_net_capacitance;
+    index_1 ("0.02, 0.08, 0.2");
+    index_2 ("0.005, 0.02, 0.05");
+  }
+  cell (EDU_INV) {
+    pin (A) { direction : input; }
+    pin (Y) {
+      direction : output;
+      function : "!A";
+      timing () {
+        related_pin : "A";
+        timing_sense : negative_unate;
+        timing_type : combinational;
+        cell_rise (delay_3x3) { /* values 见完整文件 */ }
+        cell_fall (delay_3x3) { /* 输出下降对应的延迟 */ }
+        rise_transition (delay_3x3) { /* 输出上升沿本身多宽 */ }
+        fall_transition (delay_3x3) { /* 输出下降沿本身多宽 */ }
+      }
+    }
+  }
+}</code></pre>
+<p>上面为层次阅读摘录，含解释性空表，不能直接当完整模型使用；链接文件的四个表包含实际运行得到的全部数值。表中也可以局部给出 index_1/index_2 覆盖模板索引，阅读实际文件时应优先检查局部定义，再回到模板。</p>
+<h2 id="section-2">30.2 四张表：两张问“等多久”，两张问“边沿多慢”</h2>
+<table><thead><tr><th>表</th><th>本例起点</th><th>本例终点</th><th>物理意义</th></tr></thead><tbody>
+<tr><td>cell_rise</td><td>A 下降跨 50%</td><td>Y 上升跨 50%</td><td>对应输出上升的传播延迟</td></tr><tr><td>cell_fall</td><td>A 上升跨 50%</td><td>Y 下降跨 50%</td><td>对应输出下降的传播延迟</td></tr><tr><td>rise_transition</td><td>Y 上升跨 20%</td><td>Y 上升跨 80%</td><td>输出上升沿的转换时间</td></tr><tr><td>fall_transition</td><td>Y 下降跨 80%</td><td>Y 下降跨 20%</td><td>输出下降沿的转换时间</td></tr>
+</tbody></table>
+<p>rise/fall 命名这里都以<strong>输出 Y</strong>为准，不以输入 A 为准。INV 是 negative_unate，所以 A↑ 对应 Y↓；BUF 是 positive_unate，所以输入输出同向。MUX 选择或 XOR 输入的方向可能依赖其他状态，需要 non_unate 或条件弧描述。</p>
+<p>延迟与 slew 都是时间，但不能互换。一个输出可能很晚才开始变、随后很快完成转换，表现为 delay 大但 slew 小；也可能很早开始缓慢变化，两个指标呈另一种组合。查表后的输出 slew 会影响后一级单元，因此它不是只给波形好不好看的附属数据。</p>
+<h2 id="section-3">30.3 index_1/index_2 是坐标，values 才是测量结果</h2>
+<p>本文模板的第一轴是输入转换时间，单位 ns；第二轴是输出负载，单位 pF。第一轴 0.08 表示 80 ps，第二轴 0.02 表示 20 fF。不同库甚至同一库的不同模板可能交换轴；librecell-lib 本地实现也存在负载作为第一轴的情况，所以不能背“index1 永远是 slew”。</p>
+<table class="truth-table"><thead><tr><th>cell_rise，单位 ns</th><th>5 fF（0.005 pF）</th><th>20 fF（0.02 pF）</th><th>50 fF（0.05 pF）</th></tr></thead><tbody><tr><td>20 ps（0.02 ns）</td><td>0.01192294</td><td>0.02560823</td><td>0.05137137</td></tr><tr><td>80 ps（0.08 ns）</td><td>0.02241280</td><td>0.04774482</td><td>0.07677878</td></tr><tr><td>200 ps（0.2 ns）</td><td>0.03364057</td><td>0.07269861</td><td>0.11937260</td></tr></tbody></table>
+<p>三行对应第一轴三个索引，每行三列对应第二轴三个索引。第二行第二列就是上一章实测的 47.74482 ps。原始 SPICE 测量以秒输出，脚本乘 10⁹ 写成 ns；如果误把秒直接写进 <code>time_unit:"1ns"</code> 的库，数值会错九个数量级。</p>
+<h2 id="section-4">30.4 两轴都不在采样点上：亲手做一次双线性插值</h2>
+<p>查询输入 slew=50 ps、负载=12.5 fF，分别处于 20/80 ps 与 5/20 fF 的中点。取左上四格 d00、d01、d10、d11；先定义 <code>u=(50-20)/(80-20)=0.5</code>，<code>v=(12.5-5)/(20-5)=0.5</code>。</p>
+<pre><code>d = (1-u)(1-v)d00 + (1-u)v·d01 + u(1-v)d10 + uv·d11
+  = (0.01192294 + 0.02560823 + 0.02241280 + 0.04774482) / 4
+  = 0.0269221975 ns ≈ 26.9222 ps</code></pre>
+<p>这是从离散表推得的近似值，不是这个新条件下又跑了一次 SPICE。表征网格密度要用误差评估选择。对表范围外做外推时误差和工具策略更敏感；不能以“软件能给一个数”证明目标负载/转换时间可用。最大电容、最大转换时间等约束仍需独立检查。</p>
+<h2 id="section-5">30.5 时序单元的表不都是输出负载乘输入 slew</h2>
+<table><thead><tr><th>表征任务</th><th>相关引脚/事件</th><th>常见轴含义</th><th>常见表名</th></tr></thead><tbody><tr><td>组合传播</td><td>A→Y</td><td>输入转换时间、输出电容</td><td>cell_rise/fall，rise/fall_transition</td></tr><tr><td>Clock-to-Q</td><td>CK 有效边沿→Q</td><td>时钟转换时间、输出电容</td><td>同样可以使用四张传播/转换表</td></tr><tr><td>Setup / hold</td><td>D 相对 CK</td><td>受约束引脚 D 与相关引脚 CK 的转换时间</td><td>rise_constraint / fall_constraint</td></tr><tr><td>Recovery / removal</td><td>异步控制释放相对 CK</td><td>控制引脚与时钟的转换时间</td><td>constraint 表，结合 timing_type 判断</td></tr></tbody></table>
+<p>例如 <code>pin(D){ timing(){ related_pin:"CK"; timing_type:setup_rising; ... } }</code> 中，<code>setup_rising</code> 的 rising 指相关 CK 的上升沿；组内 <code>rise_constraint</code> 则约束 D 上升事件。这两个 rise 的对象不同。对于 <code>pin(Q)</code> 下的 <code>timing_type:falling_edge</code>，falling 指相关时钟下降沿，组里的 <code>cell_rise</code> 仍是 Q 上升延迟。</p>
+<h2 id="section-6">30.6 功耗表的 rise/fall 也要先看所属 pin</h2>
+<p>在 <code>pin(Q) → internal_power → rise_power</code> 的层次下，rise 指 Q 上升，不能因 <code>related_pin:"CKB"</code> 就改说是 CKB 上升。related_pin 表示相关激励路径，related_pg_pin 表示相关供电网络；when 进一步限定适用状态。若功耗组属于输入 pin，则对应那个输入的转换。截图没有显示外层括号时，应该回到完整文件确认。</p>
+<p>经典内部功耗表保存每次事件的能量模型，平均功率还要结合活动率等；与静态漏电组 <code>leakage_power</code> 不是一回事。此入门实验没有计算 internal_power，也没有把空项填零来伪造完整性。原始语义可核对 <a href="https://media.c3d2.de/mgoblin_media/media_entries/659/Liberty_User_Guides_and_Reference_Manual_Suite_Version_2017.06.pdf#page=337">Synopsys Liberty 手册的 Internal Power Modeling</a>。</p>
+<h2 id="section-7">30.7 从“可解析文件”到“可发布库”的检查清单</h2>
+<ol><li>层次和语法：括号、表维度、索引数量、数值是否有限。</li><li>语义：function、状态定义、pin 方向、related_pin、时序方向与条件是否匹配电路。</li><li>单位与阈值：模型电压、温度、时间/电容单位、slew 阈值是否一致。</li><li>覆盖：所有支持单元、角点、弧、边沿、状态及负载范围是否完成；失败点是否保留根因。</li><li>物理一致：同名单元的 GDS、LEF、网表、提取和表征是否真是同一个版本。</li><li>下游验证：STA、综合与布局布线能否正确消费；不能只以 Liberty parser 不报错验收。</li></ol>
+<div class="checkpoint"><strong>练习</strong><ol><li>本表第一行第三列是什么条件、什么单位？</li><li>负载在 5/20 fF 正中间，slew 正好 80 ps，应该取哪两个值？</li><li>为什么 1e31 不是通过扩大坐标轴就能使用的“超大有效延迟”？</li></ol><details><summary>答案</summary><p>① 20 ps 输入、50 fF 负载下的输出上升延迟 0.05137137 ns。② 第二行前两列 0.02241280 与 0.04774482 ns，线性中点 0.03507881 ns。③ 它是可疑的无效/失败占位线索，必须回到日志与波形证明测量有效；不能靠插值修复不存在的事件。</p></details></div>
+<nav class="bottom-nav" aria-label="全书导航"><a href="simulation.html">← 第 29 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter17.html">第 31 章 →</a></nav><footer>第 30 章　从正常测量读懂完整 Liberty 层次 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+</main></body></html>

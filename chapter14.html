@@ -3,152 +3,167 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第14章：沿源码走完整流水线</title>
+  <title>第 24 章　技术文件逐字段拆解</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav"><a href="chapter13.html">← 上一章</a><a href="chapter15.html">下一章 →</a></nav>
-  <h1>第 14 章　沿源码走完整流水线</h1>
-  <p class="subtitle">知道每个中间状态在哪里，才有能力修改而不靠猜</p>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter13.html">← 第 23 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter15.html">第 25 章 →</a></nav>
+  <h1>第 24 章　技术文件逐字段拆解</h1>
+  <p class="subtitle">以 <code>examples/dummy_tech.py</code> 为真实接口，不发明不存在的配置类</p>
 
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
-      <li>从 CLI 入口追到网表、布局、几何生成、布线、后处理、LVS 和输出模块。</li>
-      <li>理解每一步的输入/输出、不变量与失败模式。</li>
-      <li>建立“改代码→单元测试→小单元→整库→外部签核”的修改纪律。</li>
+      <li>理解技术文件是被执行的 Python module，不是通用 PDK schema。</li>
+      <li>掌握当前版本真正读取的全部字段及单位。</li>
+      <li>能判断新工艺需求是输出映射、参数调整，还是内部层/器件/布线代码扩展。</li>
     </ul>
   </div>
 
-  <figure class="diagram">
-    <img src="assets/librecell-pipeline.svg" alt="本地 LibreCell 从 SPICE 和技术文件到 GDS LEF MAG 的真实流水线">
-    <figcaption>内部 LVS 位于版图生成之后、输出之前；后处理只覆盖凹槽/最小面积等有限问题。</figcaption>
-  </figure>
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter13.html">固定版本并生成第一个单元</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能追踪 gate_length、W、DBU 与 output_map 的消费点。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>把一个物理尺寸从 PDK 换算到生成几何。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">技术文件如何被加载</a></li><li><a href="#section-2">内部层不是 PDK 层号</a></li><li><a href="#section-3">单位链必须完整推导</a></li><li><a href="#section-4">输出模块（writer）</a></li><li><a href="#section-5">布线资源和层用途</a></li><li><a href="#section-6">单元架构和器件几何字段</a></li><li><a href="#section-7">网格字段</a></li><li><a href="#section-8">几何规则字段</a></li><li><a href="#section-9">布线成本字段</a></li><li><a href="#section-10">适配能力矩阵</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="section-1">24.1 技术文件如何被加载</h2>
+  <p><code>tech_util.load_tech_file</code> 使用 <code>SourceFileLoader</code> 执行传入的 Python 文件，然后其他模块直接访问 <code>tech.db_unit</code>、<code>tech.min_spacing</code> 等 module attributes。</p>
+  <div class="callout danger"><strong>安全与接口含义：</strong><code>--tech</code> 文件具有执行任意 Python 的能力，只加载可信文件。当前代码没有 schema validator；字段拼错往往到流程深处才表现为 <code>AttributeError</code> 或错误几何。迁移项目应自行增加静态校验与单元测试。</div>
 
-  <h2>14.1 入口：<code>standalone.main</code></h2>
-  <ol class="steps">
-    <li><code>argparse</code> 解析真实 CLI，按 <code>-v/-q/--log</code> 配置日志。</li>
-    <li><code>load_tech_file</code> 执行 Python 技术文件。</li>
-    <li>由字典把 <code>--placer</code> 和 <code>--signal-router</code> 变成布局器和布线器对象。</li>
-    <li>组合 <code>HVGraphRouter(PathFinderGraphRouter(signal_router))</code>。</li>
-    <li>构造 <code>LcLayout</code> 并调用 <code>create_cell_layout</code>。</li>
-    <li>运行内部 LVS；通过后遍历 <code>output_writers</code> 中的输出模块。</li>
-  </ol>
-  <p>源码入口：<code>librecell-layout/lclayout/standalone.py</code>。第一次阅读不要从文件顶部逐行滚动，先找 <code>main</code>、<code>create_cell_layout</code> 和编号方法。</p>
+  <h2 id="section-2">24.2 内部层不是 PDK 层号</h2>
+  <p><code>lclayout/layout/layers.py</code> 固定定义了一套内部语义层：</p>
+  <pre><code>ndiffusion, pdiffusion, nwell, pwell, poly
+ndiff_contact, pdiff_contact, poly_contact
+metal1, via1, metal2
+metal1/metal2 label 与 pin，abutment_box</code></pre>
+  <p>内部通孔连通关系也固定为扩散区/多晶硅↔M1 和 M1↔M2。技术文件中的 <code>output_map</code> 只是在输出阶段把这些内部层复制到目标 GDS <code>(layer, datatype)</code>，并没有把内部拓扑变成任意 PDK 层栈。</p>
 
-  <h2>14.2 00–01：校验技术与读取网表</h2>
-  <p><code>_00_00_check_tech</code> 当前只做很少的检查，例如 <code>multi_via</code> 层对顺序；<code>_00_01_prepare_tech</code> 把间距字典变成无向图。</p>
-  <p><code>_01_load_netlist</code>：</p>
-  <ul>
-    <li>通过 KLayout SPICE reader 查找 subckt；</li>
-    <li>用模型名首字母判断 NMOS/PMOS；</li>
-    <li>识别唯一 supply 与 ground，非电源端口作为 I/O pin；</li>
-    <li>把 SPICE W 转为 DBU，乘全局 sizing factor，并夹到器件最小宽度。</li>
-  </ul>
-  <p>这里是新工艺模型名、器件参数和 body 语义最早需要扩展的位置。建议把“模型名→ChannelType”从隐式字符串规则改为技术文件中的显式 mapping/callback，并为未知模型报错。</p>
+  <pre><code>my_metal1 = (6, 0)
+my_metal1_pin = (6, 2)
 
-  <h2>14.3 02–03：内部版图与抽象布局</h2>
-  <p><code>_02_setup_layout</code> 创建顶层单元，并按固定内部 <code>layermap</code> 为每个语义层建立图形容器。开启布线图调试时还会创建调试用途层。</p>
-  <p><code>_03_place_transistors</code> 调用选定布局器，得到两行槽位单元。若传入布局文件路径：</p>
-  <ul>
-    <li>文件存在：校验单元、晶体管名、网络和位置后加载；</li>
-    <li>文件不存在：运行布局器后保存 JSON。</li>
-  </ul>
-  <p>这是保证 A/B 实验可比的接口，也意味着过期布局文件会绕过新布局器。</p>
+output_map = {
+    l_metal1: my_metal1,
+    l_metal1_pin: my_metal1_pin,
+    l_nwell: [(2, 0), (2, 1)],  # 一个内部层可复制到多个输出层
+}</code></pre>
+  <p>如果目标工艺需要局部互连层（LI）、特殊栅接触栈、多种切割层、M3+、不同阈值注入层或布尔派生层，单靠 <code>output_map</code> 通常不够；要扩展内部层、通孔连接图、晶体管绘制、布线、LVS 和输出模块。</p>
 
-  <h2>14.4 04–05：画晶体管和单元模板</h2>
-  <p><code>DefaultTransistorLayout</code> 用抽象槽位与技术参数生成：</p>
-  <ul>
-    <li>NMOS/PMOS 对应的 diffusion；</li>
-    <li>gate Poly、well enclosure；</li>
-    <li>带 <code>net</code> 属性的源/漏/栅图形；</li>
-    <li>不在网格上的端子节点，供后续布线接入。</li>
-  </ul>
-  <p><code>_05_draw_cell_template</code> 计算单元宽度，绘制模板、VDD/VSS 电源轨和电源引脚图形。若新工艺需要注入层、阱/衬底接触、特殊栅切割或鳍数离散化，仅调整 GDS 映射无法解决，应在晶体管/模板抽象层增加显式生成逻辑。</p>
+  <h2 id="section-3">24.3 单位链必须完整推导</h2>
+  <pre><code># 技术文件
+db_unit = 1e-9  # 一内部整数单位 = 1 nm = 1e-9 m
 
-  <h2>14.5 06–08：构图、布线和绘制</h2>
-  <p><code>_06_route</code> 包含了构图和实际多网络布线：</p>
-  <ol>
-    <li>创建 <code>Grid2D</code> 与基础 layer-coordinate graph；</li>
-    <li>删除与已有几何冲突或已预布的边；</li>
-    <li>提取/嵌入端子，创建虚拟端子/引脚；</li>
-    <li>建立 spacing conflict 与 reserved node 集合；</li>
-    <li>调用 HV、PathFinder 和信号布线器组成的层次结构。</li>
-  </ol>
-  <p><code>_08_draw_routes</code> 把布线树画成导线/通孔并合并同层多边形。没有另一个河流式布线方法。</p>
+# 所有 unit_cell_width、spacing、via_size 等都用内部整数单位
+unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
+  <p>输入 SPICE 的 W 经 KLayout netlist parser 读取后被转换到米，再除以 <code>db_unit</code> 形成内部 channel width，之后乘 <code>transistor_channel_width_sizing</code> 并夹到 NMOS/PMOS 最小 gate width。GDS writer 又把米/DBU 换为 KLayout 要求的 µm/DBU；LEF writer按自己的 <code>db_unit</code> 计算缩放。</p>
+  <div class="callout danger"><strong>L 不走相同的数据链。</strong>本 commit 的 <code>load_transistor_netlist</code> 只将 W 存入 Transistor，不保留网表 L；实际栅长由 <code>tech.gate_length</code> 决定。只改 SPICE L 不会自动改变生成栅长。固定 L 的工艺需增加一致性检查，多 L 支持则要扩展数据结构与绘图。见<a href="source-lab.html">真实源码补丁与参数测试</a>。</div>
+  <div class="callout warn"><strong>迁移检查：</strong>选 INV 这样可手算的单元，从 SPICE W/L 一路打印到内部整数、GDS ruler 和 LEF SIZE/PIN 坐标。四者任一不一致就停止，不要靠“整体缩放 GDS”补救。</div>
 
-  <h2>14.6 09：有限的后处理</h2>
-  <p><code>_09_post_process</code> 的核心工作：</p>
-  <ul>
-    <li>对配置了 <code>minimum_notch</code> 的层填凹槽，连续做两次；</li>
-    <li>只有 <code>connectable_layers</code> 可在全层区域上填充并潜在合并图形；其他层逐多边形处理以避免短接不同网络；</li>
-    <li>调用 SMT-based cleaner 修复配置的 <code>min_area</code>；</li>
-    <li>从虚拟引脚邻接的布线点注册引脚几何，并绘制引脚/标签。</li>
-  </ul>
-  <div class="callout danger"><strong>它不是完整 DRC 修复器。</strong>它不保证修复所有 width/space/EOL/density/antenna/implant/well 规则，也不能宣称会普遍“平滑扩散”或“自动扩 N-Well”。结果必须运行外部 deck。</div>
+  <h2 id="section-4">24.4 输出模块（writer）</h2>
+  <pre><code>output_writers = [
+    MagWriter(tech_name="scmos", scale_factor=0.1, output_map={...}),
+    LefWriter(db_unit=1e-6, output_map=output_map, site="CORE"),
+    GdsWriter(db_unit=db_unit, output_map=output_map),
+]</code></pre>
+  <p>输出模块列表就是实际输出能力。删除一个 writer 就不会生成对应文件；添加新格式应实现 <code>Writer</code> 接口。Magic 的层名/缩放与 GDS 映射是两个不同配置，不能假定自动同步。</p>
 
-  <h2>14.7 内部 LVS 与输出模块</h2>
-  <p><code>create_cell_layout</code> 返回后，<code>main</code> 才读取参考网表、把四端 MOS 转为三端 MOS、从版图提取网表并比较。失败且未使用调试选项/<code>--ignore-lvs</code> 时退出，不写最终文件。</p>
-  <p>通过后依次调用输出模块：</p>
-  <ul>
-    <li>GDS writer：重新映射内部层、设置 GDS DBU、写 <code>CELL.gds</code>；</li>
-    <li>LEF writer：由引脚几何生成宏单元，但当前方向/用途/OBS 有明显 TODO；</li>
-    <li>Magic writer：按自己的层名和缩放因子写 <code>.mag</code>。</li>
-  </ul>
-
-  <h2>14.8 从需求判断修改落点</h2>
+  <h2 id="section-5">24.5 布线资源和层用途</h2>
   <table>
-    <thead><tr><th>需求</th><th>首要修改点</th><th>必须联动的验证</th></tr></thead>
+    <thead><tr><th>字段</th><th>真实含义</th><th>典型风险</th></tr></thead>
     <tbody>
-      <tr><td>改变基本尺寸/权重</td><td>技术文件</td><td>单元测试、布线、外部 DRC、质量指标</td></tr>
-      <tr><td>显式模型映射</td><td><code>lccommon/net_util.py</code> + tech API</td><td>NMOS/PMOS/未知模型解析测试、外部 LVS</td></tr>
-      <tr><td>增加内部层/通孔栈</td><td><code>layout/layers.py</code></td><td>晶体管/模板、布线图、走线绘制、LVS、输出模块全链路</td></tr>
-      <tr><td>增加 implant/Vt marker</td><td>transistor/template drawing + output map</td><td>device extraction、DRC、边界拼接</td></tr>
-      <tr><td>修正 LEF 引脚方向/用途</td><td><code>writer/lef_writer.py</code> 与引脚元数据</td><td>LEF 解析、GDS/LEF 叠图检查、P&amp;R 冒烟测试</td></tr>
-      <tr><td>增加 OBS</td><td>LEF writer 的内部布线阻挡生成</td><td>引脚可接入性与芯片级详细布线</td></tr>
-      <tr><td>完整 body/tap</td><td>器件/模板、端口和 LVS 提取</td><td>foundry LVS/ERC、latch-up/tap spacing</td></tr>
+      <tr><td><code>routing_layers</code></td><td>内部层→<code>h</code>/<code>v</code>/<code>hv</code>/空串</td><td>漏层或方向错误会让图断开；空串层可接触但无同层轨道</td></tr>
+      <tr><td><code>pin_layer</code></td><td>信号 pin 的内部层</td><td>必须存在对应 <code>_pin/_label</code> 内部层与 output map</td></tr>
+      <tr><td><code>power_layer</code></td><td>VDD/VSS rail 所在内部层</td><td>需与 P&amp;R 电源连接和 LEF 约定一致</td></tr>
+      <tr><td><code>connectable_layers</code></td><td>后处理填 notch 时允许跨 shape 合并的层</td><td>错误加入金属会把不同 net 短路；dummy 只放 nwell</td></tr>
     </tbody>
   </table>
 
-  <h2>14.9 一次安全的源码修改流程</h2>
-  <ol class="steps">
-    <li><strong>写需求和不变量：</strong>例如“未知模型必须报错，原 nmos/pmos 行为不变”。</li>
-    <li><strong>先写最小测试：</strong>一个正例、一个边界例、一个失败例。</li>
-    <li><strong>只改最小接口：</strong>避免同时改层、单位和算法。</li>
-    <li><strong>跑 INV/NAND/NOR：</strong>检查布局、布线、内部 LVS、GDS/LEF。</li>
-    <li><strong>跑压力 corpus：</strong>AOI/OAI、MUX/XOR、宽器件、无共同 Euler。</li>
-    <li><strong>跑外部 PDK 闭环：</strong>DRC/LVS/PEX、相邻拼接、P&amp;R、特征化。</li>
-    <li><strong>记录差异：</strong>输出哈希、面积、导线/通孔、违规分类、时序/功耗。</li>
-  </ol>
+  <h2 id="section-6">24.6 单元架构和器件几何字段</h2>
+  <table>
+    <thead><tr><th>字段</th><th>控制对象</th></tr></thead>
+    <tbody>
+      <tr><td><code>unit_cell_width</code></td><td>最小横向单元步长，也用于栅槽位节距；最终宽度是 <code>(placement_width+1)×unit_cell_width</code></td></tr>
+      <tr><td><code>unit_cell_height</code></td><td>固定 cell height 和上下电源轨 y 位置</td></tr>
+      <tr><td><code>gate_length</code></td><td>Poly gate path 的线宽，也就是生成几何的沟道 L</td></tr>
+      <tr><td><code>gate_extension</code></td><td>Poly 超出 active 上下边界的长度</td></tr>
+      <tr><td><code>transistor_offset_y</code></td><td>有源区到上下单元边界的纵向偏移；代码会检查与有源区/多晶硅间距的关系</td></tr>
+      <tr><td><code>minimum_gate_width_nfet/pfet</code></td><td>输入 W 太小时的下限</td></tr>
+      <tr><td><code>transistor_channel_width_sizing</code></td><td>对所有输入 W 的全局缩放因子</td></tr>
+      <tr><td><code>power_rail_width</code></td><td>上下电源 path 宽度</td></tr>
+      <tr><td><code>minimum_pin_width</code></td><td>pin 相关最小尺寸参数</td></tr>
+    </tbody>
+  </table>
+  <p>这些参数并非互相独立。例如 <code>transistor_offset_y</code> 必须同时容纳有源区间距与 <code>gate_extension + poly spacing/2</code>；栅中心还必须落在 x 方向布线网格上。</p>
 
-  <h2>14.10 高效导航源码</h2>
-  <pre><code>cd /home/jasper/code/github/librecell
+  <h2 id="section-7">24.7 网格字段</h2>
+  <pre><code>routing_grid_pitch_x = ...
+routing_grid_pitch_y = ...
+grid_offset_x = ...
+grid_offset_y = ...</code></pre>
+  <p>网格节距（pitch）决定相邻候选节点的中心距，偏移（offset）决定第一列/行的位置。更密的网格提供更多候选但图更大，且不能自动使违规路径合法；更疏的网格可能让晶体管端子或引脚没有接入节点。注意 pitch/节距不同于图形边到边的 spacing/间距。每次改动都要运行布线图可视化和端点数量回归。</p>
 
-rg -n "def create_cell_layout|def _0[0-9]_" librecell-layout/lclayout
-rg -n "tech\." librecell-layout/lclayout
-rg -n "l_metal2|via_layers" librecell-layout/lclayout
-rg -n "TODO|NotImplemented" librecell-layout/lclayout
-rg -n "class .*Writer|write_layout" librecell-layout/lclayout/writer</code></pre>
-  <p>对一个技术字段，既要找 <code>tech.field</code> 的读取点，也要找它间接进入的字典/图属性。对一个内部层名，则追到生成、布线、后处理、提取和输出五个方向。</p>
+  <h2 id="section-8">24.8 几何规则字段</h2>
+  <table>
+    <thead><tr><th>字段</th><th>结构</th><th>消费位置</th></tr></thead>
+    <tbody>
+      <tr><td><code>min_spacing</code></td><td><code>{(layer1,layer2): integer}</code></td><td>间距关系图、器件边界、非法布线边和冲突节点</td></tr>
+      <tr><td><code>minimum_width</code></td><td><code>{layer: integer}</code></td><td>基础几何/清理相关约束</td></tr>
+      <tr><td><code>minimum_enclosure</code></td><td><code>{(outer,inner): integer或tuple}</code></td><td>有源区/井、通孔/接触孔生成和端子接入</td></tr>
+      <tr><td><code>minimum_notch</code></td><td><code>{layer: integer}</code></td><td>布线后填补凹槽</td></tr>
+      <tr><td><code>min_area</code></td><td><code>{layer: integer area}</code></td><td>SMT-based minimum-area repair</td></tr>
+      <tr><td><code>wire_width</code></td><td><code>{routing_layer: integer}</code></td><td>走线绘制与间距裕量</td></tr>
+      <tr><td><code>wire_width_horizontal</code></td><td>水平线宽覆盖值</td><td>绘制水平边</td></tr>
+      <tr><td><code>via_size</code></td><td><code>{cut_layer: side_length}</code></td><td>接触孔/通孔几何和接入裕量</td></tr>
+    </tbody>
+  </table>
+  <p><code>min_area</code> 存面积，其他大多存长度；这是最常见的量纲错误之一。真实 PDK 的条件 spacing、密度、antenna、EOL 等并没有等价字段。</p>
+
+  <h2 id="section-9">24.9 布线成本字段</h2>
+  <table>
+    <thead><tr><th>字段</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td><code>weights_horizontal/vertical</code></td><td>每个内部层每 DBU 的横/纵边基础权重</td></tr>
+      <tr><td><code>via_weights</code></td><td>跨层边成本；键是两个可连接层，不是 cut layer 名</td></tr>
+      <tr><td><code>orientation_change_penalty</code></td><td>HVGraphRouter 中水平/垂直方向切换的成本</td></tr>
+      <tr><td><code>multi_via</code></td><td>指定层对的多通孔数量；本地检查要求层对键按字符串顺序排列</td></tr>
+    </tbody>
+  </table>
+  <p>成本只影响合法候选之间的偏好，不替代几何规则。先确保图正确，再调成本。</p>
+
+  <h2 id="section-10">24.10 适配能力矩阵</h2>
+  <table>
+    <thead><tr><th>新工艺需求</th><th>仅技术文件？</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>相同内部层栈，不同 GDS 层号</td><td>通常可以</td><td>修改 <code>output_map</code> 并用 layer audit 验证</td></tr>
+      <tr><td>尺寸、节距、基本宽度/间距/包围量改变</td><td>部分可以</td><td>字段可表达，但仍需完整外部 DRC</td></tr>
+      <tr><td>foundry 模型名不以 n 开头</td><td>不可以</td><td>需修改 <code>net_util.get_channel_type</code> 接口并测试</td></tr>
+      <tr><td>新增 LI/M3、多种通孔/接触孔</td><td>不可以</td><td>扩展内部层、通孔连接图、布线、输出模块和 LVS</td></tr>
+      <tr><td>implant、Vt marker、复杂派生层</td><td>通常不可以</td><td>output copy 不能表达任意布尔/条件生成</td></tr>
+      <tr><td>复杂 EOL/coloring/密度/antenna</td><td>不可以完整表达</td><td>需生成约束、后处理及外部 deck 闭环</td></tr>
+      <tr><td>body/tap 签核</td><td>不可以靠内部 LVS</td><td>需明确 cell 架构并接 foundry LVS/ERC</td></tr>
+    </tbody>
+  </table>
 
   <div class="lab">
-    <strong>毕业前的最小源码练习</strong>
-    <p>把“模型名首字母判断”重构成技术文件显式 mapping 的设计方案：定义 API、未知模型错误、向后兼容策略和测试，不必立刻编码。若方案没有覆盖外部 LVS，仍不完整。</p>
+    <strong>字段追踪实验</strong>
+    <p>任选 <code>via_size[l_via1]</code>，用 <code>rg</code> 找出它在布线图、端子提取和走线绘制中的全部使用位置。修改字段前先写下每个位置期望的单位和层语义。</p>
   </div>
 
   <div class="checkpoint">
     <strong>本章检查点</strong>
     <ol>
-      <li>内部 LVS 在输出模块之前还是之后？</li>
-      <li>增加 M3 为什么至少会影响五个模块？</li>
-      <li>凹槽填补为什么只允许部分层跨图形合并？</li>
+      <li>为什么把内部 <code>metal2</code> 映射成 PDK 的 M3 不等于支持了 M1–M3 完整栈？</li>
+      <li><code>min_area</code> 与 <code>minimum_width</code> 的量纲有何不同？</li>
+      <li>为什么技术参数改动必须同时检查布线图和外部 DRC？</li>
     </ol>
-    <details><summary>参考答案</summary><p>LVS 在输出模块之前。M3 影响内部层/通孔连接图、布线、几何绘制、提取和输出。不同网络的金属图形若被全局填凹槽合并会短路，只有 nwell 等明确列入 <code>connectable_layers</code> 的层才允许这样处理。</p></details>
+    <details><summary>参考答案</summary><p>内部通孔连接图和接触结构仍只有固定层对，简单改名不会创建缺失层。<code>min_area</code> 是面积，<code>minimum_width</code> 是长度。布线图检查验证拓扑和接入资源，外部 DRC 覆盖生成器未表达的真实制造规则。</p></details>
   </div>
 
-  <nav class="bottom-nav"><a href="chapter13.html">← 第 13 章</a><a href="chapter15.html">第 15 章：新工艺迁移毕业项目 →</a></nav>
-  <footer>第 14 章 · 沿源码走完整流水线</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter13.html">← 第 23 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter15.html">第 25 章 →</a></nav>
+  <footer>第 24 章　技术文件逐字段拆解 · 实验状态见总目录</footer>
+<!-- chapter-references-migrated -->
 </main>
 </body>
 </html>

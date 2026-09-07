@@ -1,0 +1,31 @@
+{
+  "verification_date": "2026-09-07",
+  "command": "python scripts/verify_learning.py",
+  "book_chapters": 31,
+  "appendices": 1,
+  "html_pages_including_index": 33,
+  "local_navigation_links_anchors": "passed",
+  "source_parser_tests": 6,
+  "simulation_points": 9,
+  "nldm_values": 36,
+  "liberty_parser": "passed",
+  "interpolation_ns": 0.0269221975,
+  "invalid_stimulus": "measurement failure confirmed, not replaced with a numeric sentinel",
+  "drc_markers": {
+    "Well.1": 1,
+    "Active.1": 1,
+    "Poly.1": 1,
+    "Contact.1": 2,
+    "Metal1.1": 1,
+    "Metal1.2": 1
+  },
+  "cdl_cells": 135,
+  "cdl_families_mentioned": 51,
+  "python": "3.12.3",
+  "ngspice": "42",
+  "klayout_python_package": "0.30.8",
+  "klayout_executable": "0.28.16",
+  "liberty_parser_version": "0.0.29",
+  "full_lclayout_run": "not verified: missing z3 and pysmt, installation blocked by network permissions",
+  "scope": "tutorial tests, not foundry signoff or full standard-cell-library release"
+}
