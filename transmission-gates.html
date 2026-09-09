@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>第 8 章　传输门基础：从单管传输到 MUX 与锁存器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter5.html">← 第 7 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter6.html">第 9 章 →</a></nav>
+  <h1>第 8 章　传输门基础：从单管传输到 MUX 与锁存器</h1>
+  <p class="subtitle">已经会看 NAND/NOR 之后，学习另一种用 MOS 的方法：不是把输出接向电源，而是把两个信号节点接起来</p>
+  <div class="objectives">
+    <strong>本章目标</strong>
+    <ul>
+      <li>算出单 NMOS 传高、单 PMOS 传低时，为什么栅源控制能力逐渐变弱。</li>
+      <li>从电路、四端网表、概念版图三个视角认出同一只 CMOS 传输门。</li>
+      <li>亲手推导两只传输门组成的 MUX，以及带反馈的静态锁存器。</li>
+      <li>区分全摆幅、电平恢复、高阻、暂存电荷、反馈保持，不把它们当成同一件事。</li>
+      <li>运行四组教学仿真，用测量和波形核对自己的理解。</li>
+    </ul>
+  </div>
+  <div class="callout warn"><strong>本章的范围：</strong>只讨论正常供电、数据和控制都在 VSS～VDD 内的平面 CMOS 教学电路。自拟 <code>EDU_*</code> 模型、概念版图与真实 FreePDK45 单元明确分开；不涉及 FinFET、升压开关或跨电压域容限设计。首次学习可以分三次读：先读到网表，再读版图与 MUX，最后读保持、仿真和练习。</div>
+
+  <!-- learning-guide:start -->
+<aside class="learning-guide" aria-label="分层学习指南">
+<p><strong>前置知识：</strong><a href="chapter5.html">NAND、NOR、源漏共享与 Euler 排序</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能解释阈值损失，读 TG 四端与版图连接，推导 MUX 和反馈保持。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>完成两相控制与状态推导，重现 4 组 TG 仿真和 25 个电压测点。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#switch-first">先换一种思路：控制信号和被传递的数据不是同一个东西</a></li><li><a href="#single-mos">为什么单独一只 NMOS 或 PMOS 不够理想</a></li><li><a href="#complementary-switch">把两者并联：CMOS 传输门如何工作</a></li><li><a href="#netlist">逐项读懂四端网表：电源为什么不是数据端</a></li><li><a href="#layout">从版图认出 TG：看网络证据，不只看上下两只管</a></li><li><a href="#mux">第一个完整应用：用两只 TG 做二选一 MUX</a></li><li><a href="#restoration">TG 与 BUF、三态门的区别：全摆幅不等于电平恢复</a></li><li><a href="#off-state">关闭后输出为什么没立刻变成 0：从高阻到暂存电荷</a></li><li><a href="#latch">第二个完整应用：用反馈做静态锁存器</a></li><li><a href="#nonideal">为什么原理正确，还可能“翻转不过去”</a></li><li><a href="#run-lab">自己运行：从一张波形追到电路与测量</a></li><li><a href="#real-library">回到真实库与 LibreCell：会搭 TG 不等于所有 MUX 都是 TG</a></li><li><a href="#checkpoint">检查点：能够推导，而不只是记住“互补开关”</a></li></ol></details>
+</aside>
+<!-- learning-guide:end -->
+<h2 id="switch-first">8.1 先换一种思路：控制信号和被传递的数据不是同一个东西</h2>
+  <p>在 NAND/NOR 中，A、B 接到 MOS 的<strong>栅极</strong>，决定上拉或下拉网络是否导通；输出由这些网络连接到 VDD 或 VSS。现在考虑另一种任务：有一个已经由别处产生的电压 X，希望“允许时送到 Y，不允许时隔开”。我们需要的是<strong>受控开关</strong>。</p>
+  <table>
+    <thead><tr><th>对象</th><th>接到哪里</th><th>负责什么</th><th>类比</th></tr></thead>
+    <tbody>
+      <tr><td>数据 X、Y</td><td>MOS 的两个源漏端</td><td>经过导通沟道传递电压、交换电荷</td><td>开关两侧的导线</td></tr>
+      <tr><td>使能 EN</td><td>MOS 的栅</td><td>控制两侧是否连通</td><td>操作开关的手柄</td></tr>
+      <tr><td>体端 B</td><td>衬底或阱的体偏置网络</td><td>建立正确器件偏置，影响阈值和结二极管</td><td>不能按“可有可无的外壳”处理</td></tr>
+    </tbody>
+  </table>
+  <p>例如 X=1、EN=0：数据是高电平，但开关没有被使能。不能因为 X 是 1，就认定 NMOS 会打开；首先要看栅相对于源的电压。本章用逻辑 0/1 表示接近 VSS/VDD 的有效电平，计算时则写出实际伏特数。</p>
+  <p>一个理想开关使能时，可把 X 与 Y 看成连接；关闭时，只能说<strong>这条通路不再驱动 Y</strong>。如果 Y 还有别的驱动器、上拉、下拉或储存的电荷，它的电压由那些因素决定，不能直接写成 Y=0。</p>
+
+  <h2 id="single-mos">8.2 为什么单独一只 NMOS 或 PMOS 不够理想</h2>
+  <h3>先看 NMOS：传高时，为什么越接近目标越传不动</h3>
+  <p>设 VSS=0 V、VDD=1.8 V，NMOS 栅固定在 1.8 V；X 由外部驱动器从 0 V 拉到 1.8 V，Y 原先为 0 V，并带一个电容。为了看清主要原因，暂取阈值 <code>Vtn≈0.45 V</code>，忽略体效应。电容意味着：Y 不能凭空从 0 瞬间变成 1.8 V，需要电流把电荷送进去。</p>
+  <p>在这个充电阶段，Y 是两端中电压较低的一侧，可作为理解沟道控制的源端。于是 <code>VGS = VG − VY = 1.8 − VY</code>。随着 Y 升高，栅电压没变，但栅源电压变小了：</p>
+  <table>
+    <thead><tr><th>Y 的电压</th><th>VGS</th><th>相对于约 0.45 V 的阈值</th><th>充电趋势</th></tr></thead>
+    <tbody>
+      <tr><td>0 V</td><td>1.8 V</td><td>有较大的过驱动</td><td>可以向 Y 充电</td></tr>
+      <tr><td>0.9 V</td><td>0.9 V</td><td>仍高于阈值</td><td>继续充电，但条件已改变</td></tr>
+      <tr><td>约 1.35 V</td><td>约 0.45 V</td><td>接近阈值</td><td>强反型导电能力显著减弱</td></tr>
+      <tr><td>假设要到 1.8 V</td><td>0 V</td><td>没有足够的栅源驱动</td><td>不能靠这只普通 NMOS 强力传到该电平</td></tr>
+    </tbody>
+  </table>
+  <p>这就是“NMOS 传弱 1”的常见解释：在上述简化条件下，高电平趋近 <code>VDD−Vtn</code> 一带，而不是强力拉到 VDD。“弱”说的是传输能力和电平裕量，并不表示接收门必然把它读成 0；是否还能被识别为 1，要看接收门的输入阈值、噪声和工作条件。</p>
+  <p>再把 X 拉回 0 V。此时较低电位端在 X，栅对它仍有约 1.8 V 的驱动，Y 的电容可以通过 NMOS 向 X 的低电平驱动器放电，接近 0 V。这称为“NMOS 传强 0”。这里负责最终吸收电荷的是<strong>X 侧的驱动器</strong>，不是 NMOS 的体端。</p>
+  <h3>再看 PMOS：传低时发生相反的问题</h3>
+  <p>PMOS 栅固定为 0 V，判断导通可使用 <code>VSG = VS − VG &gt; |Vtp|</code>。传高时，较高电位端 X=1.8 V，栅源控制充足，可以把 Y 充向 1.8 V。传低时，令 X=0 V、Y 原先为 1.8 V；此时 Y 是较高电位端，随 Y 放电，<code>VSG=VY−0</code> 逐渐变小，接近 <code>|Vtp|</code> 时强导电能力减弱，不能像 NMOS 那样强力传到 0。</p>
+  <table>
+    <thead><tr><th>一直使能的通路</th><th>输入为低电平</th><th>输入为高电平</th><th>简化记忆</th></tr></thead>
+    <tbody>
+      <tr><td>单 NMOS，栅接 VDD</td><td>能较好传到 VSS</td><td>高端存在阈值损失问题</td><td>强 0、弱 1</td></tr>
+      <tr><td>单 PMOS，栅接 VSS</td><td>低端存在阈值损失问题</td><td>能较好传到 VDD</td><td>弱 0、强 1</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>不要把 VDD−Vt 当成精确仿真结果。</strong>真实 Vt 会受体偏置等因素影响，电平也与负载、观察时间及泄漏有关。本章 Level-1 模型未建立完整的短沟道和亚阈值效应；口诀解释主要机制，不用于给新工艺直接定尺寸。若忘了 VGS 与 VSG 的含义，先回到<a href="foundations.html">电学基础</a>。</div>
+
+  <h2 id="complementary-switch">8.3 把两者并联：CMOS 传输门如何工作</h2>
+  <p><strong>传输门（transmission gate，TG）</strong>用一只 NMOS 和一只 PMOS，并联在同一对数据端 X、Y 之间。NMOS 的栅接 EN，PMOS 的栅接 ENB；正常控制关系为 <code>ENB=NOT(EN)</code>。ENB 中的 B 表示这里采用了反相信号命名，不是 MOS 的体端 B；两者要根据上下文区分。</p>
+  <figure class="diagram">
+    <img src="assets/transmission-gate.svg" alt="传输门的两条支路均连接 X 与 Y，PMOS 栅为 ENB，NMOS 栅为 EN">
+    <figcaption>先把每只 MOS 看成受控通路。数据沿 X↔Y 通过源漏沟道，EN/ENB 只控制开关。</figcaption>
+  </figure>
+  <table>
+    <thead><tr><th>EN</th><th>ENB</th><th>开关级状态</th><th>对 X↔Y 的影响</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>1</td><td>N、P 均未使能</td><td>正常关闭：通路呈高阻，但不是绝对无泄漏</td></tr>
+      <tr><td>1</td><td>0</td><td>N、P 均被使能</td><td>正常开启：两类器件互补完成传输</td></tr>
+      <tr><td>0</td><td>0</td><td>只有 P 被使能</td><td>退化为单 PMOS 传输，不能保证良好传低</td></tr>
+      <tr><td>1</td><td>1</td><td>只有 N 被使能</td><td>退化为单 NMOS 传输，不能保证良好传高</td></tr>
+    </tbody>
+  </table>
+  <p>“两管同时开启”是开关级的简写，<strong>不是说两只管在所有信号电压下都流过同样大的电流</strong>。传高接近 VDD 时，NMOS 的贡献减弱，PMOS 仍可完成高端传输；传低接近 VSS 时，PMOS 的贡献减弱，NMOS 仍可完成低端传输。因此它没有单管那种必须损失一个阈值的高端或低端限制，常称为能传递<strong>全摆幅</strong>信号。</p>
+  <p>这里的“全摆幅”仍有条件：控制电压合适、数据没有越过电源轨、负载合理、给足建立时间。TG 不是零电阻导线。关于单管阈值损失和互补通路，可对照<a href="https://ece-research.unm.edu/jimp/vlsiII/slides/html/combo_logic3.html">UNM 的 CMOS transmission gate 课程讲义</a>；本章下图则是随书模型实际运行的结果。</p>
+  <figure class="diagram">
+    <a href="examples/learning/tg-reference/pass_levels.svg"><img src="examples/learning/tg-reference/pass_levels.svg" alt="实测波形：相同数据经过 NMOS、PMOS、传输门和反向连接传输门后的电压比较"></a>
+    <figcaption>每条信号单独一行，横轴均为 ns。先传高，再传低；PMOS 的弱 0 是在节点先被充高之后观察到的，不能用一个初始就是 0 的节点来证明它善于传低。点击图可单独放大。</figcaption>
+  </figure>
+  <table>
+    <thead><tr><th>20 fF 负载通路</th><th>7 ns：传高后的实测值</th><th>13 ns：传低后的实测值</th></tr></thead>
+    <tbody>
+      <tr><td>单 NMOS</td><td>1.341 V</td><td>约 0 V</td></tr>
+      <tr><td>单 PMOS</td><td>1.800 V</td><td>0.460 V</td></tr>
+      <tr><td>TG，驱动 X、观察 Y</td><td>1.800 V</td><td>约 0 V</td></tr>
+      <tr><td>TG，驱动 Y、观察 X</td><td>1.800 V</td><td>约 0 V</td></tr>
+    </tbody>
+  </table>
+  <p>条件为自拟模型、VDD=1.8 V、25°C；表内已取整。原始数值、判定范围与时间见<a href="examples/learning/tg-reference/measurements.json">测量记录</a>，不是 FreePDK45 或某个 180 nm PDK 的性能结论。</p>
+
+  <h2 id="netlist">8.4 逐项读懂四端网表：电源为什么不是数据端</h2>
+  <figure class="diagram">
+    <img src="assets/tg-transistors.svg" alt="四端 MOS 电路图：MP 和 MN 的源都接 X、漏都接 Y，栅分别接 ENB 和 EN，体分别接 VDD 和 VSS">
+    <figcaption>电路与下面两条 M 语句逐一对应。这是按教学网表绘制的矢量电路图，不是从真实 GDS 提取的结果；体端箭头也不是信号传播方向。</figcaption>
+  </figure>
+  <pre><code>.subckt EDU_TG X Y EN ENB VDD VSS
+*     D G   S B   model
+MN    Y EN  X VSS N_EDU W=1u L=0.18u
+MP    Y ENB X VDD P_EDU W=2u L=0.18u
+.ends EDU_TG</code></pre>
+  <table>
+    <thead><tr><th>实例</th><th>D</th><th>G</th><th>S</th><th>B</th><th>读成一句话</th></tr></thead>
+    <tbody>
+      <tr><td>MN</td><td>Y</td><td>EN</td><td>X</td><td>VSS</td><td>EN 控制 X 与 Y 之间的 N 沟道，体偏置到 VSS</td></tr>
+      <tr><td>MP</td><td>Y</td><td>ENB</td><td>X</td><td>VDD</td><td>ENB 控制 X 与 Y 之间的 P 沟道，体偏置到 VDD</td></tr>
+    </tbody>
+  </table>
+  <p><code>.subckt</code> 行声明单元接口的顺序，<code>M</code> 行才采用 D/G/S/B 器件端子顺序，两种顺序不能混用。<code>N_EDU/P_EDU</code> 是模型名；<code>W/L</code> 是教学尺寸，不表示“所有传输门都应该 P 宽等于 N 宽的两倍”。完整模型和电路分别位于 <a href="examples/learning/edu_inv.sp">edu_inv.sp</a> 与 <a href="examples/learning/edu_tg.sp">edu_tg.sp</a>。</p>
+  <h3>与反相器对照：为什么这里两管同时使能不会直接短接电源</h3>
+  <p>反相器中，一只 PMOS 的源接 VDD，一只 NMOS 的源接 VSS；若两条通路同时强导通，可能出现 VDD→PMOS→输出→NMOS→VSS 的电流。TG 不同：<strong>两只管的两个源漏端都接 X、Y，没有一端按该结构直接接到 VDD/VSS</strong>。这里 VDD/VSS 连到的是体端，不能把体端误读成源端。</p>
+  <p>但如果外部驱动器把 X 强拉为 1、同时另一个驱动器把 Y 强拉为 0，开启 TG 仍会导致<strong>驱动争用</strong>。正确结论是“传输门结构不等于反相器的上下拉直通”，不是“传输门永远没有大电流风险”。</p>
+  <h3>“双向”是什么意思，为什么不能随意交换所有端子</h3>
+  <p>同一只 TG，可以在一次实验中由 X 驱动 Y，在另一次实验中由 Y 驱动 X；上节波形已经分别验证这两种方向。这不要求改接栅或体端，也不意味着同时把两端都设为互相冲突的强驱动。</p>
+  <p>平面 MOS 的源漏沟道在合适模型与偏置下可近似双向工作，但真实器件可能有不对称结构、方向要求及结二极管。<strong>体端仍须按 PDK 接到指定偏置，不能因为“传双向”就浮置、跟随任意数据或跨电源域使用。</strong>一旦 X/Y 越过电源轨，还需检查结正偏、栅氧可靠性等，本章模型不能证明安全。</p>
+  <p>只有 MN、MP 时是 2 只 MOS。若单元外只给一个 EN，还要在某处生成 ENB；用普通 CMOS 反相器生成，就另有 2 只 MOS。说“TG 只要两管”通常没有计入互补控制的生成电路。</p>
+
+  <h2 id="layout">8.5 从版图认出 TG：看网络证据，不只看上下两只管</h2>
+  <p>你已经能通过 Active、Poly、Contact 和 M1 看出 NAND/NOR 的串并联。识别 TG 仍用相同方法，只是不要再预设“上面一定接 VDD、下面一定接 VSS”。先隐藏不相关图层，再按网络逐个追踪：</p>
+  <figure class="diagram">
+    <img src="assets/tg-layout-concept.svg" alt="TG 概念版图：P 与 N 有源区分开，X 和 Y 各用一条 M1 连接上下扩散；ENB 与 EN 的 Poly 不连续">
+    <figcaption>本图只突出识别 TG 所需的连接关系，采用本图自己的图例；颜色不是通用层定义。没有体接触、注入层和完整引脚几何，因此不能当成可制造版图或 LVS/DRC 通过证据。</figcaption>
+  </figure>
+  <table>
+    <thead><tr><th>追踪顺序</th><th>应得到的证据</th><th>常见误判</th></tr></thead>
+    <tbody>
+      <tr><td>1. 数沟道并判断 N/P</td><td>各有一段 Poly 跨过对应 Active；结合阱和注入层判定器件类型</td><td>只看上下位置或图层颜色判定</td></tr>
+      <tr><td>2. 追踪 X</td><td>一侧 P 扩散和一侧 N 扩散，通过 Contact/M1 属于同一网络 X</td><td>上下对齐就当作已经相连</td></tr>
+      <tr><td>3. 追踪 Y</td><td>另外两侧扩散也通过金属共同接到 Y</td><td>只核对了一端相同就说是并联</td></tr>
+      <tr><td>4. 追踪两条栅</td><td>N 栅是 EN，P 栅是 ENB；从控制电路确认互补关系</td><td>看到两条相似 Poly 就当作同一输入</td></tr>
+      <tr><td>5. 检查体与隔离</td><td>P 的阱/体按要求接 VDD，N 的体按要求接 VSS；完整图里找到相应体接触</td><td>把源漏 Contact 当成体接触，或者认为体端不用连</td></tr>
+    </tbody>
+  </table>
+  <p>写成扩散片段序列时，上行可记为 <code>X−[ENB]−Y</code>，下行可记为 <code>X−[EN]−Y</code>。方括号表示某条栅跨过 Active，不是金属导线。两行栅即使在几何上对齐，<strong>也不能用一根连续 Poly 直接贯穿上下两行</strong>，否则 EN 与 ENB 会短接。</p>
+  <div class="callout danger"><strong>电气并联不等于共享扩散。</strong>同一 TG 的 PMOS 与 NMOS 不能共用一块源漏扩散；它们需要不同类型的源漏区，靠金属连接同名网络。若两个 TG 中的两只 NMOS 相邻、公共端都为 Y，且器件与规则兼容，则可考虑同一 N 行的 <code>X0−[EN0]−Y−[EN1]−X1</code>。这是不同 TG 之间同类型管的共享机会，还不是实际已经共享的证明。</div>
+  <p>回到上一章的 Euler 思路：它仍能帮助同类型器件寻找相接网络相同的顺序，但本例 P/N 的栅标签本来就不同。不能把静态互补门的“上下同一输入栅容易贯通”当成所有电路都必须满足的前提。</p>
+
+  <h2 id="mux">8.6 第一个完整应用：用两只 TG 做二选一 MUX</h2>
+  <h3>先说功能和用途，再看器件</h3>
+  <p><strong>MUX（multiplexer，多路选择器）</strong>的任务是选择数据，不是存储数据。二选一 MUX 有两个数据输入 A/B、一个选择输入 S、一个输出 Z：S=0 时选 A，S=1 时选 B，写作 <code>Z = (!S &amp; A) | (S &amp; B)</code>。这里输出名 Z 是普通节点名，不是表述高阻状态的逻辑符号 Z。</p>
+  <p>用途可以是：在两路计算结果之间选择；在正常数据与测试数据之间选择；实现条件表达式 <code>assign Z = S ? B : A;</code>。对于 8 位数据，可以逐位放置 8 个一位 MUX，共享同一个选择信号，但 S 的负载也会相应增大，不能只按一位电路估计驱动能力。</p>
+  <figure class="diagram">
+    <img src="assets/tg-mux-concept.svg" alt="TG-MUX 结构：S 为零时 TGA 把 A 接到 Z，S 为一时 TGB 把 B 接到 Z，反相器生成 SN">
+    <figcaption>每个 TG 方框都展开成前面的 NMOS∥PMOS。此图没有输出反相器，选择后的逻辑极性保持不变。</figcaption>
+  </figure>
+  <table>
+    <thead><tr><th>S</th><th>SN</th><th>TGA：N 栅 / P 栅</th><th>TGB：N 栅 / P 栅</th><th>稳态通路</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>1</td><td>1 / 0，使能</td><td>0 / 1，关闭</td><td>A↔Z，B 与 Z 隔离</td></tr>
+      <tr><td>1</td><td>0</td><td>0 / 1，关闭</td><td>1 / 0，使能</td><td>B↔Z，A 与 Z 隔离</td></tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th>S</th><th>A</th><th>B</th><th>Z</th><th>判断理由</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>选 A=0</td></tr>
+      <tr><td>0</td><td>0</td><td>1</td><td>0</td><td>B=1 不应改变结果</td></tr>
+      <tr><td>0</td><td>1</td><td>0</td><td>1</td><td>选 A=1</td></tr>
+      <tr><td>0</td><td>1</td><td>1</td><td>1</td><td>选 A=1</td></tr>
+      <tr><td>1</td><td>0</td><td>0</td><td>0</td><td>选 B=0</td></tr>
+      <tr><td>1</td><td>0</td><td>1</td><td>1</td><td>选 B=1</td></tr>
+      <tr><td>1</td><td>1</td><td>0</td><td>0</td><td>A=1 不应改变结果</td></tr>
+      <tr><td>1</td><td>1</td><td>1</td><td>1</td><td>选 B=1</td></tr>
+    </tbody>
+  </table>
+  <h3>用子电路拼装，逐行数到 6 只 MOS</h3>
+  <pre><code>.subckt EDU_MUX2 A B S Z VDD VSS
+XSEL S SN VDD VSS EDU_INV
+XA A Z SN S VDD VSS EDU_TG
+XB B Z S SN VDD VSS EDU_TG
+.ends EDU_MUX2</code></pre>
+  <p><code>X</code> 开头的是子电路实例，不是一只 MOS。<code>EDU_INV</code> 的端口顺序是 <code>A Y VDD VSS</code>，所以 XSEL 由 S 产生 SN；<code>EDU_TG</code> 的顺序是 <code>X Y EN ENB VDD VSS</code>，所以 XA 的 N 栅接 SN、P 栅接 S。展开后：控制反相器 2 管，两个 TG 共 4 管，总计 6 管。</p>
+  <p>如果看见 <code>XA A Z S SN ...</code>，不要只看实例名 XA 就认为它选 A 的条件仍是 S=0；端子位置改变后，它会在 S=1 时使能。读子电路必须同时看声明与实例，不凭名称猜。</p>
+  <figure class="diagram">
+    <a href="examples/learning/tg-reference/mux.svg"><img src="examples/learning/tg-reference/mux.svg" alt="TG-MUX 实测：S、A、B 以八种组合变化，Z 在 S 为零时等于 A，在 S 为一时等于 B"></a>
+    <figcaption>每段 3 ns，依次覆盖上表 8 行；脚本在各段的第 2 ns 取样，共检查 8 个输出值。这里只验证充分建立后的功能，选择信号切换附近的毛刺或争用还需要专门测量。</figcaption>
+  </figure>
+  <h3>同一结构还能做哪些逻辑</h3>
+  <table>
+    <thead><tr><th>希望得到的功能</th><th>MUX 接法</th><th>代入方程检查</th><th>注意</th></tr></thead>
+    <tbody>
+      <tr><td>条件选择</td><td>A=D0，B=D1</td><td>S=0 取 D0，S=1 取 D1</td><td>基本用法</td></tr>
+      <tr><td>AND</td><td>A=0，B=D</td><td>Z=S·D</td><td>能实现不代表比普通 AND 单元更好</td></tr>
+      <tr><td>OR</td><td>A=D，B=1</td><td>Z=D+S</td><td>常量源与驱动连接仍要按库规则处理</td></tr>
+      <tr><td>XOR</td><td>A=D，B=!D</td><td>S=0 输出 D，S=1 输出 !D，即 D⊕S</td><td>还需生成 !D；不是“不增加器件的 XOR”</td></tr>
+      <tr><td>扫描数据选择</td><td>A=正常 D，B=扫描 SI，S=SE</td><td>SE 选择正常或扫描数据</td><td>选择器本身不会移位，还要后接存储单元</td></tr>
+    </tbody>
+  </table>
+  <p>这些是功能构造练习，不是综合工具必须选用的实现。真实 MUX/XOR/扫描单元还要按面积、时序、功耗、引脚和布线条件选择结构。</p>
+
+  <h2 id="restoration">8.7 TG 与 BUF、三态门的区别：全摆幅不等于电平恢复</h2>
+  <p>假设 EN 已正确使能，但 X 是 0.9 V，而不是有效的 0 或 1。TG 可能把 Y 也传到接近 0.9 V；它没有义务替你“决定到底应该变成 0 还是 1”。它消除了单 NMOS/PMOS 的主要阈值传输限制，<strong>却没有静态 CMOS 逻辑级的再生能力</strong>。</p>
+  <p>反相器从 VDD/VSS 获取驱动输出的能量；当输入落在有效逻辑范围内，它可产生接近另一条电源轨的输出。这叫电平恢复。输入恰好处于门的转换区时，反相器也不能保证稳定有效的逻辑值，所以“加一只反相器可以修复任意坏输入”同样不成立。</p>
+  <table>
+    <thead><tr><th>电路</th><th>正常功能</th><th>信号方向</th><th>输出电平如何建立</th><th>禁止时</th></tr></thead>
+    <tbody>
+      <tr><td>INV，反相器</td><td>Y=!A</td><td>指定输入到输出</td><td>从电源轨主动驱动，并反相</td><td>普通 INV 无使能端</td></tr>
+      <tr><td>BUF，非反相缓冲器</td><td>Y=A</td><td>指定输入到输出</td><td>常见结构为两级反相器，具有驱动和电平恢复</td><td>普通 BUF 无使能端</td></tr>
+      <tr><td>TG，传输门</td><td>使能时 X↔Y 连通</td><td>器件通路可双向</td><td>传递另一端已有的电压；无独立逻辑再生</td><td>隔离该通路</td></tr>
+      <tr><td>TBUF，三态缓冲器</td><td>使能时 Y=A</td><td>指定输入到输出</td><td>受控的主动输出驱动级</td><td>输出驱动级呈高阻</td></tr>
+      <tr><td>TINV，三态反相器</td><td>使能时 Y=!A</td><td>指定输入到输出</td><td>受控、反相的主动驱动级</td><td>输出驱动级呈高阻</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>输出加一级 INV 会改变极性。</strong>上节 MUX 原来输出 <code>Z=S?B:A</code>；若后接单个 INV，新输出就是 <code>!(S?B:A)</code>。要保持原极性，可以用非反相缓冲级，或重新设计前级逻辑，不能把“可选恢复反相器”写在图上却忘了修改功能表。</div>
+  <p>双向描述的是 TG 通路。一个作为标准单元交付的 MUX，通常仍定义 A/B/S 为输入、Z 为输出；内部有双向器件，不代表接口可以任意反用。TG 也可作为模拟开关的一部分传递范围内的连续电压，但精度、线性、噪声和可靠性需要额外设计；不能把这里两只核心 MOS 直接当成 GPIO 引脚单元。</p>
+
+  <h2 id="off-state">8.8 关闭后输出为什么没立刻变成 0：从高阻到暂存电荷</h2>
+  <p>做一个时间顺序实验：先打开 TG，用 X=1 把 Y 的电容充高；然后关闭 TG；最后把 X 改成 0。此时 X 已经变低，但 Y 不再通过 TG 跟着放电。<strong>高阻描述的是通路的驱动状态，不是一个电压值。</strong></p>
+  <p>电容的基本关系是 <code>Qcharge=C·V</code>。没有电流把电荷取走时，Y 会暂时保留之前的电压。真实电路存在泄漏、耦合和负载，因此这个电压未必能长期保持；关闭时若还发生控制耦合，节点也可能出现小跳变。</p>
+  <p>本实验并排建立两个相同的 TG+20 fF 节点：一个没有额外泄漏电阻；另一个加 <code>RLEAK=1 MΩ</code> 到 VSS，专门让泄漏后果变得可观察。第二个节点的近似放电时间常数是 <code>RC=1 MΩ×20 fF=20 ns</code>。这个电阻<strong>是教学中故意加入的通路，不是从 PDK 测得的 MOS 泄漏参数</strong>。</p>
+  <figure class="diagram">
+    <a href="examples/learning/tg-reference/isolation.svg"><img src="examples/learning/tg-reference/isolation.svg" alt="关断隔离实测：EN 在五到十纳秒附近关闭，输入八纳秒变低；无额外电阻的节点仍高，加泄漏电阻的节点逐渐下降"></a>
+    <figcaption>约 5 ns 关断，8 ns 输入变低，9 ns 无显式泄漏电阻的节点仍约 1.8 V，加入电阻的节点约 1.475 V；约 10 ns 再打开后，两者才跟随输入回到低电平。</figcaption>
+  </figure>
+  <div class="callout danger"><strong>“仿真里保持了”不等于“已经设计出可靠锁存器”。</strong>极简模型可能遗漏主导泄漏和耦合，仿真时间也可能太短。动态存储确实可以利用电荷保持，但必须有相应的保持时间、刷新或时钟约束；本教程下一节用反馈构造静态保持，不用这张平坦波形证明无限期存储。</div>
+
+  <h2 id="latch">8.9 第二个完整应用：用反馈做静态锁存器</h2>
+  <h3>第一步：先明白为什么两个反相器可以保持一个状态</h3>
+  <p>设两个反相器串接：<code>N → INV1 → QN → INV2 → Q</code>。如果再把 Q 接回 N，就形成反馈环。检查两个有效逻辑状态：</p>
+  <table>
+    <thead><tr><th>假设 N</th><th>INV1 输出 QN</th><th>INV2 输出 Q</th><th>Q 回接 N 是否自洽</th></tr></thead>
+    <tbody><tr><td>0</td><td>1</td><td>0</td><td>是，维持 0</td></tr><tr><td>1</td><td>0</td><td>1</td><td>是，维持 1</td></tr></tbody>
+  </table>
+  <p>保持时，反相器仍由电源供电，不是只有一颗孤立电容。在有效状态附近受到小扰动时，闭环可把节点推回稳定电平。若直接让外部 D 强行驱动这个闭环，它可能与旧状态争用，所以写入新数据时，应先使反馈通路退出。</p>
+  <h3>第二步：用一只输入 TG 和一只反馈 TG 交替接通</h3>
+  <figure class="diagram">
+    <img src="assets/tg-latch-concept.svg" alt="静态 TG 锁存器：D 经过输入 TG 和两级反相器到 Q，Q 经反馈 TG 回到内部节点 N">
+    <figcaption>这是明确给出网表的教学静态锁存器，不声称与 Nangate DLH_X1 的晶体管实现一致。两个 TG 的使能条件相反；图中控制反相器省略，但下面网表包含它。</figcaption>
+  </figure>
+  <p>这里用 G 表示锁存器的使能输入，<code>GB=NOT(G)</code>。不要把电路端口 G 与“某只 MOS 的栅端 G”混成同一个层次；表中会写清每只 TG 的 N 栅、P 栅分别连接什么。</p>
+  <table>
+    <thead><tr><th>G</th><th>GB</th><th>TG_IN：N 栅 / P 栅</th><th>TG_FB：N 栅 / P 栅</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>0</td><td>G / GB = 1 / 0，通</td><td>GB / G = 0 / 1，断</td><td>透明期：D 可以更新 N，经过两次反相后 Q 跟随 D</td></tr>
+      <tr><td>0</td><td>1</td><td>G / GB = 0 / 1，断</td><td>GB / G = 1 / 0，通</td><td>保持期：隔离 D，Q 通过反馈维持 N</td></tr>
+    </tbody>
+  </table>
+  <p>“透明”不是延迟为零，只是这一整段 G=1 的时间里，数据变化都能传播到 Q；“保持”是 Q 不再跟随之后的 D 变化。这种电路称为<strong>高电平透明 D 锁存器（positive-level-sensitive D latch）</strong>，不是只在上升沿采样的 D 触发器。</p>
+  <table>
+    <thead><tr><th>G</th><th>D</th><th>先前有效状态 Qold</th><th>建立后的 Qnew</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>0</td><td>任意</td><td>0</td></tr>
+      <tr><td>1</td><td>1</td><td>任意</td><td>1</td></tr>
+      <tr><td>0</td><td>任意</td><td>0</td><td>0</td></tr>
+      <tr><td>0</td><td>任意</td><td>1</td><td>1</td></tr>
+    </tbody>
+  </table>
+  <p>这是一张带状态的功能表，不是纯组合真值表。<code>Qold</code> 必须来自此前有效写入或复位；若上电就保持、又没有复位，不能承诺初值一定是 0。输入恰在关闭窗口变化时，还涉及建立/保持时间甚至亚稳态，这些情况不由上面的理想状态表保证。</p>
+  <h3>第三步：把反馈准确写进网表</h3>
+  <pre><code>.subckt EDU_LATCH D G Q VDD VSS
+XEN G GB VDD VSS EDU_INV
+XIN D N G GB VDD VSS EDU_TG
+XI1 N QN VDD VSS EDU_INV
+XI2 QN Q VDD VSS EDU_INV
+XFB Q N GB G VDD VSS EDU_TG
+.ends EDU_LATCH</code></pre>
+  <p>从输出 Q 往回追：XI2 的输入为 QN，XI1 的输入为 N，XFB 在保持期把 Q 接回 N。<strong>反馈接回的是第一只反相器前面的内部节点 N，不是把外部 D 与 Q 永久短接。</strong>器件数为两个 TG 的 4 管、数据反相器的 4 管、控制反相器的 2 管，共 10 管；若互补控制由外部提供，本体是 8 管，需说明计数边界。</p>
+  <figure class="diagram">
+    <a href="examples/learning/tg-reference/latch.svg"><img src="examples/learning/tg-reference/latch.svg" alt="锁存器实测：G 高时 Q 随 D 上升，G 低时 D 的下降不改变 Q，G 再高时 Q 随 D 下降"></a>
+    <figcaption>开始 G=1，先允许写入，避免假定未知的上电状态。约 5～11 ns 为保持期；D 在 8 ns 降为 0，Q 仍约 1.8 V，到 11 ns 重新透明后才更新为 0。</figcaption>
+  </figure>
+  <p>从单管暂存，到传输门，再到恢复级和静态反馈的教学顺序，可参考 <a href="https://www.cmosvlsi.com/lect10.pdf">David Harris《CMOS VLSI Design》Sequential Circuits 讲义，第 14～24 页</a>。本章使用的是上面自行给出的明确网表；后续<a href="cells-latches.html">锁存器章节</a>再结合真实库的 DLH/DLL 实现，<a href="cells-sequential.html">时序单元章节</a>继续区分锁存器、触发器和扫描结构。</p>
+
+  <h2 id="nonideal">8.10 为什么原理正确，还可能“翻转不过去”</h2>
+  <p>原理图上画一条通路，不代表指定负载与时间窗口内，电压一定能到达接收端的有效阈值。学习阶段先把下面几项与具体电路现象对应起来：</p>
+  <table>
+    <thead><tr><th>实际因素</th><th>会发生什么</th><th>检查或改动时看什么</th></tr></thead>
+    <tbody>
+      <tr><td>导通电阻 Ron 与负载电容</td><td>输出充放电要时间；多级串接、负载增大会拖慢</td><td>看输入、输出波形和负载；用 RC 建立直觉，再以模型仿真测量</td></tr>
+      <tr><td>器件 W</td><td>加宽一般有利于降低通路电阻，但增加面积、栅电容和源漏寄生</td><td>同时评估数据端与控制端负载，不只看输出是否变快</td></tr>
+      <tr><td>EN 与 ENB 不是瞬间互补</td><td>切换中会经过部分使能状态，导通能力随时间变化</td><td>画出实际 EN/ENB 电压，而不是只画理想逻辑反相</td></tr>
+      <tr><td>MUX 两条通路有导通过渡重叠</td><td>A、B 不同时可能有暂态争用；不一定要两只 TG 全部强导通才会发生</td><td>在 A=0/B=1 和 A=1/B=0 下切换 S，观察 Z 与支路电流</td></tr>
+      <tr><td>通路交接出现空档</td><td>输出短时间无人驱动，靠电荷保持，易受耦合影响</td><td>检查实际空档、负载与接收时刻；不是盲目加大非重叠时间</td></tr>
+      <tr><td>锁存器输入与反馈交接不合适</td><td>写入可能受旧状态阻碍，或在关窗附近不可靠</td><td>观察 N、QN、Q 和两相控制，并检查建立/保持约束</td></tr>
+      <tr><td>体连接、供电或模型错误</td><td>阈值、结电流或整个功能异常，可能表现为不能翻转</td><td>先核对四端网表、模型、引脚映射与电源，再谈尺寸优化</td></tr>
+    </tbody>
+  </table>
+  <p>把 TG 粗略视作电阻给电容充电，可用 <code>τ≈Ron·CL</code> 理解快慢；但 Ron 随信号电压改变，驱动器也不是理想电源，不能拿一个常数 RC 直接替代时序表征。连续串接多个 TG 时，中间节点还有自己的寄生电容，必要时需要有源恢复/缓冲级。</p>
+  <details>
+    <summary>选读：电荷注入与时钟馈通分别是什么</summary>
+    <p>开关关闭时，原来沟道内的电荷会重新分配，一部分可能进入被隔离的信号节点，这叫电荷注入。栅控制电压的跳变还可通过寄生电容耦合到源漏节点，称为时钟馈通。两者都会使“刚关闭”的节点电压偏离理想值；互补器件可能部分抵消某些影响，但不保证恰好抵消。本章简单模型未完整建立这些寄生，不能用其平滑波形判断真实芯片不存在这些效应。</p>
+  </details>
+  <p>所以，同事说“翻转不过去”时，应追问：哪个节点、什么控制相位、输入如何激励、负载多大、预期在何时越过哪个阈值？既可能电路或连线有错，也可能通路太慢、没有被正确使能，或者测量窗口/初始状态不合适。后续<a href="simulation.html">SPICE 波形章节</a>与<a href="chapter17.html">表征故障排查章节</a>会把这种判断落实到测量记录。</p>
+
+  <h2 id="run-lab">8.11 自己运行：从一张波形追到电路与测量</h2>
+  <p>本章图不是手工画出的预期波形，而是 <code>ngspice</code> 实际计算后由脚本生成的 SVG。先确认安装了 Python 3 与 ngspice；脚本只用 Python 标准库，不需要安装额外 Python 包。从教程根目录执行：</p>
+  <pre><code>python --version
+ngspice --version
+TUTORIAL_TG_OUT=$(mktemp -d /tmp/stdcell-tg.XXXXXX)
+python examples/learning/transmission_gate_lab.py --output "$TUTORIAL_TG_OUT"</code></pre>
+  <p>输出目录必须为空，脚本会拒绝覆盖旧证据。终端应分别显示 <code>pass_levels</code>、<code>isolation</code>、<code>mux</code>、<code>latch</code> 四项 PASS；共 25 个取样电压通过相应范围检查。缺工具、缺测量或数值超范围时会报错退出，不会把缺失值补成“通过”。</p>
+  <table>
+    <thead><tr><th>输出文件</th><th>用途</th><th>第一次应该看什么</th></tr></thead>
+    <tbody>
+      <tr><td><code>各实验/test.sp</code></td><td>完整仿真输入文件，也叫仿真 deck</td><td>包含了哪个电路、谁驱动数据/控制、负载接在哪里</td></tr>
+      <tr><td><code>各实验/run.log</code></td><td>仿真器消息与测量结果</td><td>是否存在报错，以及每项 FIND 电压是否成功得到</td></tr>
+      <tr><td><code>各实验/waveform.dat</code></td><td>未压缩的时域数据</td><td>时间单位为秒；每条向量以“时间、电压”成对存放</td></tr>
+      <tr><td><code>pass_levels.svg</code> 等四图</td><td>原始数据生成的可缩放波形</td><td>先对照控制相位，再观察输出</td></tr>
+      <tr><td><code>measurements.json</code></td><td>电压、取样时刻、允许范围</td><td>不要把 7 ns 的取样电压误当成传播延迟</td></tr>
+      <tr><td><code>provenance.json</code></td><td>ngspice 版本与源文件 SHA256</td><td>记录用了哪个模型、哪版脚本及验证边界</td></tr>
+    </tbody>
+  </table>
+  <p>例如 <a href="examples/learning/tg-reference/pass_levels/test.sp">单管/TG 对照 deck</a> 中的几行，可这样拆开：</p>
+  <pre><code>VIN DIN 0 PULSE(0 1.8 2n 50p 50p 6n 20n)
+XT DIN YTG VDD 0 VDD 0 EDU_TG
+CT YTG 0 20f
+.tran 5p 14n
+.measure tran tg_high FIND v(ytg) AT=7n</code></pre>
+  <ul>
+    <li><code>VIN</code> 在 DIN 对地施加脉冲：低 0 V、高 1.8 V、延后 2 ns、上升/下降各 50 ps、高电平脉宽 6 ns、周期 20 ns。它定义数据激励，不是电源 VDD 本身。</li>
+    <li><code>XT</code> 按 TG 的六个端口顺序连接，EN 接 VDD、ENB 接 0，所以本次始终使能。最后两个 VDD/0 是体偏置接口，前面的 VDD/0 是控制连接。</li>
+    <li><code>CT</code> 给观察节点增加 20 fF 对地负载；<code>0</code> 是 SPICE 的参考地节点。</li>
+    <li><code>.tran</code> 做到 14 ns 的瞬态分析，使用 5 ps 的步长参数；仿真器内部仍可能采用自适应时间步，不要认定每个原始数据点都恰好相隔 5 ps。</li>
+    <li><code>.measure ... FIND ... AT=7n</code> 取 7 ns 时的节点电压。本章测的是特定时刻的功能电平；不是 <code>cell_rise</code> 等传播延迟测量，也没有生成可签核的 Liberty。</li>
+  </ul>
+  <p>可直接进入某个实验目录重跑 <code>ngspice -b -o rerun.log test.sp</code>，这会重新生成该目录的原始波形；若要保留原结果，先复制整个实验到新的个人练习目录。归档 deck 中的 include 是生成时的绝对路径，换机器应重新执行脚本，让它根据当前位置生成路径。</p>
+  <div class="lab">
+    <strong>进阶实验：先预测，再改一个条件</strong>
+    <ol>
+      <li>在个人副本中把 20 fF 改成 200 fF，预测上升/下降过程如何变化，再画图比较。充分建立后的 TG 输出不应被简单判成“固定少一个 Vt”。</li>
+      <li>在隔离实验中把 1 MΩ 改成 500 kΩ，预测时间常数变为多少、9 ns 的电压升还是降。</li>
+      <li>在 MUX 实验中固定 A=0、B=1，只改变 S，观察选择通路交接；再固定 A=B=1，比较输出为什么可能一直是 1。</li>
+      <li>在锁存器实验中改变保持期内 D 的切换次数，预测 Q 是否跟随。不要只修改数据后继续机械沿用原测点的期望值。</li>
+    </ol>
+    <details><summary>应观察到的方向与实验边界</summary><p>负载增大会增加充放电所需电荷；500 kΩ×20 fF=10 ns，其他条件相近时隔离节点衰减更快、9 ns 电压更低。A=0/B=1 时 Z 应在建立后随 S 变化；A=B=1 时选中哪路都应得到 1，不能用“Z 没翻转”证明选择器坏了。保持期 D 多次变化也不应改变已保存的 Q。修改模型或激励后应重新设计测点和判据；原脚本的固定判据专门服务于随书基线，不是任意电路的自动验收器。</p></details>
+  </div>
+
+  <h2 id="real-library">8.12 回到真实库与 LibreCell：会搭 TG 不等于所有 MUX 都是 TG</h2>
+  <h3>对照 FreePDK45 MUX2_X1：功能相同，实现可以不同</h3>
+  <p>本地 <a href="examples/FreePDK45/NangateOpenCellLibrary.cdl">Nangate CDL</a> 的 <code>MUX2_X1</code> 有 12 只 MOS。检查 A、B：它们接在相关 MOS 的栅端，而不是像本章 EDU_MUX2 那样通过 TG 的源漏端进入。它用静态互补逻辑选择网络产生内部 <code>Z_neg</code>，再由输出反相器得到 Z，<strong>不是本章的“两只 TG 加一个控制反相器”结构</strong>。</p>
+  <figure class="diagram">
+    <a href="assets/freepdk45/mux2_x1-schematic.png"><img src="assets/freepdk45/mux2_x1-schematic.png" alt="真实 Nangate MUX2_X1 晶体管图，数据 A B 进入栅端，末级反相器由 Z_neg 产生 Z"></a>
+    <figcaption>真实 CDL 对应的电路图，单独占一行。先找输出反相器，再追踪数据 A/B 是否接栅；不要因名称是 MUX 就硬找两只 TG。</figcaption>
+  </figure>
+  <figure class="diagram">
+    <a href="assets/freepdk45/mux2_x1-layout.png"><img src="assets/freepdk45/mux2_x1-layout.png" alt="真实 FreePDK45 Nangate MUX2_X1 版图，用来对照静态 CMOS MUX 而不是教学 TG-MUX"></a>
+    <figcaption>相应真实 GDS 的版图，单独占一行；完整识读见<a href="cells-select.html#select-compare-buffer">选择与比较单元章节</a>。教学 TG 概念图不能作为它的 LVS 对照电路。</figcaption>
+  </figure>
+  <h3>为什么这会影响自动生成平台</h3>
+  <p>在本书固定的 LibreCell 提交 <code>f708e3a</code> 中，<code>lccommon/net_util.py</code> 的 <code>get_cell_inputs()</code> 使用“只连接栅、不连接源漏”的网络来推断输入，文档明确说明该启发式不适用于传输门：TG 的数据恰恰进入源漏。<code>place/eulertours.py</code> 对不连通晶体管图有“假定存在 TG”的处理，但还保留了传输门较多时搜索效率与规模可扩展性的 TODO。</p>
+  <p>因此不能简单说“完全不支持 TG”，也不能从“成功读入网表”推出“能够正确完成端口识别、布局、布线和表征”。后续<a href="chapter11.html#section-9">晶体管布局章节</a>从源码再分析这个边界。这里先建立最低验收意识：</p>
+  <ol>
+    <li><strong>端口：</strong>明确数据、控制、电源、体偏置和输入/输出角色，不只靠是否接栅猜测。</li>
+    <li><strong>几何与连接：</strong>互补栅不能短接，N/P 扩散分开，体与阱正确；生成后做针对目标工艺的 DRC 和四端 LVS。</li>
+    <li><strong>功能与状态：</strong>测试两种数据极性、使能/禁止、MUX 全部组合，以及锁存器的写入和保持。</li>
+    <li><strong>电气与时序：</strong>分别考虑数据弧、控制弧、负载、控制交接、内部浮空和初始状态；最终 Liberty/Verilog 必须与实际电路一致。</li>
+  </ol>
+  <div class="callout warn"><strong>本章做到了哪一步：</strong>教学原理图、概念版图和网表对照，以及四组 Level-1 瞬态功能实验。没有为 EDU_TG/EDU_MUX2/EDU_LATCH 生成制造用 GDS，也没有完成这些教学单元的 DRC、外部 LVS、PEX、功耗或全角点表征。现有真实 MUX 图片不填补这些缺口。</div>
+
+  <h2 id="checkpoint">8.13 检查点：能够推导，而不只是记住“互补开关”</h2>
+  <div class="lab">
+    <strong>先遮住答案，至少写出控制表、网络证据表和一段带时间的状态推导。</strong>
+    <ol>
+      <li>为什么 NAND 的数据输入通常接栅，而 TG 的数据输入接源漏？EN=0、X=1 时，TG 是否应传 1？</li>
+      <li>NMOS 栅为 1.8 V、Y 升到 1.2 V 时，VGS 是多少？继续升到 1.35 V 附近，为什么充电能力减弱？</li>
+      <li>一只 TG 的 NMOS 与 PMOS 都连接 X/Y，是否表示它们共享了一块 Active？两条栅能用同一根连续 Poly 吗？</li>
+      <li>写出 EDU_MUX2 在 S=0/A=1/B=0 时，每个 TG 的两根栅电平、哪个通路有效及 Z 的结果。后接一个 INV 后结果又是什么？</li>
+      <li>TG 关闭后 Y 暂时停在 1.8 V，能否证明它是静态锁存器？为何加泄漏电阻后会下降？</li>
+      <li>锁存器先在 G=1 时写入 D=1，然后 G=0，再把 D 改为 0；Q、QN、N 应各是多少？下一次 G=1 后呢？</li>
+      <li>把锁存器反馈 TG 的控制误接成与输入 TG 相同，会在哪个相位产生什么问题？</li>
+      <li>为什么 EDU_MUX2 是 6 管，EDU_LATCH 是 10 管？这些数字能直接套给 Nangate MUX2_X1、DLH_X1 吗？</li>
+      <li>在本章结果中找到 1.341048 V 的来源：哪个实验、哪个测量名、哪个节点、哪个时刻？它是传播延迟吗？</li>
+    </ol>
+    <details><summary>逐题答案</summary>
+      <ol>
+        <li>NAND 用数据控制电源到输出的通路；TG 的数据本身经过沟道，EN 才是开关控制。正常 EN=0/ENB=1 时不经 TG 传递 X，但 Y 最终电平还取决于其他连接和电荷。</li>
+        <li>VGS=1.8−1.2=0.6 V；升到约 1.35 V 时只剩约 0.45 V，接近本例阈值。数值只适用于说明这一简化偏置过程。</li>
+        <li>不是。两类扩散分开，由金属连接同名网络；EN/ENB 不同，不能用同一根连续 Poly 短接。</li>
+        <li>TGA 的 N/P 栅为 1/0，TGB 为 0/1，Z 由 A 传为 1；后接一级 INV 得到 0。该 INV 改变了输出极性。</li>
+        <li>不能，可能只是电容暂存，且简单模型泄漏很小。电阻提供放电通路，电荷减少使电压下降；静态锁存保持依赖有源反馈而非孤立电荷。</li>
+        <li>保持期 Q=1、QN=0、N=1，D=0 被隔离；再次透明且充分建立后 N=0、QN=1、Q=0。</li>
+        <li>G=1 时输入与反馈一起开启，新 D 可能和旧状态争用；G=0 时两者一起关闭，内部输入节点变成依赖电荷的浮空节点，失去原设计的静态反馈保持。</li>
+        <li>MUX 是两个 TG 加一个控制 INV，即 4+2；锁存器另加两个数据 INV，即 4+2+4。不计入互补控制生成时计数不同；真实库可能选择受控反相器或静态 CMOS 网络，必须逐管核对。</li>
+        <li><code>pass_levels</code> 的 <code>n_high</code>，取 <code>v(yn)</code> 在 7 ns 的电压，可在该实验 log 和 measurements.json 对上。单位是 V，不是传播延迟。</li>
+      </ol>
+    </details>
+  </div>
+  <div class="checkpoint"><strong>学完后的最低能力：</strong>拿到一段未知网表，能够证明某对 N/P 是否是 TG；画出 MUX 的两相控制；用“写入—关窗—数据变化—重新打开”的顺序推导锁存器状态。然后再去看更复杂的真实单元，不必在本章就掌握所有时序约束和模拟开关非理想效应。</div>
+  <div class="source-note"><strong>资料与证据：</strong>概念讲解以四端连接、基础 MOS 偏置和本章显式电路为主；外部课程链接在对应段落注明。可复现入口为 <a href="examples/learning/transmission_gate_lab.py">transmission_gate_lab.py</a>，归档版本与模型摘要见 <a href="examples/learning/tg-reference/provenance.json">provenance.json</a>。真实单元只使用随书 Nangate CDL/GDS 及既有渲染图；概念 SVG 不冒充工艺版图。</div>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter5.html">← 第 7 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter6.html">第 9 章 →</a></nav>
+  <footer>第 8 章　传输门基础：从单管传输到 MUX 与锁存器 · 实验状态见总目录</footer>
+</main>
+</body>
+</html>

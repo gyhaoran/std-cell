@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 31 章　表征故障排查、签核与库级回归</title>
+  <title>第 32 章　表征故障排查、签核与库级回归</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="liberty.html">← 第 30 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="appendix.html">附录 →</a></nav>
-  <h1>第 31 章　表征故障排查、签核与库级回归</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="liberty.html">← 第 31 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="appendix.html">附录 →</a></nav>
+  <h1>第 32 章　表征故障排查、签核与库级回归</h1>
   <p class="subtitle">从 DRC/LVS/PEX 到 Liberty 查找表、失败波形和芯片级回归</p>
 
   <div class="objectives">
@@ -27,13 +27,13 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="liberty.html">从正常测量读懂完整 Liberty 层次</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="liberty.html">能追踪表格到测量条件</a>；<a href="chapter8.html">理解 DRC/LVS/PEX 边界</a>；<a href="cells-sequential.html">排查时序单元时还需理解初始化与采样</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能把 1e31 追到单点 deck/波形并说明发布门禁。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>交付一个失败点的日志、激励、阈值与根因证据。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">七级质量门</a></li><li><a href="#section-2">外部物理签核</a></li><li><a href="#section-3">LVS：参数和体端都属于等价性</a></li><li><a href="#section-4">PEX 与仿真基线</a></li><li><a href="#characterization-loop">特征化到底在重复什么</a></li><li><a href="#timing-arc">先读时序弧，再读表格</a></li><li><a href="#nldm-four-tables">NLDM 四张时序表分别量什么</a></li><li><a href="#lut-index">index_1/index_2/values 怎样组成二维表</a></li><li><a href="#failed-transition">“翻转不过去”与 1e31</a></li><li><a href="#failure-patterns">从失败图案缩小根因</a></li><li><a href="#one-point-debug">不要先重跑 7×7：先救活一个点</a></li><li><a href="#power-tables">截图里的 rise_power/fall_power</a></li><li><a href="#librecell-lib-status">本地 librecell-lib 的真实能力边界</a></li><li><a href="#characterization-types">组合与顺序单元分别要表征什么</a></li><li><a href="#liberty-qa">Liberty QA</a></li><li><a href="#section-16">LEF 与引脚可接入性 QA</a></li><li><a href="#section-17">相邻拼接 QA</a></li><li><a href="#section-18">P&amp;R 与 STA 冒烟测试</a></li><li><a href="#section-19">回归指标与基准管理策略</a></li><li><a href="#section-20">最终验收标准</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">七级质量门</a></li><li><a href="#section-2">外部物理签核</a></li><li><a href="#section-3">LVS：参数和体端都属于等价性</a></li><li><a href="#section-4">PEX 与仿真基线</a></li><li><a href="#characterization-loop">特征化到底在重复什么</a></li><li><a href="#timing-arc">先读时序弧，再读表格</a></li><li><a href="#nldm-four-tables">NLDM 四张时序表分别量什么</a></li><li><a href="#lut-index">index_1/index_2/values 怎样组成二维表</a></li><li><a href="#failed-transition">“翻转不过去”与 1e31</a></li><li><a href="#failure-patterns">从失败图案缩小根因</a></li><li><a href="#one-point-debug">不要先重跑 7×7：先救活一个点</a></li><li><a href="#power-tables">截图里的 rise_power/fall_power</a></li><li><a href="#librecell-lib-status">本地 librecell-lib 的真实能力边界</a></li><li><a href="#characterization-types">组合与顺序单元分别要表征什么</a></li><li><a href="#liberty-qa">Liberty QA</a></li><li><a href="#section-16">LEF 与引脚可接入性 QA</a></li><li><a href="#section-17">相邻拼接 QA</a></li><li><a href="#section-18">P&amp;R 与 STA 冒烟测试</a></li><li><a href="#section-19">回归指标与基准管理策略</a></li><li><a href="#negative-measurement">亲眼看一个失败点：仿真运行了，测量仍可失败</a></li><li><a href="#release-status-example">把验收结果写成状态，而不是一个模糊的“基本通过”</a></li><li><a href="#section-20">最终验收标准</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">31.1 七级质量门</h2>
+<h2 id="section-1">32.1 七级质量门</h2>
   <ol class="steps">
     <li><strong>结构检查：</strong>文件可解析，单元/引脚/单位/层/尺寸符合格式规范。</li>
     <li><strong>物理检查：</strong>晶圆厂 DRC、ERC、天线效应、密度/DFM 和边界拼接。</li>
@@ -45,7 +45,7 @@
   </ol>
   <p>任何一级失败都不能用后一级的通过结果抵消。例如 STA 能跑完不代表 LEF 布线阻挡正确，LVS 匹配也不代表特征化使用了正确的 PVT 条件。</p>
 
-  <h2 id="section-2">31.2 外部物理签核</h2>
+  <h2 id="section-2">32.2 外部物理签核</h2>
   <table>
     <thead><tr><th>检查</th><th>单元级</th><th>库/拼接级</th></tr></thead>
     <tbody>
@@ -58,7 +58,7 @@
   </table>
   <p>规则豁免（waiver）必须包含规则、位置、理由、责任人、风险和晶圆厂/项目批准；“生成器总会报这个”不是豁免理由。</p>
 
-  <h2 id="section-3">31.3 LVS：参数和体端都属于等价性</h2>
+  <h2 id="section-3">32.3 LVS：参数和体端都属于等价性</h2>
   <p>生产级 LVS 比较不止拓扑。为每个单元保存：</p>
   <ul>
     <li>reference CDL/SPICE 与端口顺序；</li>
@@ -69,16 +69,16 @@
   </ul>
   <p>对单元内不含阱/衬底接触的 tapless 架构，仍需在晶圆厂 LVS/ERC 流程中使用官方支持的单元上下文或运行配置，不能简单删除体端后宣布匹配。</p>
 
-  <h2 id="section-4">31.4 PEX 与仿真基线</h2>
+  <h2 id="section-4">32.4 PEX 与仿真基线</h2>
   <p>每个需要特征化的单元采用经过 LVS 的提取后网表。先做三个合理性检查：</p>
   <ol>
     <li>无寄生/原理图仿真与逻辑真值表一致；</li>
-    <li>PEX 仿真在轻载典型角仍功能正确，内部节点无浮空；</li>
+    <li>PEX 仿真在轻载典型角仍功能正确，无非预期浮空；设计允许的高阻/动态节点要按工作状态、保持时间和泄漏要求单独验证；</li>
     <li>输入电容、输出电容和关键电阻数量级与版图变化趋势一致。</li>
   </ol>
   <p>当扩大器件 W 后，若提取后的输入电容反而显著下降，应先怀疑单位、提取层或网表关联，不要直接把结果写进 Liberty。</p>
 
-  <h2 id="characterization-loop">31.5 特征化到底在重复什么</h2>
+  <h2 id="characterization-loop">32.5 特征化到底在重复什么</h2>
   <pre><code>通过 LVS 的原理图/PEX 网表 + PDK SPICE 模型 + PVT
                     │
                     ├─ 定义有效时序弧和其他引脚的静态状态
@@ -100,7 +100,7 @@
     </tbody>
   </table>
 
-  <h2 id="timing-arc">31.6 先读时序弧，再读表格</h2>
+  <h2 id="timing-arc">32.6 先读时序弧，再读表格</h2>
   <p>用户截图中的关键部分可抽象成：</p>
   <pre><code>pin (Q) {
   timing () {
@@ -126,7 +126,7 @@
   </table>
   <p>测 Q 上升时，表征平台必须先让 Q 处于 0、让 D 在建立时间之前稳定为 1，再施加 CKB↓；测 Q 下降则先让 Q=1、D=0。复位、置位、扫描使能和其他模式脚必须处于允许功能采样的状态。</p>
 
-  <h2 id="nldm-four-tables">31.7 NLDM 四张时序表分别量什么</h2>
+  <h2 id="nldm-four-tables">32.7 NLDM 四张时序表分别量什么</h2>
   <table>
     <thead><tr><th>表名</th><th>测量对象</th><th>以截图 CKB↓→Q 为例</th><th>常用单位</th></tr></thead>
     <tbody>
@@ -139,7 +139,7 @@
   <figure class="diagram"><a href="assets/liberty-nldm-measurement.svg"><img src="assets/liberty-nldm-measurement.svg" alt="NLDM 延迟、转换时间与翻转失败示意图"></a><figcaption>常见配置用输入/输出 50% VDD 交点量传播延迟，用输出 20%–80% 量转换时间；实际百分比必须读取库顶层的 <code>input_threshold_pct_*</code>、<code>output_threshold_pct_*</code> 与 <code>slew_*_threshold_pct_*</code>。</figcaption></figure>
   <div class="callout good"><strong>最容易记错的一点：</strong><code>rise/fall</code> 在 <code>cell_rise/cell_fall</code> 和 <code>rise_transition/fall_transition</code> 中都指<strong>被描述的输出引脚方向</strong>。输入或时钟边沿由 <code>related_pin</code>、<code>timing_type</code>、<code>timing_sense</code> 和条件共同决定。</div>
 
-  <h2 id="lut-index">31.8 <code>index_1/index_2/values</code> 怎样组成二维表</h2>
+  <h2 id="lut-index">32.8 <code>index_1/index_2/values</code> 怎样组成二维表</h2>
   <p><code>index_1</code> 和 <code>index_2</code> 没有脱离模板的固定含义。必须先找到表名引用的模板：</p>
   <pre><code>lu_table_template (delay_template_7x7) {
   variable_1 : input_net_transition;
@@ -156,7 +156,7 @@
   </table>
   <p>模板也可以反过来定义。例如本地 <code>librecell-lib/test_data/gscl45nm.lib</code> 把 <code>variable_1</code> 定义为 <code>total_output_net_capacitance</code>，把 <code>variable_2</code> 定义为 <code>input_net_transition</code>。因此不能背诵“index_1 永远是 slew”。约束表又可能使用 <code>related_pin_transition × constrained_pin_transition</code>，功耗表常用 <code>input_transition_time × total_output_net_capacitance</code>；每张表都应追到自己的 template。</p>
 
-  <h2 id="failed-transition">31.9 “翻转不过去”与 <code>1e31</code></h2>
+  <h2 id="failed-transition">32.9 “翻转不过去”与 <code>1e31</code></h2>
   <p>“翻转不过去”通常是口语：表征平台<strong>期望某个输出产生完整的 0→1 或 1→0 边沿，但波形没有按测量规则完成该边沿</strong>。它不只包含“Q 完全不动”，还包括：</p>
   <ul>
     <li>Q 方向相反，或初始值就处于目标值，因而没有预期边沿；</li>
@@ -166,10 +166,10 @@
     <li>波形振荡、多次越过阈值、进入亚稳态，无法选出合格的单一边沿；</li>
     <li>SPICE 没有收敛、测量表达式找不到交点，或者生成的 testbench 本身接错。</li>
   </ul>
-  <div class="callout danger"><strong><code>1e31</code> 的判断：</strong>在这份文件里它显然不是物理上真实的 <code>10³¹</code> 个时间单位，而是工具/脚本写出的失败或无有效测量占位值。确切失败类型仍要回到该工具日志与生成的 SPICE deck；无论是哪一种，含 <code>1e31</code> 或空字符串的表都不能作为合格 Liberty 交付。</div>
+  <div class="callout danger"><strong><code>1e31</code> 的判断：</strong>截图中整片极大值与空项强烈提示无效结果，常见解释是工具/脚本的失败占位；但仅凭截图不能确认该工具的具体编码约定，更不能确定根因。应核对工具说明、日志与生成的 SPICE deck。这些异常表在证明测量有效之前不能作为合格 Liberty 交付，不能把 10³¹ 当成真实的超大延迟继续插值。</div>
   <p><strong>对截图的直接结论：</strong><code>Q</code> 相对 <code>CKB</code> 下降沿的 <code>cell_rise</code> 和 <code>rise_transition</code> 49 个点全部为 <code>1e31</code>，表示在全部 7×7 slew/load 组合中都没有得到有效的 Q 上升延迟和 Q 上升转换时间。连最轻负载、最快输入都失败，所以现有证据<strong>不支持简单归因于“单元驱动太弱”</strong>；应优先怀疑时钟极性、D/初始状态、复位/扫描控制、端口映射、电源/模型、PEX 或测量设置。还要单独检查下方 <code>cell_fall/fall_transition</code>：若只有上升失败，更像上拉路径或上升激励问题；若两边都失败，更像系统性配置或电路问题。</p>
 
-  <h2 id="failure-patterns">31.10 从失败图案缩小根因</h2>
+  <h2 id="failure-patterns">32.10 从失败图案缩小根因</h2>
   <table>
     <thead><tr><th>表格失败形状</th><th>优先怀疑</th><th>下一步证据</th></tr></thead>
     <tbody>
@@ -183,7 +183,7 @@
     </tbody>
   </table>
 
-  <h2 id="one-point-debug">31.11 不要先重跑 7×7：先救活一个点</h2>
+  <h2 id="one-point-debug">32.11 不要先重跑 7×7：先救活一个点</h2>
   <p>以截图最小网格点为例，先只调试 <code>index_1=0.005</code>、<code>index_2=0.0001</code>。假设模板确认它们分别是 CKB slew 和 Q load，Q 上升的最小测试应满足：</p>
   <pre><code>1. VDD/VSS、模型 section、温度与库名一致
 2. reset/set/scan-enable/clock-enable 全部置于功能模式
@@ -202,7 +202,7 @@
   </ol>
   <div class="callout warn"><strong>延长仿真时间只是诊断手段：</strong>如果延长后 Q 最终能到达完整电平，说明原终止时间/驱动能力/负载范围需要重新定义；如果 Q 停在中间电平，继续把仿真时间加长通常不能修复拓扑、控制或浮空问题。</div>
 
-  <h2 id="power-tables">31.12 截图里的 <code>rise_power/fall_power</code></h2>
+  <h2 id="power-tables">32.12 截图里的 <code>rise_power/fall_power</code></h2>
   <p><code>internal_power</code> 描述内部节点充放电、短路电流等相关的内部能量模型。<strong>判断 rise/fall 的对象，先看包住它的 <code>pin(...)</code>，不能只看 related_pin。</strong>若完整层次是 <code>pin(Q) → internal_power → rise_power</code>，rise/fall 指 Q 的上升/下降；<code>related_pin : "CKB"</code> 指相关激励引脚，可为表索引提供输入转换时间，并不把 rise/fall 的对象改成 CKB。若该组在 <code>pin(CKB)</code> 下，才对应 CKB 自身的转换。截图第二张没有显示完整外层括号，必须回到文件确认它属于哪个 pin。</p>
   <pre><code>pin (Q) {
   internal_power () {
@@ -215,7 +215,7 @@
   <p>表名虽然带 <code>power</code>，经典 Liberty 内部功耗表的数值表示每次相应事件的能量；分析工具结合事件率等得到平均功率。不能把表里一个数直接当作电流或静态功耗，也不能直接套用 <code>leakage_power_unit</code> 定义的静态功率单位；需按所用模型的单位约定进行换算。<code>related_pg_pin</code> 指相关电源网络，<code>when</code> 指适用状态。依据：<a href="https://media.c3d2.de/mgoblin_media/media_entries/659/Liberty_User_Guides_and_Reference_Manual_Suite_Version_2017.06.pdf#page=337">Synopsys Liberty 2017.06，Internal Power Modeling（厂商原始手册的公开镜像）</a>。</p>
   <p>这些功耗表出现 <code>1e31</code> 和空字符串，同样表示结果不完整。可能是依赖的波形/状态没有建立，也可能是功耗积分或文件生成失败；不能用 0 填补，也不能删除失败点后假装表征完成。</p>
 
-  <h2 id="librecell-lib-status">31.13 本地 <code>librecell-lib</code> 的真实能力边界</h2>
+  <h2 id="librecell-lib-status">32.13 本地 <code>librecell-lib</code> 的真实能力边界</h2>
   <table>
     <thead><tr><th>源码证据</th><th>当前实际行为</th><th>对项目的含义</th></tr></thead>
     <tbody>
@@ -234,7 +234,7 @@ libertyviz -l invx1.lib \
   --cell INVX1 --pin Y --related-pin A --table cell_rise</code></pre>
   <div class="callout danger"><strong>项目边界：</strong>截图顶部日志名含 <code>char_nldm_spectre_lpe</code>，而内容是顺序单元时钟弧；这不是本地 <code>lctime</code> 当前主流程能够生成的对象。诊断截图必须以你们实际使用的 Spectre/表征脚本或商业工具的 log、deck、measurement 和配置为准；<code>librecell-lib</code> 适合作为源码教学对照，不能替代该工具的失败码说明。</div>
 
-  <h2 id="characterization-types">31.14 组合与顺序单元分别要表征什么</h2>
+  <h2 id="characterization-types">32.14 组合与顺序单元分别要表征什么</h2>
   <h3>组合单元</h3>
   <ol>
     <li>枚举每个输出引脚的布尔函数，以及所有可被敏化的输入→输出时序弧。</li>
@@ -245,7 +245,7 @@ libertyviz -l invx1.lib \
   <h3>顺序单元</h3>
   <p>DFF/锁存器除 clock-to-Q 外，还需要建立时间、保持时间、恢复时间、移除时间、最小脉宽和时钟门控检查等。约束可能为负，并依赖数据/时钟的转换时间。还要验证功能、异步置位/复位优先级与非法状态、扫描使能/SI/SO、锁存透明窗口、状态保持，以及 Liberty 与 Verilog specify/晶体管拓扑的一致性。</p>
 
-  <h2 id="liberty-qa">31.15 Liberty QA</h2>
+  <h2 id="liberty-qa">32.15 Liberty QA</h2>
   <table>
     <thead><tr><th>类别</th><th>检查例</th><th>失败门禁</th></tr></thead>
     <tbody>
@@ -262,7 +262,7 @@ libertyviz -l invx1.lib \
   <p>最粗的发布前扫描可以先挡住明显失败值，但不能代替 Liberty parser、表格维度检查和波形复核：</p>
   <pre><code>rg -n '1[eE]\+?31|[Nn][Aa][Nn]|[Ii][Nn][Ff]|""' path/to/library.lib</code></pre>
 
-  <h2 id="section-16">31.16 LEF 与引脚可接入性 QA</h2>
+  <h2 id="section-16">32.16 LEF 与引脚可接入性 QA</h2>
   <p>LibreCell 当前 LEF 输出模块的已知问题必须先修复或后处理：正确的 <code>DIRECTION</code>/<code>USE</code>、POWER/GROUND、布线阻挡、站点/对称性和必要属性。然后做：</p>
   <ol>
     <li>把 LEF 宏单元叠加到 GDS，核对原点、尺寸、边界和每个引脚端口。</li>
@@ -272,7 +272,7 @@ libertyviz -l invx1.lib \
   </ol>
   <p>引脚图形越大不一定越易接入，它可能增加布线阻挡、阻塞邻近引脚或违反通孔包围/间距规则。</p>
 
-  <h2 id="section-17">31.17 相邻拼接 QA</h2>
+  <h2 id="section-17">32.17 相邻拼接 QA</h2>
   <p>按单元边界特征聚类以减少组合，同时保留代表性极端：</p>
   <ul>
     <li>最窄/最宽逻辑单元；</li>
@@ -283,7 +283,7 @@ libertyviz -l invx1.lib \
   </ul>
   <p>除 DRC 外还检查 VDD/VSS 连续、井/接触意图、站点对齐和拼接后的引脚可接入性。</p>
 
-  <h2 id="section-18">31.18 P&amp;R 与 STA 冒烟测试</h2>
+  <h2 id="section-18">32.18 P&amp;R 与 STA 冒烟测试</h2>
   <p>构造一个小而有压力的 RTL：</p>
   <ul>
     <li>让综合实际使用 INV/NAND/NOR/AOI/OAI/MUX/DFF 及多个驱动能力档位；</li>
@@ -303,7 +303,7 @@ libertyviz -l invx1.lib \
     </tbody>
   </table>
 
-  <h2 id="section-19">31.19 回归指标与基准管理策略</h2>
+  <h2 id="section-19">32.19 回归指标与基准管理策略</h2>
   <p>保存结构化清单，而不是只保存截图：</p>
   <pre><code>cell, commit, tech_version, netlist_hash, placement_hash
 width, height, transistor_count, route_iterations
@@ -313,7 +313,21 @@ input_cap, leakage_states, delay/power summary
 lef/gds overlay status, abutment status, pnr status</code></pre>
   <p>阈值来自库规格与项目经验，不存在通用“线长增加 5% 就失败”的规则。正确性指标零容忍，结果质量（QoR）指标采用经批准的预算和人工复核。</p>
 
-  <h2 id="section-20">31.20 最终验收标准</h2>
+  <h2 id="negative-measurement">32.20 亲眼看一个失败点：仿真运行了，测量仍可失败</h2>
+  <p>全书回归脚本 <code>scripts/verify_learning.py</code> 含一个明确负例：复制 EDU_INV 的 80 ps/20 fF deck，只把输入 PULSE 高值从 1.8 V 改成 0.2 V；保留 0.9 V 的输入触发阈值。结果是输入永远不跨过触发阈值，<code>cell_fall</code> 没有有效测量。这是<strong>故意错误的激励，不是原电路无法驱动 20 fF</strong>。</p>
+  <pre><code>cd /home/jasper/code/docs/std-cell
+python scripts/verify_learning.py
+# 在最后打印的新证据目录中查看：
+# no-transition/test.sp   输入高值与测量阈值
+# no-transition/run.log   failed / out of interval 等测量失败信息
+# simulation/80ps_20ff/   同条件下合法激励的对照组</code></pre>
+  <p>这个实验依赖本书回归所列工具，可先完成前面的单点仿真实验。不要只看 ngspice 进程退出码：仿真器完成运行，不意味着每条 .measure 都找到了事件。本例自动检查“没有 cell_fall 数值且日志出现测量失败”，不会替失败值写 0 或 1e31。</p>
+  <details><summary>练习：把此例仿真终止时间加到十倍，能修好测量吗？</summary><p>不能。输入最高仍只有 0.2 V，等多久也过不了 0.9 V。应修输入激励/供电/阈值的一致性。这与“电路确实在慢慢变化，只是原窗口太短”的情形不同。</p></details>
+
+  <h2 id="release-status-example">32.21 把验收结果写成状态，而不是一个模糊的“基本通过”</h2>
+  <table><thead><tr><th>状态</th><th>例子</th><th>发布时怎么处理</th></tr></thead><tbody><tr><td>PASS：执行且符合要求</td><td>指定版本 INV 的特定 DRC 集无违规，已确认读入非空几何</td><td>保留输入哈希、deck、日志与检查范围；不能扩展到未测规则</td></tr><tr><td>FAIL：执行但不符合要求</td><td>ZN 开路；某有效时序弧无法测量</td><td>修复并重新验证受影响视图，不能删除失败点凑满表</td></tr><tr><td>BLOCKED：必要条件缺失</td><td>没有可用的授权 PEX 流程</td><td>不放行依赖 PEX 的发布要求；研究交付需清楚缩小范围</td></tr><tr><td>N/A：确实不适用</td><td>纯 filler 不具有 A→Y 传播弧</td><td>记录理由；仍需该 filler 的物理验收，不能把“没跑”都归为 N/A</td></tr></tbody></table>
+
+  <h2 id="section-20">32.22 最终验收标准</h2>
   <table>
     <thead><tr><th>能力</th><th>合格证据</th></tr></thead>
     <tbody>
@@ -337,8 +351,8 @@ lef/gds overlay status, abutment status, pnr status</code></pre>
   </div>
 
   <div class="source-note"><strong>阅读与实现依据：</strong>Liberty 字段与阈值语义以 Synopsys Liberty Reference Manual 为格式依据；<a href="https://www.synopsys.com/glossary/what-is-library-characterization.html">Synopsys 的 library characterization 概览</a>和 <a href="https://si2.org/si2-openstandards/">Si2 OpenStandards</a>用于建立标准范围；LibreCell 能力判断来自本机 <code>librecell-lib</code> 的 <code>README.md</code>、<code>main_lctime.py</code>、<code>timing_combinatorial.py</code> 与 <code>timing_sequential.py</code>，并以源码中的 TODO、断言和未实现路径为准。</div>
-  <nav class="bottom-nav" aria-label="全书导航"><a href="liberty.html">← 第 30 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="appendix.html">附录 →</a></nav>
-  <footer>第 31 章　表征故障排查、签核与库级回归 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="liberty.html">← 第 31 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="appendix.html">附录 →</a></nav>
+  <footer>第 32 章　表征故障排查、签核与库级回归 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

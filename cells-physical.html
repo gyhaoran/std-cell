@@ -1,13 +1,13 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 18 章　常量、填充、体接触与天线单元</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-sequential.html">← 第 17 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter10.html">第 19 章 →</a></nav><h1>第 18 章　常量、填充、体接触与天线单元</h1><p class="subtitle">不改变 RTL 功能，不代表可以从物理库中省略</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 19 章　常量、填充、体接触与天线单元</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-sequential.html">← 第 18 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter10.html">第 20 章 →</a></nav><h1>第 19 章　常量、填充、体接触与天线单元</h1><p class="subtitle">不改变 RTL 功能，不代表可以从物理库中省略</p>
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="cells-sequential.html">触发器、扫描链与时钟门控</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="chapter3.html">理解井、体端与体接触</a>；<a href="chapter8.html">区分 DRC/LVS 的检查对象</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能说明没有布尔输出的物理单元如何验收。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>建立 row 拼接与 tap/antenna 验收清单。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#physical-cells">常量、填充、天线与 tap：没有真值表也是一种答案</a></li><li><a href="#section-2">“无逻辑功能”不等于“没有验收标准”</a></li><li><a href="#section-3">新工艺还可能需要本包未覆盖的单元</a></li><li><a href="#section-4">拼接实验先验证哪几种邻居</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="physical-cells">18.1 常量、填充、天线与 tap：没有真值表也是一种答案</h2>
+<h2 id="physical-cells">19.1 常量、填充、天线与 tap：没有真值表也是一种答案</h2>
   <p>这一组应分成两类：LOGIC0/1 产生真实逻辑常量；FILL、ANTENNA、TAP 主要满足制造、可靠性或物理连续性要求。它们可能不在 RTL 功能路径上，却会决定版图能否通过 DRC/LVS/天线/闩锁相关检查。</p>
   <table class="truth-table">
     <thead><tr><th>单元</th><th>输入/条件</th><th>输出/逻辑真值</th><th>物理作用</th></tr></thead>
@@ -44,14 +44,20 @@
   <div class="callout danger"><strong>发布阻断项：</strong>CDL 有 135 个 subckt，GDS/LEF 只有 134 个，对应差集为 <code>TAPCELL_X1</code>。如果设计流程会插 tap，这不是文档小瑕疵，而是必须补齐或明确替代策略的库视图缺失。</div>
 
 
-<h2 id="section-2">18.2 “无逻辑功能”不等于“没有验收标准”</h2>
+<h2 id="section-2">19.2 “无逻辑功能”不等于“没有验收标准”</h2>
+<h3>先分清三个容易被名字误导的物理问题</h3>
+<p><strong>体接触：</strong>MOS 的 B 端不是画电路图时可有可无的第四根线。源极扩散接 VSS 不代表 P 型体区已获得良好 VSS 连接；要使用工艺指定的体接触结构。体区/井存在分布电阻，只有很远一个 tap 时，局部电位可能受注入电流扰动，所以规则会限制 tap 距离/覆盖，而不只是“整片有一个就行”。普通 filler 不能在没有相应结构和规则依据时冒充 tap。</p>
+<p><strong>闩锁（latch-up）：</strong>这是 bulk CMOS 中寄生器件可能形成持续强导通通路的可靠性问题，不是上一章用来保存数据的 latch。井/体接触、隔离与保护环等设计需要按 PDK 的规则处理；不能只因逻辑真值表正确，就判定不存在此类风险。</p>
+<p><strong>天线效应：</strong>这里的 antenna 不是用来收发无线信号的天线。它关注制造加工过程中互连收集电荷后对栅氧的风险；某阶段已经形成的长金属可能连着很小的栅面积，却还没有预期泄放路径。天线二极管提供规则认可的泄放结构，但也会引入电容/漏电；插在哪张网、接法和有效面积怎样算，都由工艺规则决定，不能给每个引脚机械加一只就宣布通过。</p>
+<p class="source-note">对照一手资料时，可看 SKY130 的<a href="https://skywater-pdk.readthedocs.io/en/main/rules/antenna.html">天线规则与二极管修正模型</a>以及<a href="https://skywater-pdk.readthedocs.io/en/main/rules/periphery.html">井/衬底接触等外围规则</a>。这些用于理解规则类别，不能把其中数值移植成 FreePDK45 的规则。</p>
+<details><summary>练习：填满所有空 site，能顺便保证 tap 距离和天线规则吗？</summary><p>不能。填充解决的是该 filler 定义的层连续性等问题；tap 覆盖需要检查体接触结构与距离，天线需要按网络及制造阶段模型检查。三项验收对象不同，不能以“版图看起来没有空洞”替代。</p></details>
 <p>逻辑门通常用真值表开始验收；filler 和 tap 需要问另一组问题：放在哪里、哪些层必须连续、允许哪些方向、最大间距是什么、提取器如何识别、插入后哪些检查必须重跑。为它们强造一张 0/1 真值表只会掩盖职责。</p>
 <table><thead><tr><th>对象</th><th>应该交付的证据</th><th>不够的证据</th></tr></thead><tbody><tr><td>FILL</td><td>尺寸/site 对齐、相邻井/注入/电源轨连续、拼接 DRC</td><td>“肉眼看起来填满空白”</td></tr><tr><td>TAP</td><td>体接触类型、B 网连通、距离规则与 ERC/LVS</td><td>文件名里写了 TAP</td></tr><tr><td>ANTENNA</td><td>PDK 认可的保护结构、连接与天线规则重新通过</td><td>放了一个空 subckt 或没接到违规网</td></tr><tr><td>LOGIC0/1</td><td>常值功能、输出限制、认可的连接方法</td><td>任何普通信号直接硬接电源都等价</td></tr></tbody></table>
-<h2 id="section-3">18.3 新工艺还可能需要本包未覆盖的单元</h2>
+<h2 id="section-3">19.3 新工艺还可能需要本包未覆盖的单元</h2>
 <p>“覆盖本地 51 个族”不是覆盖世界上所有标准单元。目标库可能还有 endcap/boundary、decap、隔离单元、电平转换器、保持寄存器和电源开关。它们是否需要，取决于工艺架构、电源域和实现方法学。本地文件没有完整实现时，应写“未覆盖，需要目标工艺资料”，不能从相似名字推造器件。</p>
 <table><thead><tr><th>类别</th><th>新手先理解的职责</th><th>为何不能套普通 CMOS 门</th></tr></thead><tbody><tr><td>Endcap / boundary</td><td>处理标准单元行端部的工艺边界</td><td>特定层终止、井和边界规则依赖工艺</td></tr><tr><td>Decap</td><td>在电源/地间提供工艺认可的去耦电容</td><td>漏电、可靠性、可用电压和放置限制都要检查</td></tr><tr><td>Level shifter</td><td>跨不同电压域传送信号</td><td>普通门可能电平不足或器件过压，不能只换 VDD 标签</td></tr><tr><td>Isolation / retention</td><td>断电域隔离或按协议保存状态</td><td>涉及电源状态、控制顺序与多电源表征，不在本平面单电源例子的验收范围</td></tr></tbody></table>
-<h2 id="section-4">18.4 拼接实验先验证哪几种邻居</h2>
+<h2 id="section-4">19.4 拼接实验先验证哪几种邻居</h2>
 <p>先做同向 INV|INV，再做 INV|FILL、FILL|行端，随后按库允许方向做相邻行镜像。每个案例都检查电源轨是否匹配、井/注入是否形成非法缺口或窄槽、跨边界的不同网金属是否过近。允许 R0/MX/MY 哪些方向必须由目标库约束给出；不要为了“多试一些”就把非法方向的失败算成单元缺陷。</p>
 <div class="checkpoint"><strong>练习</strong><ol><li>本包 TAPCELL_X1 只有空 CDL，能证明 tap 已连接吗？</li><li>FILL_X8+X2+X1 何时才可填 11 site 的空隙？</li><li>加了 antenna cell 后为什么还需要 LVS/天线检查？</li></ol><details><summary>答案</summary><p>① 不能；没有足够物理和提取证据。② 先确认这些变体的实际 LEF 宽度/site 比确实是 8/2/1、方向和边界兼容；不能单靠 X 后缀。③ 要证明接到了正确网且被 deck 认可，插入本身不是通过判据。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="cells-sequential.html">← 第 17 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter10.html">第 19 章 →</a></nav><footer>第 18 章　常量、填充、体接触与天线单元 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="cells-sequential.html">← 第 18 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter10.html">第 20 章 →</a></nav><footer>第 19 章　常量、填充、体接触与天线单元 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

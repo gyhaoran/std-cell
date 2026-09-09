@@ -1,0 +1,210 @@
+{
+  "pass_levels": {
+    "n_high": {
+      "voltage_V": 1.341048,
+      "time_ns": 7,
+      "accepted_range_V": [
+        1.25,
+        1.45
+      ]
+    },
+    "p_high": {
+      "voltage_V": 1.8,
+      "time_ns": 7,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "tg_high": {
+      "voltage_V": 1.8,
+      "time_ns": 7,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "rev_high": {
+      "voltage_V": 1.8,
+      "time_ns": 7,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "n_low": {
+      "voltage_V": 1.191251e-163,
+      "time_ns": 13,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "p_low": {
+      "voltage_V": 0.4595552,
+      "time_ns": 13,
+      "accepted_range_V": [
+        0.35,
+        0.55
+      ]
+    },
+    "tg_low": {
+      "voltage_V": 1.194614e-09,
+      "time_ns": 13,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "rev_low": {
+      "voltage_V": 1.194614e-09,
+      "time_ns": 13,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    }
+  },
+  "isolation": {
+    "float_hold": {
+      "voltage_V": 1.8,
+      "time_ns": 9,
+      "accepted_range_V": [
+        1.75,
+        1.85
+      ]
+    },
+    "leaky_hold": {
+      "voltage_V": 1.474545,
+      "time_ns": 9,
+      "accepted_range_V": [
+        1.35,
+        1.6
+      ]
+    },
+    "float_reopen": {
+      "voltage_V": 1.194614e-09,
+      "time_ns": 12,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "leaky_reopen": {
+      "voltage_V": 1.193825e-09,
+      "time_ns": 12,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    }
+  },
+  "mux": {
+    "z_000": {
+      "voltage_V": 2.389227e-09,
+      "time_ns": 2,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "z_001": {
+      "voltage_V": 2.389227e-09,
+      "time_ns": 5,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "z_010": {
+      "voltage_V": 1.8,
+      "time_ns": 8,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "z_011": {
+      "voltage_V": 1.8,
+      "time_ns": 11,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "z_100": {
+      "voltage_V": 2.389227e-09,
+      "time_ns": 14,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "z_101": {
+      "voltage_V": 1.8,
+      "time_ns": 17,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "z_110": {
+      "voltage_V": 2.389227e-09,
+      "time_ns": 20,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "z_111": {
+      "voltage_V": 1.8,
+      "time_ns": 23,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    }
+  },
+  "latch": {
+    "q_initial": {
+      "voltage_V": 2.389227e-09,
+      "time_ns": 1,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    },
+    "q_follow": {
+      "voltage_V": 1.8,
+      "time_ns": 4,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "q_hold_before": {
+      "voltage_V": 1.8,
+      "time_ns": 7,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "q_hold_after": {
+      "voltage_V": 1.8,
+      "time_ns": 10,
+      "accepted_range_V": [
+        1.79,
+        1.81
+      ]
+    },
+    "q_reopen": {
+      "voltage_V": 2.389227e-09,
+      "time_ns": 13,
+      "accepted_range_V": [
+        -0.01,
+        0.01
+      ]
+    }
+  }
+}

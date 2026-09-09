@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 600" role="img" aria-labelledby="title desc">
+  <title id="title">正电平透明的静态传输门锁存器</title>
+  <desc id="desc">D 经输入传输门连接内部节点 N，再经两个反相器得到 Q。Q 通过反馈传输门回接 N。G 为一时输入通、反馈断；G 为零时输入断、反馈通。G 的反相器生成 GB。</desc>
+  <style>text{font-family:Arial,"Noto Sans CJK SC",sans-serif;fill:#17243b;font-size:23px}.small{font-size:20px}.wire{stroke:#334155;stroke-width:4;fill:none}.box{fill:#eff6ff;stroke:#2563eb;stroke-width:3}</style>
+  <rect width="1040" height="600" fill="white"/>
+  <text x="35" y="40" font-size="27" font-weight="bold">保持不是“没有变化”，而是反馈在维持状态</text>
+  <path d="M85 190H145M315 190H480M554 190H675M749 190H930" class="wire"/>
+  <text x="45" y="198" font-size="23">D</text><text x="950" y="198" font-size="23">Q</text>
+  <rect x="145" y="148" width="170" height="84" rx="8" class="box"/>
+  <text x="230" y="181" text-anchor="middle" font-size="23">TG_IN</text>
+  <text x="230" y="213" text-anchor="middle" class="small" font-size="20">G=1 时通</text>
+  <text x="365" y="164" font-size="23">N</text><text x="585" y="164" font-size="23">QN</text>
+  <path d="M480 154L480 226L538 190ZM675 154L675 226L733 190Z" class="wire"/>
+  <circle cx="546" cy="190" r="8" fill="white" stroke="#334155" stroke-width="3"/>
+  <circle cx="741" cy="190" r="8" fill="white" stroke="#334155" stroke-width="3"/>
+  <text x="472" y="128" class="small" font-size="20">INV1</text><text x="667" y="128" class="small" font-size="20">INV2</text>
+  <path d="M850 190V342H705M535 342H390V190" class="wire"/>
+  <circle cx="850" cy="190" r="6" fill="#334155"/><circle cx="390" cy="190" r="6" fill="#334155"/>
+  <rect x="535" y="300" width="170" height="84" rx="8" class="box"/>
+  <text x="620" y="333" text-anchor="middle" font-size="23">TG_FB</text>
+  <text x="620" y="365" text-anchor="middle" class="small" font-size="20">G=0 时通</text>
+  <text x="63" y="300" class="small" font-size="20">GB = NOT(G)</text>
+  <text x="63" y="332" class="small" font-size="20">控制反相器未画出</text>
+  <text x="63" y="364" class="small" font-size="20">TG 的两根栅控制见正文表</text>
+  <rect x="40" y="426" width="960" height="64" rx="9" fill="#ecfdf5"/>
+  <text x="65" y="453" class="small" font-size="20">透明期 G=1：D → TG_IN → N → INV1 → QN → INV2 → Q</text>
+  <text x="65" y="479" class="small" font-size="20">反馈 TG_FB 断开，避免旧状态阻碍新数据写入。</text>
+  <rect x="40" y="508" width="960" height="64" rx="9" fill="#fff7ed"/>
+  <text x="65" y="535" class="small" font-size="20">保持期 G=0：N → INV1 → QN → INV2 → Q → TG_FB → N</text>
+  <text x="65" y="561" class="small" font-size="20">输入 TG_IN 断开；两次反相使 0 或 1 都能在闭环中自洽保持。</text>
+</svg>

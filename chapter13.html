@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 23 章　固定版本并生成第一个单元</title>
+  <title>第 24 章　固定版本并生成第一个单元</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter12.html">← 第 22 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter14.html">第 24 章 →</a></nav>
-  <h1>第 23 章　固定版本并生成第一个单元</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter12.html">← 第 23 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter14.html">第 25 章 →</a></nav>
+  <h1>第 24 章　固定版本并生成第一个单元</h1>
   <p class="subtitle">先让环境、输入和命令可复现，再讨论新工艺</p>
 
   <div class="objectives">
@@ -23,22 +23,22 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter12.html">单元内部布线</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="tools.html">会确认解释器、路径与退出码</a>；<a href="chapter12.html">知道布局和布线分别产生什么</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>有本 commit 成功日志、环境锁与内部 LVS 证据。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>保存真实运行清单；缺依赖时记录阻塞点而不伪造结果。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">本教程的版本基线</a></li><li><a href="#section-2">建立独立、可锁定的环境</a></li><li><a href="#section-3">真实 CLI 参数</a></li><li><a href="#section-4">生成第一个 INVX1</a></li><li><a href="#section-5">输出应当有什么</a></li><li><a href="#section-6">把同一布局结果用于可比实验</a></li><li><a href="#section-7">常见失败的定位顺序</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">23.1 本教程的版本基线</h2>
+<h2 id="section-1">24.1 本教程的版本基线</h2>
   <pre><code>Repository: /home/jasper/code/github/librecell
 Branch:     anneal
 Commit:     f708e3a
 Package:    librecell-layout 0.0.9</code></pre>
   <p>本地 <code>setup.py</code> 约束了 <code>klayout==0.26.*</code>、<code>networkx==2.*</code>、<code>pysmt==0.9.*</code>、<code>z3-solver==4.8.*</code>、<code>numpy==1.*</code> 等旧依赖。它们与现代 Python 的兼容性不能想当然。</p>
 
-  <div class="callout danger"><strong>当前机器的现场状态：</strong>系统是 Python 3.12.3，现有 <code>/home/jasper/.virtualenvs/iCell/bin/lclayout</code> 在导入 <code>smt_placer.py</code> 时因缺少 <code>z3</code> 失败。因此教程不能声称“当前环境已开箱即用”，也不应在这个共享环境中边装边猜。</div>
+  <div class="callout danger"><strong>环境记录，不是永久前提：</strong>2026-09-09 复查的解释器是 <code>/home/jasper/.virtualenvs/iCell/bin/python</code>，Python 3.12.3，仍缺 z3/pysmt；此前该环境的 lclayout 在导入 smt_placer.py 时因缺 z3 失败。因此不把完整生成器标为已跑通。你的环境可能不同，应重新运行下面的只读检查，不要把某个虚拟环境的 Python 版本称作整台系统的唯一版本。</div>
 
-  <h2 id="section-2">23.2 建立独立、可锁定的环境</h2>
+  <h2 id="section-2">24.2 建立独立、可锁定的环境</h2>
   <p>不要为了旧依赖直接降级共享 Python，也不要把某个旧 Python 版本当成已经验证的安装配方。先区分两条路线：本书新增的 SPICE、算法和 KLayout 解析/几何实验已在当前 Python 3.12.3 环境实测；完整 lclayout 仍缺依赖，需要在你可控的独立环境中建立并验证锁文件。</p>
   <pre><code>cd /home/jasper/code/docs/std-cell
 python examples/learning/preflight.py
@@ -53,12 +53,13 @@ python -m pip --version</code></pre>
   <p><strong>如何继续学习：</strong>不必卡在安装整套生成器。先退出新建的空环境，回到能运行 KLayout Python API 的既有解释器，完成<a href="source-lab.html">真实 parser 补丁</a>和<a href="porting-lab.html">几何迁移</a>；仅标准库的算法实验及通过命令行调用 ngspice 的仿真实验也可独立运行。它们不等价于完整 lclayout 成功。</p>
 
   <h3>最小环境验收</h3>
+  <p><code>ModuleNotFoundError: No module named 'z3'</code> 发生在导入阶段，说明还没进入读网表、布局或 DRC；改 W、spacing 或更换单元都不能解决这个阶段的问题。先核对 <code>python -c "import sys; print(sys.executable)"</code> 和 <code>command -v lclayout</code>，确认安装与运行针对同一个环境。仅找到可执行文件不代表其依赖完整。</p>
   <pre><code>python -c "import klayout.db, networkx, numpy, z3; print('imports ok')"
 lclayout --help
 git -C /home/jasper/code/github/librecell rev-parse HEAD</code></pre>
   <p>只有三条都成功，才进入生成实验。若导入失败，先修依赖；不要用 <code>--ignore-lvs</code> 掩盖环境问题。</p>
 
-  <h2 id="section-3">23.3 真实 CLI 参数</h2>
+  <h2 id="section-3">24.3 真实 CLI 参数</h2>
   <table>
     <thead><tr><th>参数</th><th>是否必需</th><th>作用</th></tr></thead>
     <tbody>
@@ -78,10 +79,9 @@ git -C /home/jasper/code/github/librecell rev-parse HEAD</code></pre>
   </table>
   <div class="callout warn"><strong>本版本没有</strong> <code>--all-cells</code>、通用 <code>--debug</code> 或 <code>--routing-graph-file</code>。批量生成必须自己循环明确存在的 subckt，并保留每个单元的退出码与日志。示例统一使用 <code>-v</code>，不把重复 v 当成多级日志。</div>
 
-  <h2 id="section-4">23.4 生成第一个 <code>INVX1</code></h2>
+  <h2 id="section-4">24.4 生成第一个 <code>INVX1</code></h2>
   <pre><code>LIBRECELL_ROOT=/home/jasper/code/github/librecell
-TUTORIAL_OUT=/tmp/librecell-tutorial-invx1
-mkdir -p "$TUTORIAL_OUT"
+TUTORIAL_OUT=$(mktemp -d /tmp/librecell-tutorial-invx1.XXXXXX)
 cd "$LIBRECELL_ROOT/librecell-layout"
 
 PYTHONHASHSEED=42 lclayout \
@@ -96,7 +96,7 @@ PYTHONHASHSEED=42 lclayout \
   --verbose</code></pre>
   <p>固定 <code>PYTHONHASHSEED=42</code> 是项目 README 给出的非确定性临时规避办法。它不证明所有算法完全确定；还应比较输出哈希、布局 JSON 和关键指标。</p>
 
-  <h2 id="section-5">23.5 输出应当有什么</h2>
+  <h2 id="section-5">24.5 输出应当有什么</h2>
   <pre><code>ls -lh "$TUTORIAL_OUT"
 rg "Placement engine|routing|LVS result|Write GDS|Write LEF|Done" \
   "$TUTORIAL_OUT/INVX1.log"
@@ -113,21 +113,24 @@ klayout "$TUTORIAL_OUT/INVX1.gds"</code></pre>
     </tbody>
   </table>
 
-  <h2 id="section-6">23.6 把同一布局结果用于可比实验</h2>
+  <h2 id="section-6">24.6 把同一布局结果用于可比实验</h2>
   <p><code>--placement-file</code> 已存在时会直接加载，因此可以只比较布线器或技术配置的改动，避免布局变化干扰：</p>
-  <pre><code>mkdir -p /tmp/librecell-tutorial-steiner
+  <pre><code># 与上次运行使用同一终端，并确认第一个实验已经成功
+test -s "$TUTORIAL_OUT/INVX1-placement.json" || exit 1
+TUTORIAL_STEINER_OUT=$(mktemp -d /tmp/librecell-tutorial-steiner.XXXXXX)
 
 PYTHONHASHSEED=42 lclayout \
   --cell INVX1 \
   --netlist examples/cells.sp \
   --tech examples/dummy_tech.py \
-  --output-dir /tmp/librecell-tutorial-steiner \
-  --placement-file /tmp/librecell-tutorial-invx1/INVX1-placement.json \
+  --output-dir "$TUTORIAL_STEINER_OUT" \
+  --placement-file "$TUTORIAL_OUT/INVX1-placement.json" \
   --signal-router steiner \
   --verbose</code></pre>
   <p>反过来比较布局器时，应给每个布局器一个新的布局文件路径；否则程序会加载旧 JSON，导致你误以为切换布局器没有效果。</p>
+  <p>每次独立实验用新的 <code>mktemp -d</code> 目录，是为了避免上次失败后残留的 GDS/JSON 冒充本次输出。上面的变量只在当前 shell 有效；换终端后应显式填入自己保存的成功目录，并核对日志。不要靠文件名相同推断版本相同。</p>
 
-  <h2 id="section-7">23.7 常见失败的定位顺序</h2>
+  <h2 id="section-7">24.7 常见失败的定位顺序</h2>
   <table>
     <thead><tr><th>现象</th><th>先检查</th></tr></thead>
     <tbody>
@@ -156,8 +159,8 @@ PYTHONHASHSEED=42 lclayout \
     <details><summary>参考答案</summary><p>已有 JSON 会绕过布局器并直接加载。<code>--ignore-lvs</code> 会让不匹配版图继续输出，破坏正确性门禁。当前配置写 GDS、LEF 和 MAG。</p></details>
   </div>
 
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter12.html">← 第 22 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter14.html">第 24 章 →</a></nav>
-  <footer>第 23 章　固定版本并生成第一个单元 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter12.html">← 第 23 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter14.html">第 25 章 →</a></nav>
+  <footer>第 24 章　固定版本并生成第一个单元 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

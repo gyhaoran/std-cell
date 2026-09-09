@@ -20,11 +20,12 @@ BOOK = [
 ('chapter3.html','版图如何变成晶体管','建立电路与版图基础','能由 Active×Poly 数沟道并逐网追踪 Contact/M1','写出一只 MOS 的四端证据表'),
 ('tools.html','终端、文件与 KLayout 上手实验','建立电路与版图基础','能打开指定 GDS、隐藏图层、量栅长并保存截图','交付 INV_X1 的分层截图、坐标与尺寸记录'),
 ('chapter4.html','反相器完整读图实验','建立电路与版图基础','能不看答案从版图还原 INV 网表','交付 A、ZN、VDD、VSS 的逐网核对表'),
-('chapter5.html','NAND、NOR、传输门与源漏共享','建立电路与版图基础','能区分共享机会、真实共享、TG 与三态反相器','手算 OR2 的共享顺序并解释 TG 两相控制'),
+('chapter5.html','NAND、NOR、源漏共享与 Euler 排序','建立电路与版图基础','能解释 Euler 排序目的，并区分电气连接、共享机会与真实共享','手算 NOR2 两行 Euler 顺序，标出共享区并解释排序目的'),
+('transmission-gates.html','传输门基础：从单管传输到 MUX 与锁存器','建立电路与版图基础','能解释阈值损失，读 TG 四端与版图连接，推导 MUX 和反馈保持','完成两相控制与状态推导，重现 4 组 TG 仿真和 25 个电压测点'),
 ('chapter6.html','一个库要交付哪些视图','建立电路与版图基础','能判断网表模型、Liberty 与工艺 deck 的用途','建立跨视图引脚名和单位一致性表'),
 ('chapter7.html','读懂 PDK 与设计规则','工艺规则与真实单元','能区分 DBU、制造网格和宽度/间距/包围/EOL','填写一个目标工艺的规则来源与换算表'),
-('chapter8.html','DRC、LVS 与 PEX 可执行实验','工艺规则与真实单元','能运行 fixture 并解释每类标记的测量对象','重现 7 个教学 DRC 标记，逐类记录修复方案'),
-('chapter9.html','FreePDK45 图谱入口与 MOS 识读','工艺规则与真实单元','能给 51 个单元族分类并说明资料缺口','选一个单元完成器件、网络、尺寸、体端证据表'),
+('chapter8.html','DRC 实验与 LVS、PEX 入门','工艺规则与真实单元','能运行 fixture，并区分几何、连通性和寄生问题','重现 7 个教学 DRC 标记，逐类记录修复方案'),
+('chapter9.html','FreePDK45 图谱入口与 MOS 识读','工艺规则与真实单元','能逐网识读代表单元，并区分功能族与驱动变体','选一个单元完成器件、网络、尺寸、体端证据表'),
 ('cells-basic.html','反相器、基本门与驱动强度','工艺规则与真实单元','能推导 NAND/NOR 网络并解释为何大驱动也有代价','完成 INV_X1/X4 和 NAND/NOR 的对照练习'),
 ('cells-compound.html','AOI/OAI 复合门与逻辑映射','工艺规则与真实单元','能展开 AOI21/OAI21 的 8 行表及串并联网络','写出分组方程、敏化条件与真实应用'),
 ('cells-select.html','比较、选择、缓冲与三态单元','工艺规则与真实单元','能区分 XOR、MUX、TG、TBUF 的功能与高阻','完成选择信号敏化和双驱动总线状态题'),
@@ -47,6 +48,35 @@ BOOK = [
 ('chapter17.html','表征故障排查、签核与库级回归','迁移、表征与验收','能把 1e31 追到单点 deck/波形并说明发布门禁','交付一个失败点的日志、激励、阈值与根因证据'),
 ('appendix.html','术语、排错树、清单与延伸资源','附录','能准确使用全文术语并找到一手资料','用资源索引补齐自己的最弱环节'),
 ]
+# Reading order is not a prerequisite graph. Keep the first seven completed
+# chapters stable; later chapters identify the actual concepts they depend on.
+PREREQUISITES = {
+ 'chapter6.html': [('chapter4.html', '能读 INV 的网表、引脚与版图')],
+ 'chapter7.html': [('chapter3.html', '能识别 Active、Poly、Contact 与金属'), ('chapter6.html', '理解 GDS 与 LEF 的分工')],
+ 'chapter8.html': [('chapter7.html', '理解 DBU、宽度、间距与包围')],
+ 'chapter9.html': [('chapter4.html', '能逐网追踪 INV'), ('chapter5.html', '能区分串并联与真实扩散共享')],
+ 'cells-basic.html': [('chapter5.html', '能读 NAND/NOR 网络'), ('chapter9.html', '熟悉本库截图图层')],
+ 'cells-compound.html': [('cells-basic.html', '会从串并联推导 NAND/NOR')],
+ 'cells-select.html': [('cells-basic.html', '理解反相与缓冲'), ('transmission-gates.html', '理解开关控制与高阻')],
+ 'cells-arithmetic.html': [('cells-select.html', '会算 XOR'), ('cells-basic.html', '会算 AND/OR')],
+ 'cells-latches.html': [('transmission-gates.html', '理解透明、反馈与保持'), ('cells-select.html', '能读受控反相器')],
+ 'cells-sequential.html': [('cells-latches.html', '能按时间顺序判断锁存器状态'), ('cells-select.html', '理解 MUX 选择')],
+ 'cells-physical.html': [('chapter3.html', '理解井、体端与体接触'), ('chapter8.html', '区分 DRC/LVS 的检查对象')],
+ 'chapter10.html': [('chapter5.html', '理解 MOS 边、网络节点和共享排序；不要求读完全部单元族')],
+ 'algorithms-lab.html': [('chapter10.html', '理解图、权重与路径'), ('tools.html', '会运行 Python 脚本')],
+ 'chapter11.html': [('algorithms-lab.html', '会手算 Euler 顺序'), ('chapter7.html', '理解布局架构与几何规则')],
+ 'chapter12.html': [('algorithms-lab.html', '会手算最短路与资源冲突'), ('chapter11.html', '理解抽象布局输出')],
+ 'chapter13.html': [('tools.html', '会确认解释器、路径与退出码'), ('chapter12.html', '知道布局和布线分别产生什么')],
+ 'chapter14.html': [('chapter7.html', '能换算 PDK 尺寸'), ('chapter13.html', '能定位固定版本与技术文件')],
+ 'chapter15.html': [('chapter14.html', '知道技术字段的物理含义'), ('algorithms-lab.html', '理解程序中的图与路径')],
+ 'source-lab.html': [('chapter15.html', '能定位网表解析与调用方')],
+ 'chapter16.html': [('chapter8.html', '区分物理验证范围'), ('chapter14.html', '理解技术适配'), ('source-lab.html', '会保留补丁与负例证据')],
+ 'porting-lab.html': [('chapter16.html', '理解能力矩阵与证据分级')],
+ 'simulation.html': [('chapter4.html', '能读 INV 四端连接'), ('tools.html', '会运行脚本；不要求先完成整个迁移项目')],
+ 'liberty.html': [('simulation.html', '能区分 delay、slew、负载与阈值事件')],
+ 'chapter17.html': [('liberty.html', '能追踪表格到测量条件'), ('chapter8.html', '理解 DRC/LVS/PEX 边界'), ('cells-sequential.html', '排查时序单元时还需理解初始化与采样')],
+ 'appendix.html': [('tutorial_index.html', '按问题查阅，不需要先读完所有章节')],
+}
 SPLITS = {
  'cells-basic.html': ['inverter','drive-strength','basic-gates'],
  'cells-compound.html': ['complex-gates'],
@@ -146,6 +176,8 @@ def transform(i, doc):
     if filename == 'chapter9.html':
         doc = re.sub(r'(href="cells-[^"]+">)9\.\d+\s*', r'\1', doc)
     previous = f'<a href="{BOOK[i-1][0]}">{BOOK[i-1][1]}</a>' if i else '不要求 EDA 操作经验；从本章建立全局地图'
+    if filename in PREREQUISITES:
+        previous = '；'.join(f'<a href="{path}">{escape(concept)}</a>' for path, concept in PREREQUISITES[filename])
     guide = f'''<aside class="learning-guide" aria-label="分层学习指南">
 <p><strong>前置知识：</strong>{previous}。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>{escape(skip)}。不能独立完成时，请按正文顺序学。</p>

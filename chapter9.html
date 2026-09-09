@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 11 章　FreePDK45 图谱入口与 MOS 识读</title>
+  <title>第 12 章　FreePDK45 图谱入口与 MOS 识读</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter8.html">← 第 10 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-basic.html">第 12 章 →</a></nav>
-  <h1>第 11 章　FreePDK45 图谱入口与 MOS 识读</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter8.html">← 第 11 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-basic.html">第 13 章 →</a></nav>
+  <h1>第 12 章　FreePDK45 图谱入口与 MOS 识读</h1>
   <p class="subtitle">用同一份 CDL 与 GDS，把功能、晶体管网络和真实版图逐一对应</p>
 
   <div class="objectives">
@@ -27,13 +27,13 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter8.html">DRC、LVS 与 PEX 可执行实验</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
-<p><strong>快速跳过条件：</strong>能给 51 个单元族分类并说明资料缺口。不能独立完成时，请按正文顺序学。</p>
+<p><strong>前置知识：</strong><a href="chapter4.html">能逐网追踪 INV</a>；<a href="chapter5.html">能区分串并联与真实扩散共享</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能逐网识读代表单元，并区分功能族与驱动变体。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>选一个单元完成器件、网络、尺寸、体端证据表。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#cell-map">先建立“需求—单元”地图</a></li><li><a href="#layout-reading">截图怎样读：颜色不是物理，交叠才是证据</a></li><li><a href="#section-3">全库单元族覆盖清单</a></li><li><a href="#section-4">版图与 CDL 一致性：不要把“长得像”当作 LVS</a></li><li><a href="#section-5">重现本章截图</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#cell-map">先建立“需求—单元”地图</a></li><li><a href="#layout-reading">截图怎样读：颜色不是物理，交叠才是证据</a></li><li><a href="#evidence-example">先填好一行证据，再进入全库图谱</a></li><li><a href="#section-3">全库单元族覆盖清单</a></li><li><a href="#section-4">版图与 CDL 一致性：不要把“长得像”当作 LVS</a></li><li><a href="#section-5">重现本章截图</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="cell-map">11.1 先建立“需求—单元”地图</h2>
+<h2 id="cell-map">12.1 先建立“需求—单元”地图</h2>
   <p>真值表只回答“输入确定后输出是什么”，不能回答“为什么芯片里需要这个单元”。后文对每一类都按六个问题展开：<strong>解决什么问题、有哪些成员、引脚怎样解释、典型应用是什么、信号如何代入、实现时容易错在哪里</strong>。先用下表建立全局地图：</p>
   <table>
     <thead><tr><th>设计需求</th><th>先想到的单元</th><th>具体例子</th><th>还要检查什么</th></tr></thead>
@@ -54,7 +54,7 @@
   <p class="small"><strong>分类跳转：</strong><a href="#layout-reading">版图识读</a> · <a href="#inverter">反相器</a> · <a href="#drive-strength">驱动强度</a> · <a href="#basic-gates">基本门</a> · <a href="#complex-gates">AOI/OAI</a> · <a href="#select-compare-buffer">XOR/MUX/BUF</a> · <a href="#tristate">三态</a> · <a href="#arithmetic-cells">算术</a> · <a href="#latch-cells">锁存器</a> · <a href="#sequential-cells">触发器/扫描/时钟门</a> · <a href="#physical-cells">物理单元</a></p>
   <div class="callout"><strong>重要边界：</strong>下文的应用例子用于解释逻辑意图，不保证综合器一定映射成同名单元。真正映射结果还取决于 Liberty 中的时序/功耗数据、<code>dont_use</code> 等属性、面积目标、负载、约束和综合优化。</div>
 
-  <h2 id="layout-reading">11.2 截图怎样读：颜色不是物理，交叠才是证据</h2>
+  <h2 id="layout-reading">12.2 截图怎样读：颜色不是物理，交叠才是证据</h2>
   <p>截图由仓库内 <code>freepdk45.lyp</code> 配色，颜色只是显示约定：</p>
   <table>
     <thead><tr><th>显示</th><th>层</th><th>读图动作</th></tr></thead>
@@ -86,8 +86,8 @@ Body 不在这条横线里：它由 P-well/N-well 和 tap 网络决定</code></p
     <thead><tr><th>常见版图形态</th><th>俯视图特征</th><th>电路含义/检查点</th></tr></thead>
     <tbody>
       <tr><td>单指 MOS</td><td>一条 gate 跨一块 Active</td><td>一只 MOS；两侧为两个扩散端，body 另查 well/tap</td></tr>
-      <tr><td>多指 MOS</td><td>同一 gate 网络多次跨 Active，扩散端交替出现</td><td>多个 finger 并联归为一只等效宽管；总 W 和端部寄生按 PDK/提取规则算</td></tr>
-      <tr><td>串联堆叠</td><td>多条不同 gate 连续切过同一条 Active，中间段常无 Contact</td><td>中间扩散是串联内部节点；NAND 下拉、NOR 上拉是典型</td></tr>
+      <tr><td>多指 MOS</td><td>同一 gate 网络多次跨 Active；还要追踪每指的两个扩散端</td><td>确认各指连接同一对源漏网络后，才可按提取规则合并 W；同栅不自动等于并联</td></tr>
+      <tr><td>串联堆叠</td><td>多个沟道通过中间扩散依次相接，中间段常无 Contact</td><td>中间扩散是串联内部节点；栅可以同网或不同网，串联关系由源漏连接决定</td></tr>
       <tr><td>并联网络</td><td>多个 gate 控制的支路最终接到同一对网络，可能折指或由 M1 汇合</td><td>不能只看 Active 是否连成一条；必须用 Contact/M1 证明两端同网</td></tr>
       <tr><td>源漏共享</td><td>两只同类型 MOS 相邻，中间只保留一段公共扩散</td><td>CDL 中相邻端必须是同一节点；共享减少面积，也改变结电容/电阻</td></tr>
       <tr><td>扩散断开</td><td>两块 Active 之间有真实间隙</td><td>即使 M1 从上方跨过也不自动连通；需要各自 Contact 和金属连接</td></tr>
@@ -117,7 +117,18 @@ Body 不在这条横线里：它由 P-well/N-well 和 tap 网络决定</code></p
 
   <p id="physical-cells">本主题已独立成章：<a href="cells-physical.html#physical-cells">常量、填充、天线与 tap：没有真值表也是一种答案</a>。原图、真值表均保留，并补充逐步分析与练习。</p>
 
-  <h2 id="section-3">11.3 全库单元族覆盖清单</h2>
+  <h2 id="evidence-example">12.3 先填好一行证据，再进入全库图谱</h2>
+  <p>你已经读懂 NAND/NOR，不必在这里背下 51 个功能族。先把“我看出来了”转成可以交叉核对的记录。以下以 <code>INV_X1</code> 的 NMOS 为例，网表字段已经填好；版图坐标由你在 KLayout 中记录，不能把示意图像素当作几何测量。</p>
+  <table><thead><tr><th>问题</th><th>已知证据</th><th>还需在版图确认</th></tr></thead><tbody>
+  <tr><td>哪只器件？</td><td>CDL <code>M_i_0</code>，模型 NMOS_VTL</td><td>Poly 与 NMOS Active 的交叠；井/注入条件与器件类型</td></tr>
+  <tr><td>栅接哪里？</td><td>G=A</td><td>沟道上的 Poly → 合法 Contact → A 的 M1 形状</td></tr>
+  <tr><td>两个扩散端接哪里？</td><td>D=ZN、S=VSS</td><td>一端经 Contact 接 ZN，另一端接 VSS；不要按左右位置猜 D/S</td></tr>
+  <tr><td>体端接哪里？</td><td>B=VSS</td><td>按 well/substrate 与 tap 检查，不把源极 Contact 当作自动体接触</td></tr>
+  <tr><td>尺寸是多少？</td><td>W=0.415 µm、L=0.050 µm</td><td>量对应沟道方向；多指时还须确认并联与提取归并方式</td></tr>
+  </tbody></table>
+  <p>再把同样五问用于 NAND2：每次只处理一只管、一个中间网。等进入 DFF/FA 时仍用同一张表，只是先按功能块分组。<strong>图谱是索引，不是要求你在入口章立刻读懂所有复杂电路。</strong></p>
+
+  <h2 id="section-3">12.4 全库单元族覆盖清单</h2>
   <p>下表是本地 CDL 的全部基础族。每行的功能/状态表已移到对应独立章节；同族 X 后缀变体共享功能，物理与时序参数另查各变体。</p>
   <table>
     <thead><tr><th>类别</th><th>基础族与本地变体</th><th>功能表位置</th></tr></thead>
@@ -138,7 +149,7 @@ Body 不在这条横线里：它由 P-well/N-well 和 tap 网络决定</code></p
     </tbody>
   </table>
 
-  <h2 id="section-4">11.4 版图与 CDL 一致性：不要把“长得像”当作 LVS</h2>
+  <h2 id="section-4">12.5 版图与 CDL 一致性：不要把“长得像”当作 LVS</h2>
   <p>手工读图的目标是建立直觉和定位错误，不是替代提取器。建议对每个代表单元填写：</p>
   <table>
     <thead><tr><th>检查项</th><th>从 GDS 得到</th><th>与 CDL 比较</th></tr></thead>
@@ -152,7 +163,7 @@ Body 不在这条横线里：它由 P-well/N-well 和 tap 网络决定</code></p
   </table>
   <p>源漏共享只说明相邻 MOS 可共用一段连续扩散；它不自动证明共享段属于正确网络。先从 CDL 找共同节点，再确认两栅之间的 Active 确实连续，没有真实的扩散断开或隔离。Contact 不会切断扩散；它把该段引到金属，因此还要检查接出的金属有没有误接到别的网络。</p>
 
-  <h2 id="section-5">11.5 重现本章截图</h2>
+  <h2 id="section-5">12.6 重现本章截图</h2>
   <p>版图截图由 KLayout 直接打开逐单元 GDS：</p>
   <pre><code>QT_QPA_PLATFORM=offscreen klayout -z -nc -rx \
   -l examples/FreePDK45/freepdk45.lyp \
@@ -168,7 +179,8 @@ QT_QPA_PLATFORM=offscreen python3 \
   <p>图像是认知辅助，不是电气证明。OpenSchematic 对静态 CMOS、传输结构和时序单元会采用不同识别/回退布局；线画得整齐不代表已通过 LVS。</p>
 
   <div class="lab">
-    <strong>本章必做一：从需求选单元</strong>
+    <strong>综合选学：学完后续单元族后，再从需求选单元</strong>
+    <p>本章首次阅读不要求完成下面全部题目。第 1 题可先尝试；MUX/比较、加法器、三态和寄存器题分别在后续专题学完后回来做。当前必做任务是下一组 NAND/NOR 逐层证据练习。</p>
     <ol>
       <li>写出 <code>fire=valid·ready</code> 和低有效 <code>fire_n</code> 的候选单元，并说明为什么综合器可能选择不同形式。</li>
       <li>设计“load=0 保持 Q，load=1 装入 D”的一位寄存器，指出 MUX 与 DFF 分别负责什么。</li>
@@ -176,16 +188,17 @@ QT_QPA_PLATFORM=offscreen python3 \
       <li>解释 8 位串行进位加法器中 CI→CO 为什么会成为关键路径，以及更大驱动不一定能彻底解决什么问题。</li>
       <li>列出双 TBUF 共享总线的合法、浮空、争用三种状态，再说明用 MUX2 替代后的差别。</li>
     </ol>
-    <details><summary>参考思路</summary><p>fire 可用 AND2，fire_n 可用 NAND2，但综合会结合后级极性、负载、时序和可用复合门重构。MUX 只选择旧值/新值，DFF 才在时钟沿保存状态。逐位 XNOR 后做 AND 可表达相等，但工具可能平衡门树或用 AOI/OAI 及反相极性。串行进位必须逐级传播，增大单元只能改善每级延迟，不能消除与位数相关的逻辑深度。两个三态驱动必须互斥且还要处理全关闭；MUX 始终给出确定的被选数据。</p></details>
+    <details><summary>参考思路</summary><p>fire 可用 AND2，fire_n 可用 NAND2，但综合会结合后级极性、负载、时序和可用复合门重构。MUX 只选择旧值/新值，DFF 才在时钟沿保存状态。逐位 XNOR 后做 AND 可表达相等，但工具可能平衡门树或用 AOI/OAI 及反相极性。串行进位必须逐级传播，增大单元只能改善每级延迟，不能消除与位数相关的逻辑深度。两个三态驱动必须互斥且还要处理全关闭；普通静态 MUX 在输入有效且稳定后输出被选数据，不主动提供三态总线的高阻模式。</p></details>
   </div>
 
   <div class="lab">
-    <strong>本章必做二：三张透明纸</strong>
+    <strong>本章必做：三张透明纸</strong>
     <p>选择 NAND2_X1。第一张只描 Active/Poly 并给每个交叠编号；第二张按 CDL 写每只 MOS 的 D/G/S/B；第三张只画网络节点。把三张叠起来，解释哪一段是串联中点、哪一段发生源漏共享、为什么输出 Contact 在那一侧。完成后用 NOR2_X1 复做一次。</p>
   </div>
 
   <div class="checkpoint">
     <strong>本章检查点</strong>
+    <p>首次阅读完成第 1、5 题；第 2～4 题涉及后续三态、复合门和锁存器，学完对应章再回看，不把它们作为进入下一章的门槛。</p>
     <ol>
       <li>为什么 Poly 跨 Active 才是 MOS，而 Poly 上的 Contact 不是 MOS？</li>
       <li>为什么 TINV/TBUF 的 <code>*.EQN</code> 不能作为完整真值表？</li>
@@ -197,8 +210,8 @@ QT_QPA_PLATFORM=offscreen python3 \
   </div>
 
   <div class="source-note"><strong>数据依据：</strong><code>NangateOpenCellLibrary.cdl</code> 的端口、方程和 MOS 实例；逐单元 GDS；<code>layer.inc</code> 层号。三态、锁存、时钟门和异步控制的表来自对应晶体管拓扑的逻辑分析；用于实际设计前还应与 Liberty、SPICE 仿真和目标 PDK LVS 交叉验证。</div>
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter8.html">← 第 10 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-basic.html">第 12 章 →</a></nav>
-  <footer>第 11 章　FreePDK45 图谱入口与 MOS 识读 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter8.html">← 第 11 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-basic.html">第 13 章 →</a></nav>
+  <footer>第 12 章　FreePDK45 图谱入口与 MOS 识读 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

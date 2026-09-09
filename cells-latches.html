@@ -1,13 +1,14 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 16 章　锁存器、反馈与透明窗口</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-arithmetic.html">← 第 15 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-sequential.html">第 17 章 →</a></nav><h1>第 16 章　锁存器、反馈与透明窗口</h1><p class="subtitle">输入不变时输出可以依赖过去：从组合逻辑进入状态电路</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 17 章　锁存器、反馈与透明窗口</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-arithmetic.html">← 第 16 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-sequential.html">第 18 章 →</a></nav><h1>第 17 章　锁存器、反馈与透明窗口</h1><p class="subtitle">输入不变时输出可以依赖过去：从组合逻辑进入状态电路</p>
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="cells-arithmetic.html">半加器、全加器与进位链</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="transmission-gates.html">理解透明、反馈与保持</a>；<a href="cells-select.html">能读受控反相器</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能按 G 的相位计算 Q 并说明反馈如何保持。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>完成带时间顺序的 DLH/DLL 状态表。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#latch-cells">锁存器：真值表要带“上一状态”</a></li><li><a href="#section-2">一个反馈环怎样记住 0 或 1</a></li><li><a href="#section-3">时间顺序比单独的一行真值表更重要</a></li><li><a href="#section-4">为什么关闭窗口附近会有建立/保持要求</a></li><li><a href="#section-5">TLAT 的存储状态和输出使能是两件事</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#latch-cells">锁存器：真值表要带“上一状态”</a></li><li><a href="#section-2">一个反馈环怎样记住 0 或 1</a></li><li><a href="#dlh-cdl-blocks">把真实 DLH_X1 的 16 只管分成六组</a></li><li><a href="#section-3">时间顺序比单独的一行真值表更重要</a></li><li><a href="#section-4">为什么关闭窗口附近会有建立/保持要求</a></li><li><a href="#section-5">TLAT 的存储状态和输出使能是两件事</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="latch-cells">16.1 锁存器：真值表要带“上一状态”</h2>
+<h2 id="latch-cells">17.1 锁存器：真值表要带“上一状态”</h2>
+  <p>本章压缩表中的 <code>X</code> 表示该输入可取 0 或 1、不会影响该行结论（don't care），不是在模拟输入未知时的完整行为；未知电平的 X 传播需另读库仿真模型。<code>Q(previous)</code> 则是已经保存的旧状态，不能擅自假定上电就是 0。</p>
   <table>
     <thead><tr><th>单元</th><th>透明条件</th><th>关闭时</th><th>典型应用</th><th>额外能力/风险</th></tr></thead>
     <tbody>
@@ -39,15 +40,28 @@
   <p>锁存流水线允许一段组合逻辑在接收锁存器透明窗口内继续到达，常称“借时间”；借到的时间会减少后续阶段的余量，并不是免费增加周期。应用还包括两相非重叠时钟流水线、无毛刺时钟门中的使能保存，以及特定低功耗/接口结构。初学者写 HDL 时如果组合过程没有覆盖所有赋值分支，也可能<strong>意外推断出锁存器</strong>；这和有意识使用 DLH/DLL 是两回事。</p>
   <div class="callout warn"><strong>时序检查：</strong>D 必须在锁存器关闭边界附近满足建立/保持要求；G/GN 本身也是时序敏感信号。锁存器具有透明区间，静态时序分析不能把它当作普通 DFF 的单一采样边沿。</div>
   <div class="figure-grid">
-    <figure class="diagram"><a href="assets/freepdk45/dlh_x1-layout.png"><img src="assets/freepdk45/dlh_x1-layout.png" alt="DLH_X1 版图"></a><figcaption>DLH_X1 版图：输入门控、保持反馈与输出缓冲共同占据多个扩散段。</figcaption></figure>
-    <figure class="diagram"><a href="assets/freepdk45/dlh_x1-schematic.png"><img src="assets/freepdk45/dlh_x1-schematic.png" alt="DLH_X1 电路图"></a><figcaption>DLH_X1 电路图。识读时先找 G 的反相、输入通路、反馈保持，再找输出反相器。</figcaption></figure>
+    <figure class="diagram figure-wide"><a href="assets/freepdk45/dlh_x1-layout.png"><img src="assets/freepdk45/dlh_x1-layout.png" alt="DLH_X1 版图"></a><figcaption>DLH_X1 版图：输入门控、保持反馈与输出缓冲共同占据多个扩散段。为便于逐网追踪，本图独占一行。</figcaption></figure>
+    <figure class="diagram figure-wide"><a href="assets/freepdk45/dlh_x1-schematic.png"><img src="assets/freepdk45/dlh_x1-schematic.png" alt="DLH_X1 电路图"></a><figcaption>DLH_X1 电路图，独占一行。识读时对照下文六组管名，先找 G 的反相、输入通路、反馈保持，再找输出反相器。</figcaption></figure>
   </div>
 
 
-<h2 id="section-2">16.2 一个反馈环怎样记住 0 或 1</h2>
+<h2 id="section-2">17.2 一个反馈环怎样记住 0 或 1</h2>
 <p>两个反相器首尾相接，在正常供电和合适器件条件下有两个稳定逻辑状态：一个节点为 1、另一个为 0，或反过来。关闭输入通路并保持反馈时，节点偏离会通过增益和反馈被拉回原状态。它不是一个理想、永不丢电的盒子，电源关闭、噪声、竞争和模拟不稳定都可能破坏状态。</p>
-<p>如果输入通路打开、反馈通路关闭，外部 D 可以改变内部状态；当输入关闭、反馈接回，状态被保存。这是用传输门/受控反相器理解锁存器的基本相位图。具体 DLH 的晶体管数和网络必须看本库 CDL，不能强制套成某个固定六管或八管模板。</p>
-<h2 id="section-3">16.3 时间顺序比单独的一行真值表更重要</h2>
+<p>如果输入通路打开、反馈通路关闭，外部 D 可以改变内部状态；当输入关闭、反馈接回，状态被保存。这是用传输门/受控反相器理解锁存器的基本相位图。若对反馈还不熟，先重做<a href="transmission-gates.html#latch">传输门基础章的静态锁存器电路与波形实验</a>。具体 DLH 的晶体管数和网络必须看本库 CDL，不能强制套成某个固定六管或八管模板。</p>
+<h2 id="dlh-cdl-blocks">17.3 把真实 DLH_X1 的 16 只管分成六组</h2>
+<p>对照上方原理图及<a href="examples/FreePDK45/NangateOpenCellLibrary.cdl">DLH_X1 的 CDL</a>。为方便叙述，下面给内部网取短称：<code>GB=net_000</code>、<code>Gd=net_001</code>、<code>N=net_003</code>、<code>F=net_005</code>。这些是阅读别名，不是修改网表；稳态有 GB=!G、Gd=G，转换瞬间却有真实延迟。</p>
+<table><thead><tr><th>功能组</th><th>实际 MOS 名称</th><th>端子追踪结果</th></tr></thead><tbody>
+<tr><td>控制反相</td><td>M_i_0 / M_i_48</td><td>G 接两栅，输出 GB=!G</td></tr>
+<tr><td>再反相并驱动控制</td><td>M_i_7 / M_i_55</td><td>GB 接两栅，输出 Gd=!GB</td></tr>
+<tr><td>输入受控反相器</td><td>M_i_13 / M_i_18 / M_i_61 / M_i_66</td><td>数据管栅接 D，串联使能管栅接 Gd/GB；G=1 时把 N 驱动为 !D</td></tr>
+<tr><td>反馈反相器</td><td>M_i_34 / M_i_82</td><td>N 接两栅，输出 F=!N</td></tr>
+<tr><td>反馈受控反相器</td><td>M_i_24 / M_i_28 / M_i_72 / M_i_76</td><td>数据管栅接 F，使能管栅接 GB/Gd；G=0 时把 N 驱动为 !F</td></tr>
+<tr><td>输出反相器</td><td>M_i_41_11 / M_i_89_4</td><td>N 接两栅，输出 Q=!N；将外部负载与反馈输出 F 分开</td></tr>
+</tbody></table>
+<p>在透明相 G=1，输入级有效、反馈受控级关闭：D=1 → N=0 → F=1、Q=1。G 降为 0 且满足时序要求后，输入级关闭、反馈级有效：F=1 → N=0，N=0 → F=1，原状态被维持；此时即使 D 改为 0，不能通过已关闭的输入级写入 N。</p>
+<p><strong>这份 DLH 使用受控反相器构成输入和反馈通路。</strong>它与第 8 章“TG 加反相器”的教学锁存器共享相位与存储原理，但不是把教学图的每一个 TG 直接对应到这 16 只管。读图时先找两条电源驱动链，再判断使能，才不会把相邻的一对 P/N 管都叫传输门。</p>
+<details><summary>练习：G=1、D=0 写入后关 G，N/F/Q 各是什么？再改 D=1 呢？</summary><p>写入后 N=1、F=0、Q=0；关闭后反馈维持 N=!F=1，D 改为 1 也不改变已存状态。直到下一次合法透明窗口才重新接收输入。上述结论以正常供电和足够稳定时间为前提。</p></details>
+<h2 id="section-3">17.4 时间顺序比单独的一行真值表更重要</h2>
 <p>以下使用高电平透明的 DLH，并假定第一步已经建立 Q=0。表中 Q 是传播延迟过后的稳定值，不把门延迟画成零。</p>
 <table><thead><tr><th>时刻/动作</th><th>G</th><th>D</th><th>Q 稳定后</th><th>解释</th></tr></thead><tbody>
 <tr><td>t0：透明，先写 0</td><td>1</td><td>0</td><td>0</td><td>输入通路允许 D 改变存储节点</td></tr>
@@ -57,12 +71,13 @@
 <tr><td>t4：重新透明</td><td>1</td><td>0</td><td>0</td><td>现在才更新为新的 D</td></tr>
 </tbody></table>
 <p>DLL 的低有效透明控制把窗口反过来：GN=0 时跟随，GN=1 时保持。不要看见信号名带 N 就自行把输出也取反；控制极性和数据极性是两个独立问题。</p>
-<h2 id="section-4">16.4 为什么关闭窗口附近会有建立/保持要求</h2>
+<h2 id="section-4">17.5 为什么关闭窗口附近会有建立/保持要求</h2>
 <p>输入通路不会瞬间关闭，内部反馈也不会瞬间稳定。如果 D 在关闭时刻附近变化，内部节点可能还没被推到可靠的一侧，导致输出响应很晚甚至出现亚稳态。建立时间要求 D 在相关关闭事件之前稳定足够久，保持时间要求它在之后继续稳定一段时间。具体正负数值和测量准则要由表征确定，不能用一个固定“前后各 10 ps”套所有单元。</p>
-<p>锁存器透明阶段允许数据借用窗口内的一部分时间，这是 time borrowing 的直觉入口；但它增加时序分析复杂度，也有 race-through 风险。这里只建立概念，不把锁存器当成可以无约束代替 DFF 的优化技巧。</p>
-<h2 id="section-5">16.5 TLAT 的存储状态和输出使能是两件事</h2>
+<p>用时间数字理解“借时间”：教学接收锁存器在 5～10 ns 透明，关闭前需留 0.2 ns 建立时间，故数据最迟 9.8 ns 到达。数据若在 6 ns 才到，虽然晚于开窗时刻 5 ns，仍可在该窗口接收；相对于开窗边界借用了约 1 ns。若到达时间变为 9.9 ns，就不能保证本次正确保存。这个例子忽略时钟偏差和其他延迟，仅用来说明可用窗口；真实 STA 要按整条锁存流水线计算，借来的时间会压缩后续阶段余量。</p>
+<p><code>race-through</code> 是另一件事：两级相连的高透明锁存器同时开窗，数据可能在同一个窗口连续穿过两级，而没有实现“每级隔开一个时序阶段”。它不是电流争用的同义词。两相时钟、非重叠时间与最小延迟要求正是为管理这些风险，不能简单把 DFF 都换成锁存器。</p>
+<h2 id="section-5">17.6 TLAT 的存储状态和输出使能是两件事</h2>
 <p>本库 TLAT 还带输出使能。用 <code>Qstored</code> 表示内部已存状态、Q 表示输出端：输出关闭时 Q 可以为 Z，而 Qstored 仍由存储环保持。打开输出不会凭空创造新的数据，应该读出已存状态；是否同时透明则由 G 决定。</p>
 <table><thead><tr><th>操作意图</th><th>需要检查</th><th>常见误解</th></tr></thead><tbody><tr><td>写入新值</td><td>透明控制及关闭前后的时序要求</td><td>以为输出使能 OE 可以代替写使能</td></tr><tr><td>暂不驱动总线</td><td>输出使能及其他总线驱动器</td><td>以为高阻就把内部存储清零</td></tr><tr><td>读回旧值</td><td>内部状态已初始化、输出已使能</td><td>未初始化就把仿真未知 X 解释为硬件损坏</td></tr></tbody></table>
 <div class="checkpoint"><strong>练习</strong><ol><li>按上面的五步，把 DLH 换成 DLL，并反转透明控制，重写 Q 序列。</li><li>为什么给无复位锁存器只打一段“保持”激励，未必能获得已知输出？</li><li>TLAT 输出高阻是否代表它的反馈环停止存储？</li></ol><details><summary>答案</summary><p>① GN 序列为 0、0、1、1、0，Q 仍为 0、1、1、1、0。② 没有先经过合法透明窗口写入确定数据，过去状态可能未知。③ 不代表；输出驱动权和内部存储分别控制，需核对具体功能表。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="cells-arithmetic.html">← 第 15 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-sequential.html">第 17 章 →</a></nav><footer>第 16 章　锁存器、反馈与透明窗口 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="cells-arithmetic.html">← 第 16 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-sequential.html">第 18 章 →</a></nav><footer>第 17 章　锁存器、反馈与透明窗口 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

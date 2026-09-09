@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 27 章　新工艺迁移毕业项目</title>
+  <title>第 28 章　新工艺迁移毕业项目</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="source-lab.html">← 第 26 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="porting-lab.html">第 28 章 →</a></nav>
-  <h1>第 27 章　新工艺迁移毕业项目</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="source-lab.html">← 第 27 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="porting-lab.html">第 29 章 →</a></nav>
+  <h1>第 28 章　新工艺迁移毕业项目</h1>
   <p class="subtitle">从 PDK 盘点到可重复生成，不用“换层号就算移植”</p>
 
   <div class="objectives">
@@ -23,18 +23,18 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="source-lab.html">真实源码补丁：显式 MOS 模型映射</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="chapter8.html">区分物理验证范围</a>；<a href="chapter14.html">理解技术适配</a>；<a href="source-lab.html">会保留补丁与负例证据</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>已有包含器件/规则/视图/外部验证的迁移矩阵。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>完成分阶段准入标准，而不只列工具名称。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">先定义“迁移完成”</a></li><li><a href="#section-2">阶段 0：冻结输入与许可边界</a></li><li><a href="#section-3">阶段 1：PDK 资料清点</a></li><li><a href="#section-4">阶段 2：建立能力矩阵</a></li><li><a href="#section-5">阶段 3：先定标准单元架构</a></li><li><a href="#section-6">阶段 4：建立技术适配骨架</a></li><li><a href="#section-7">阶段 5：由小到大的逐级打通</a></li><li><a href="#section-8">阶段 6：最小回归用例集</a></li><li><a href="#section-9">阶段 7：边界和行级测试</a></li><li><a href="#section-10">迁移交付物</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">27.1 先定义“迁移完成”</h2>
+<h2 id="section-1">28.1 先定义“迁移完成”</h2>
   <p>本教程的毕业目标不是“LibreCell 对新工艺跑完一次”，而是：</p>
   <blockquote>在固定 PDK、验证规则文件（deck）、工具、LibreCell 提交和环境下，可重复地从受控晶体管网表生成目标单元；所有层/器件/网络/单位可追踪；通过外部 DRC/LVS/ERC/PEX、边界拼接和 P&amp;R 冒烟测试；输出视图一致；未支持能力有明确阻断或风险说明。</blockquote>
   <p>如果 PDK 本身不允许自动生成、缺少授权验证规则文件或不能把验证结果保存到项目环境中，应停在能力评估阶段，不得把教学结果标记为可制造。</p>
 
-  <h2 id="section-2">27.2 阶段 0：冻结输入与许可边界</h2>
+  <h2 id="section-2">28.2 阶段 0：冻结输入与许可边界</h2>
   <table>
     <thead><tr><th>对象</th><th>必须记录</th></tr></thead>
     <tbody>
@@ -47,7 +47,7 @@
   </table>
   <div class="callout warn"><strong>不要把受限 PDK、厂商应用资料或 deck 提交到公开教程仓库。</strong>公开代码只保存接口、规则 ID、hash/版本与不含专有数值的测试框架；私有配置在受控环境中管理。</div>
 
-  <h2 id="section-3">27.3 阶段 1：PDK 资料清点</h2>
+  <h2 id="section-3">28.3 阶段 1：PDK 资料清点</h2>
   <ol class="steps">
     <li><strong>层：</strong>制造层、purpose、GDS map、pin/label、派生层、器件 marker、boundary。</li>
     <li><strong>器件：</strong>NMOS/PMOS/Vt/电压类型、D/G/S/B、model 名、W/L/nf/m、tap/well。</li>
@@ -58,7 +58,7 @@
   </ol>
   <p>给每项一个权威 source 与 rule ID。不要用“类似某开放工艺”填空。</p>
 
-  <h2 id="section-4">27.4 阶段 2：建立能力矩阵</h2>
+  <h2 id="section-4">28.4 阶段 2：建立能力矩阵</h2>
   <table>
     <thead><tr><th>等级</th><th>判定</th><th>行动</th></tr></thead>
     <tbody>
@@ -69,8 +69,12 @@
     </tbody>
   </table>
   <p>矩阵至少覆盖：模型识别、内部层栈、器件提取、阱/衬底接触与体端、注入层/Vt、基本规则、条件规则、引脚/LEF、外部 DRC/LVS/PEX、特征化、特殊物理单元。</p>
+  <h3>填一份有内容的矩阵，而不是所有行写“待完善”</h3>
+  <p>以下<strong>虚构迁移项目</strong>只做固定 L、单电压平面 CMOS，首批 INV/NAND/NOR，要求额外 Vt 标记层。这不是某个真实 PDK 已通过的报告，目的是示范怎样把需求变成实现落点、证据和放行条件。</p>
+  <table><thead><tr><th>需求</th><th>初判</th><th>最小行动</th><th>允许进入下一阶段所需证据</th></tr></thead><tbody><tr><td>CORE_NFET/PFET 模型名</td><td>B：解析接口需扩展</td><td>显式映射并从 tech 传入主入口</td><td>正确类型/未知名称/大小写负例；不是只改 GDS 层号</td></tr><tr><td>只允许一个 L</td><td>B：输入校验不足</td><td>读取 L 并拒绝不匹配值</td><td>合法值通过、非法值在生成前拒绝；GDS 量测与提取比较一致</td></tr><tr><td>已有互连拓扑，仅包围量改变</td><td>A，需验证表达范围</td><td>配置规则并生成最小正例/负例</td><td>旧形状失败、新形状通过，邻近金属不新增违规</td></tr><tr><td>额外 Vt 标记不是井的简单复制</td><td>B：局部几何扩展</td><td>按器件区域生成标记，并联动提取识别</td><td>混合器件例子不会误覆盖；DRC/LVS 识别目标模型</td></tr><tr><td>只有厂商私有格式 PEX deck，本地工具无法执行</td><td>D：该验证路径阻断</td><td>确认是否有授权且经过验证的开源提取方案</td><td>方案未落实前，保留“未验证”，不得发布提取后时序结论</td></tr></tbody></table>
+  <p>这个项目可以继续做已获授权的解析与几何探索，但“能继续研究”和“能发布可制造库”是两个门槛。必要验证受阻时可以缩小交付为研究原型并明确范围，不能把缺项写成 PASS。也不能未经许可把专有 deck 上传外部服务换取检查。</p>
 
-  <h2 id="section-5">27.5 阶段 3：先定标准单元架构</h2>
+  <h2 id="section-5">28.5 阶段 3：先定标准单元架构</h2>
   <p>架构文档必须给出并说明理由：</p>
   <ul>
     <li>DBU、manufacturing grid、site width、cell height/track 数；</li>
@@ -83,7 +87,7 @@
   </ul>
   <p>不要直接用 PDK 最小规则拼出最低高度。先对 INV/NAND/NOR 做手工或脚本化可行性研究，确认晶体管、接触孔、至少一条内部走线和引脚接入点能共存。</p>
 
-  <h2 id="section-6">27.6 阶段 4：建立技术适配骨架</h2>
+  <h2 id="section-6">28.6 阶段 4：建立技术适配骨架</h2>
   <ol>
     <li>从 <code>dummy_tech.py</code> 复制结构到私有适配目录，立即删除/替换所有 dummy 数值。</li>
     <li>先实现 DBU、输出映射和输出模块，生成仅含边界/测试矩形的分层冒烟测试 GDS。</li>
@@ -93,7 +97,7 @@
     <li>把每个 DRM rule ID 映射到：生成约束、外部 deck 检查或已知 unsupported。</li>
   </ol>
 
-  <h2 id="section-7">27.7 阶段 5：由小到大的逐级打通</h2>
+  <h2 id="section-7">28.7 阶段 5：由小到大的逐级打通</h2>
   <table>
     <thead><tr><th>关卡</th><th>输入</th><th>必须证明</th></tr></thead>
     <tbody>
@@ -101,14 +105,14 @@
       <tr><td>器件测试结构</td><td>单 NMOS、单 PMOS、阱/衬底接触、接触孔/通孔链</td><td>外部提取的器件类型、D/G/S/B 和 W/L 正确，基础 DRC 无违规</td></tr>
       <tr><td>INV</td><td>2T</td><td>完整流水线、信号/电源引脚、LVS/PEX、首次 LEF/GDS 叠图检查</td></tr>
       <tr><td>NAND2/NOR2</td><td>4T</td><td>串并联、共享扩散区、内部网络、共同栅顺序</td></tr>
-      <tr><td>AOI/OAI</td><td>6T+</td><td>分支网络、无简单共同 Euler 顺序、布线压力</td></tr>
+      <tr><td>AOI/OAI</td><td>6T+</td><td>分支网络与布线压力；另选并证明无共同 Euler 顺序的专门反例，不假定所有 AOI/OAI 都如此</td></tr>
       <tr><td>MUX/XOR/宽驱动</td><td>复杂/多指</td><td>模型假设、折叠、引脚可接入性、拥塞与寄生</td></tr>
       <tr><td>顺序/物理单元</td><td>DFF、filler、tap、endcap</td><td>时序 arc、边界职责和 row 集成</td></tr>
     </tbody>
   </table>
   <p>每一关都要保存参考原理图、版图、外部 DRC/LVS/PEX 结果和预期失败测试。上一关未通过，不扩大单元用例集。</p>
 
-  <h2 id="section-8">27.8 阶段 6：最小回归用例集</h2>
+  <h2 id="section-8">28.8 阶段 6：最小回归用例集</h2>
   <p>回归不能只跑“当前能成功的单元”。至少包含：</p>
   <ul>
     <li>INVX1：单位、最小结构；</li>
@@ -122,13 +126,13 @@
   </ul>
   <p>不要在批处理末尾用 <code>grep</code> 只显示成功项，也不要用 shell 逻辑吞掉退出码。生成清单必须明确标记 pass/fail/skipped 与原因。</p>
 
-  <h2 id="section-9">27.9 阶段 7：边界和行级测试</h2>
+  <h2 id="section-9">28.9 阶段 7：边界和行级测试</h2>
   <p>自动生成相邻拼接测试版图：</p>
   <pre><code>left_cell × right_cell × legal_orientation_pair
 逻辑/物理 cell 类别覆盖，而不是简单全量平方爆炸</code></pre>
   <p>检查 well/implant/active/metal/pin/boundary 在 cell edge 的 spacing、notch、max gap、continuity；再生成多 row 测试确认上下 VDD/VSS、MX 镜像、tap/endcap/filler 的组合。</p>
 
-  <h2 id="section-10">27.10 迁移交付物</h2>
+  <h2 id="section-10">28.10 迁移交付物</h2>
   <table>
     <thead><tr><th>交付</th><th>内容</th></tr></thead>
     <tbody>
@@ -155,8 +159,8 @@
     </ol>
   </div>
 
-  <nav class="bottom-nav" aria-label="全书导航"><a href="source-lab.html">← 第 26 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="porting-lab.html">第 28 章 →</a></nav>
-  <footer>第 27 章　新工艺迁移毕业项目 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="source-lab.html">← 第 27 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="porting-lab.html">第 29 章 →</a></nav>
+  <footer>第 28 章　新工艺迁移毕业项目 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

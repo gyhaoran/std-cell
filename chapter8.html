@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 10 章　DRC、LVS 与 PEX 可执行实验</title>
+  <title>第 11 章　DRC 实验与 LVS、PEX 入门</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter7.html">← 第 9 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter9.html">第 11 章 →</a></nav>
-  <h1>第 10 章　DRC、LVS 与 PEX 可执行实验</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter7.html">← 第 10 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter9.html">第 12 章 →</a></nav>
+  <h1>第 11 章　DRC 实验与 LVS、PEX 入门</h1>
   <p class="subtitle">不背规则缩写；从实际 GDS、单位、边和报告建立验证闭环</p>
 
   <div class="objectives">
@@ -24,13 +24,13 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter7.html">读懂 PDK 与设计规则</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
-<p><strong>快速跳过条件：</strong>能运行 fixture 并解释每类标记的测量对象。不能独立完成时，请按正文顺序学。</p>
+<p><strong>前置知识：</strong><a href="chapter7.html">理解 DBU、宽度、间距与包围</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>快速跳过条件：</strong>能运行 fixture，并区分几何、连通性和寄生问题。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>重现 7 个教学 DRC 标记，逐类记录修复方案。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">先分清四个问题</a></li><li><a href="#section-2">用本地 FreePDK45 做输入审计</a></li><li><a href="#section-3">从图形到规则：六个基本动作</a></li><li><a href="#section-4">批判性读本地 deck：四个真实案例</a></li><li><a href="#section-5">KLayout 可执行 DRC 实验</a></li><li><a href="#section-6">如果本机有 Calibre：用包装 deck 固定输入</a></li><li><a href="#section-7">如何从一千个 marker 找到一个根因</a></li><li><a href="#section-8">LVS 调试顺序</a></li><li><a href="#section-9">PEX 与库级拼接</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">先分清四个问题</a></li><li><a href="#section-2">用本地 FreePDK45 做输入审计</a></li><li><a href="#section-3">从图形到规则：六个基本动作</a></li><li><a href="#section-4">批判性读本地 deck：四个真实案例</a></li><li><a href="#section-5">KLayout 可执行 DRC 实验</a></li><li><a href="#section-6">如果本机有 Calibre：用包装 deck 固定输入</a></li><li><a href="#section-7">如何从一千个 marker 找到一个根因</a></li><li><a href="#lvs-connectivity-example">从两只管到 LVS：缺一个 Contact 会发生什么</a></li><li><a href="#section-8">LVS 调试顺序</a></li><li><a href="#pex-first-rc">PEX 为什么在 LVS 以后仍有工作要做</a></li><li><a href="#section-9">PEX 与库级拼接</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">10.1 先分清四个问题</h2>
+<h2 id="section-1">11.1 先分清四个问题</h2>
   <table>
     <thead><tr><th>检查</th><th>输入/比较对象</th><th>主要发现</th><th>不能单独证明</th></tr></thead>
     <tbody>
@@ -46,7 +46,7 @@
              ERC 可在提取网络上并行/穿插执行</code></pre>
   <p>删除一只 Via 可能留下完全合法的几何，因此 DRC 可通过而 LVS 报开路；两块不同网络的 M1 太近则可能 DRC 先报间距。先判断问题属于<strong>几何</strong>还是<strong>连接</strong>，调试才不会乱。</p>
 
-  <h2 id="section-2">10.2 用本地 FreePDK45 做输入审计</h2>
+  <h2 id="section-2">11.2 用本地 FreePDK45 做输入审计</h2>
   <p>本章的事实来自 <code>examples/FreePDK45</code>，而不是参考教程中写下的二手结论。先看四类文件：</p>
   <table>
     <thead><tr><th>文件</th><th>回答的问题</th><th>本章用法</th></tr></thead>
@@ -83,7 +83,7 @@ print(ly.top_cell().dbbox())     # 以 μm 表示的边界框
 PY</code></pre>
   <p>而 deck 中 <code>Grid.*</code> 的注释写“2.5 nm grid”，表达式却是 <code>OFFGRID ... 5 5</code>，同时又启用了 <code>LAYOUT USE DATABASE PRECISION YES</code>。按该 GDS 的数据库精度，5 DBU 是 0.5 nm，并非 2.5 nm。这不是让你替 PDK 猜一个答案，而是提醒：<strong>注释、deck 语义、运行选项与输入数据库必须通过工具结果和原始工艺文档共同确认。</strong></p>
 
-  <h2 id="section-3">10.3 从图形到规则：六个基本动作</h2>
+  <h2 id="section-3">11.3 从图形到规则：六个基本动作</h2>
   <table>
     <thead><tr><th>几何问题</th><th>SVRF 例子</th><th>读法</th><th>常见根因</th></tr></thead>
     <tbody>
@@ -116,7 +116,7 @@ CONNECT metal2 metal1 BY via1
 NET AREA RATIO metal1 poly gate diode &gt; 300 ...</code></pre>
   <p>天线检查需要先构造网络，再比较制造阶段中连接到 gate 的导体面积与栅面积。规则还可能考虑保护二极管、累积层级和工艺顺序。它不能靠“最长导线是多少”替代，且不同工艺的累计模型不可照搬。</p>
 
-  <h2 id="section-4">10.4 批判性读本地 deck：四个真实案例</h2>
+  <h2 id="section-4">11.4 批判性读本地 deck：四个真实案例</h2>
   <table>
     <thead><tr><th>位置</th><th>观察</th><th>应采取的动作</th></tr></thead>
     <tbody>
@@ -128,7 +128,7 @@ NET AREA RATIO metal1 poly gate diode &gt; 300 ...</code></pre>
   </table>
   <div class="callout danger"><strong>结论：</strong>这套开放文件适合教学和工具实验，但不能因名字里有 FreePDK45 或 Calibre 就自动获得“可投片签核 deck”的地位。工艺迁移的签核依据必须由 PDK/foundry 明确指定，并锁定版本、选项和 waiver。</div>
 
-  <h2 id="section-5">10.5 KLayout 可执行 DRC 实验</h2>
+  <h2 id="section-5">11.5 KLayout 可执行 DRC 实验</h2>
   <p>仓库提供两个可复现文件：</p>
   <ul>
     <li><code>examples/FreePDK45/klayout/make_drc_fixture.rb</code>：生成故意含错的 GDS；</li>
@@ -160,7 +160,7 @@ klayout /tmp/freepdk45-drc-fixture.gds \
   </ol>
   <div class="callout warn"><strong>为什么只翻译子集：</strong>教学脚本刻意没有声称等价翻译 <code>RECTANGLE ENCLOSURE</code>、宽度相关边规则、OFFGRID 和天线规则。正确做法是为每个复杂语义建立双工具测试集，再比较 marker，而不是让相似的 API 名称制造虚假信心。</div>
 
-  <h2 id="section-6">10.6 如果本机有 Calibre：用包装 deck 固定输入</h2>
+  <h2 id="section-6">11.6 如果本机有 Calibre：用包装 deck 固定输入</h2>
   <p>本地 <code>calibreDRC.rul</code>主要是层与检查规则，没有在文件头固定你的 GDS 路径和 top cell。工程中通常建立包装文件（路径仅为示意）：</p>
   <pre><code>LAYOUT SYSTEM GDSII
 LAYOUT PATH "/absolute/path/INV_X1.gds"
@@ -171,7 +171,7 @@ INCLUDE "/absolute/path/calibreDRC.rul"</code></pre>
   <pre><code>calibre -drc /tmp/INV_X1-wrapper.rul</code></pre>
   <p>实际命令、许可证、结果格式与运行选项以安装版本和 PDK 文档为准。本教程当前环境未用 Calibre 执行这份 deck，因此不会把 KLayout 子集结果冒充 Calibre 结果。正式回归还应记录工具版本、deck checksum、宏定义、LAYOUT PRIMARY、层次/flat 选项、线程数和 waiver。</p>
 
-  <h2 id="section-7">10.7 如何从一千个 marker 找到一个根因</h2>
+  <h2 id="section-7">11.7 如何从一千个 marker 找到一个根因</h2>
   <ol>
     <li><strong>按 rule ID 和层聚类：</strong>先看有多少规则族，不按坐标随机点。</li>
     <li><strong>区分层次：</strong>单元内部、单元边界、实例拼接、顶层布线分别处理。</li>
@@ -182,7 +182,19 @@ INCLUDE "/absolute/path/calibreDRC.rul"</code></pre>
   </ol>
   <p>例如大量 Contact.4 通常不是逐孔手改，而是统一的接触孔 enclosure 参数、坐标舍入或 active 合并逻辑有问题。marker 是症状，生成器参数/算法才是根因。</p>
 
-  <h2 id="section-8">10.8 LVS 调试顺序</h2>
+  <h2 id="lvs-connectivity-example">11.8 从两只管到 LVS：缺一个 Contact 会发生什么</h2>
+  <p>你已能从 INV 版图认出两只 MOS，现在把肉眼追踪变成提取步骤。以下是工作原理示范，<strong>不是本教程已执行了 foundry LVS/PEX</strong>；本章可运行的部分是前面的 KLayout 教学 DRC。KLayout 的真实 LVS 流程可核对<a href="https://www.klayout.de/doc/manual/lvs_intro.html">官方 LVS 入门</a>。</p>
+  <ol><li>根据 Active、栅、井/注入等层识别 NMOS/PMOS；不是所有 Poly 都是器件。</li><li>按提取规则切分源漏区域、提取 W/L，并识别体端。</li><li>沿合法接触孔和金属连接合并网络，为 MOS 的 D/G/S/B 分配网络。</li><li>把提取后的器件网络与参考 CDL 比较；内部自动网名可以不同，拓扑和要求比较的参数必须等价。</li></ol>
+  <table><thead><tr><th>版图状态</th><th>参考网表期望</th><th>提取可能得到什么</th><th>应该怎么理解</th></tr></thead><tbody>
+  <tr><td>正确 INV</td><td>两只 MOS 的 D 都在 ZN</td><td>同一输出网络连接 PMOS D、NMOS D、ZN 端口</td><td>本项连通性匹配；仍须检查其他端口、器件参数与体端</td></tr>
+  <tr><td>输出支路唯一一个 Contact 缺失，且无替代连接</td><td>NMOS D 也应接 ZN</td><td>NMOS D 留在另一张孤立网络上</td><td>这是开路；图形可能都够宽，却连接不对</td></tr>
+  <tr><td>把 ZN 金属误接到 VSS</td><td>ZN 与 VSS 是两张不同网络</td><td>提取时合成同一网，输出被接地</td><td>这是短路；不靠把 net 名改回去修复</td></tr>
+  <tr><td>网络正确，但 NMOS W 从 0.415 变成 0.210 µm</td><td>指定器件尺寸</td><td>拓扑一样、器件参数不符</td><td>是否报错取决于 LVS 参数比较配置，不能只看管数相同</td></tr>
+  </tbody></table>
+  <p>同样，<strong>DRC 报告为空不是充分证据</strong>：先确认读到了目标 top、关键输入层非空、预期规则确实启用，且一个已知违规的负例会被抓到。把 input 层号写错，可能“零违规”只是检查了空图层。</p>
+  <details><summary>练习：LVS 报网名 net_17 与参考 net_0 不同，一定错吗？</summary><p>不一定。内部网名通常可以重命名匹配，关键是对应器件端子形成的网络是否一致；顶层端口如何对应则取决于 setup。应看比较报告的开路/短路/器件参数证据，不能只比较网名字符串。</p></details>
+
+  <h2 id="section-8">11.9 LVS 调试顺序</h2>
   <pre><code>参考 CDL ── 名称/参数规范化 ───────────────┐
                                            ├─ 图与器件比较 → 报告
 GDS ── 派生层 → 器件识别 → 网络提取 ─────┘</code></pre>
@@ -195,7 +207,12 @@ GDS ── 派生层 → 器件识别 → 网络提取 ─────┘</code>
   </ol>
   <div class="callout warn"><strong>LibreCell 内部 LVS 的边界：</strong><code>lclayout/lvs/lvs.py</code> 会丢弃第 4 个 body 端子，提取层能力也有限。它适合早期连接回归，不能代替目标 PDK 的外部 LVS/ERC。</div>
 
-  <h2 id="section-9">10.9 PEX 与库级拼接</h2>
+  <h2 id="pex-first-rc">11.10 PEX 为什么在 LVS 以后仍有工作要做</h2>
+  <p>参考 CDL 把 ZN 当作等电位的一根理想线。PEX 会把实际金属/接触孔的电阻、对地和耦合电容带入电路；一根网可能被分成多个经电阻相连的内部节点。这些新增节点不是凭空多出来的逻辑输入。</p>
+  <p>用单极点教学近似：输出等效电阻 2 kΩ、负载 10 fF，<code>RC=20 ps</code>，理想阶跃下 50% 响应时间约 <code>0.693RC=13.86 ps</code>。若附加寄生电容 5 fF，总电容 15 fF，则约为 20.79 ps。这里故意忽略晶体管非线性、输入 slew、分布电阻和耦合，<strong>只是解释方向，不是该 INV 的 PEX 测量</strong>。实际表征必须仿真提取网表。</p>
+  <p>LVS 主要回答“电路是否与参考对应”，PEX 回答“连接的非理想电气参数是什么”。这也是为什么通过 LVS 的版图，时序仍可能比原理图仿真慢。</p>
+
+  <h2 id="section-9">11.11 PEX 与库级拼接</h2>
   <p>PEX 应在连接已由 LVS 确认后进行。标准单元需要关注输出扩散/互连电容、输入栅与布线电容、内部节点电容、金属/扩散电阻和耦合；模型与 PVT corner 必须配套。</p>
   <p>单个 cell DRC clean 仍不够。真实 row 中存在紧密相邻和镜像，至少应覆盖：</p>
   <ul>
@@ -222,8 +239,8 @@ GDS ── 派生层 → 器件识别 → 网络提取 ─────┘</code>
   </div>
 
   <div class="source-note"><strong>本章依据：</strong>本地 <code>calibreDRC.rul</code>、<code>layer.inc</code>、FreePDK45 GDS/CDL，以及 <code>calibre_drc_tutorial.md</code> 中关于基本几何操作、派生层、可变间距和天线的可复用部分。未采用其中专有工艺内容、未经本地文件验证的数值结论和不严谨剖面示意。</div>
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter7.html">← 第 9 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter9.html">第 11 章 →</a></nav>
-  <footer>第 10 章　DRC、LVS 与 PEX 可执行实验 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter7.html">← 第 10 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter9.html">第 12 章 →</a></nav>
+  <footer>第 11 章　DRC 实验与 LVS、PEX 入门 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

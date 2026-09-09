@@ -1,13 +1,13 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 14 章　比较、选择、缓冲与三态单元</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-compound.html">← 第 13 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-arithmetic.html">第 15 章 →</a></nav><h1>第 14 章　比较、选择、缓冲与三态单元</h1><p class="subtitle">从“给输出一个确定值”扩展到选择路径与释放驱动权</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 15 章　比较、选择、缓冲与三态单元</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-compound.html">← 第 14 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-arithmetic.html">第 16 章 →</a></nav><h1>第 15 章　比较、选择、缓冲与三态单元</h1><p class="subtitle">从“给输出一个确定值”扩展到选择路径与释放驱动权</p>
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="cells-compound.html">AOI/OAI 复合门与逻辑映射</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="cells-basic.html">理解反相与缓冲</a>；<a href="transmission-gates.html">理解开关控制与高阻</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能区分 XOR、MUX、TG、TBUF 的功能与高阻。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>完成选择信号敏化和双驱动总线状态题。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#select-compare-buffer">XOR/XNOR、MUX2 与缓冲器</a></li><li><a href="#tristate">三态单元：Z 不是逻辑 0</a></li><li><a href="#section-3">四位比较、校验与条件取反：同一 XOR/XNOR 的三种用法</a></li><li><a href="#section-4">MUX 的数据弧与选择弧要分开测</a></li><li><a href="#section-5">传输门与 TBUF 为什么不是同一个东西</a></li><li><a href="#section-6">两只三态驱动器共享总线：把争用算出来</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#select-compare-buffer">XOR/XNOR、MUX2 与缓冲器</a></li><li><a href="#tristate">三态单元：Z 不是逻辑 0</a></li><li><a href="#section-3">四位比较、校验与条件取反：同一 XOR/XNOR 的三种用法</a></li><li><a href="#section-4">MUX 的数据弧与选择弧要分开测</a></li><li><a href="#section-5">传输门与 TBUF 为什么不是同一个东西</a></li><li><a href="#tinv-cdl-proof">从真实 CDL 证明 TINV 的低有效使能</a></li><li><a href="#section-6">两只三态驱动器共享总线：把争用算出来</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="select-compare-buffer">14.1 XOR/XNOR、MUX2 与缓冲器</h2>
+<h2 id="select-compare-buffer">15.1 XOR/XNOR、MUX2 与缓冲器</h2>
   <table>
     <thead><tr><th>子类</th><th>它真正回答的问题</th><th>本库成员</th><th>典型应用</th></tr></thead>
     <tbody>
@@ -64,12 +64,12 @@
   <p><strong>BUF 的三个常见用途：</strong>在长布线上中继以修复转换时间；隔离一个小门与许多后级输入；为后端工程师提供可调整的驱动级。<strong>CLKBUF</strong> 则用于时钟树分支和叶节点，目标不仅是“到得快”，还包括不同端点时钟到达差、上/下沿和占空比。不要因 Boolean 功能相同就随意互换两者。</p>
 
 
-  <h2 id="tristate">14.2 三态单元：Z 不是逻辑 0</h2>
+  <h2 id="tristate">15.2 三态单元：Z 不是逻辑 0</h2>
   <table>
     <thead><tr><th>这一类解决什么</th><th>本库成员</th><th>适合的场景</th><th>首要风险</th></tr></thead>
-    <tbody><tr><td>使输出在驱动 0、驱动 1 和完全断开之间切换</td><td>TINV_X1；TBUF_X1/X2/X4/X8/X16</td><td>受严格控制的共享总线、特定宏接口</td><td>两个驱动同时开启会争用；全部关闭会浮空；许多内部网络更适合 MUX</td></tr></tbody>
+    <tbody><tr><td>使输出在驱动 0、驱动 1 和高阻之间切换</td><td>TINV_X1；TBUF_X1/X2/X4/X8/X16</td><td>受严格控制的共享总线、特定宏接口</td><td>两个驱动同时开启会争用；全部关闭会浮空；许多内部网络更适合 MUX</td></tr></tbody>
   </table>
-  <p>高阻态 <code>Z</code> 表示输出级与电源/地都断开。它允许共享总线，但若没有其他驱动，节点会浮空。CDL 的 <code>*.EQN</code> 只写数据极性，无法完整表达高阻控制；必须读晶体管网或 Liberty。</p>
+  <p>高阻态 <code>Z</code> 表示输出级的主动上拉、下拉通路都关闭；真实器件仍有漏电与寄生，不是数学上无限电阻。它允许共享总线，但若没有其他驱动，节点会浮空。CDL 的 <code>*.EQN</code> 只写数据极性，无法完整表达高阻控制；必须读晶体管网或 Liberty。</p>
 
   <h3>TINV_X1：低有效使能的三态反相器</h3>
   <table class="truth-table"><thead><tr><th>EN</th><th>I</th><th>ZN</th></tr></thead><tbody><tr><td>0</td><td>0</td><td>1</td></tr><tr><td>0</td><td>1</td><td>0</td></tr><tr><td>1</td><td>0</td><td>Z</td></tr><tr><td>1</td><td>1</td><td>Z</td></tr></tbody></table>
@@ -95,14 +95,14 @@
     </tbody>
   </table>
   <p>因此控制逻辑必须保证两个低有效使能最多只有一个为 0，并验证“全关闭”期间总线是否有 keeper、上拉/下拉或协议保证。对普通内部数据选择，MUX2 会始终给出确定的 0/1，通常更容易综合、静态时序分析和形式验证。TINV 适合在使能同时需要反相的接口；TBUF 则保持数据极性。</p>
-  <div class="callout warn"><strong>与传输门的关系：</strong>三态输出级和传输门都可能让节点进入高阻，也都需要互补控制，但结构和用途不等同。传输门是在两个信号节点之间双向传递；TINV/TBUF 是受控的单向逻辑驱动器。第 7 章已讲传输门和 LibreCell 的适用边界。</div>
+  <div class="callout warn"><strong>与传输门的关系：</strong>三态输出级和传输门都可能让节点进入高阻，也常使用互补控制，但结构和用途不等同。传输门是在两个信号节点之间双向传递；TINV/TBUF 是受控的单向逻辑驱动器。<a href="transmission-gates.html">传输门基础章节</a>已经从单管传输、四端网表和概念版图讲到 MUX、锁存器及 LibreCell 的适用边界。</div>
 
 
-<h2 id="section-3">14.3 四位比较、校验与条件取反：同一 XOR/XNOR 的三种用法</h2>
+<h2 id="section-3">15.3 四位比较、校验与条件取反：同一 XOR/XNOR 的三种用法</h2>
 <p>比较两个四位数相等，可先对对应位做 XNOR，再对四个结果做 AND。比如 <code>A=1010、B=1000</code>，逐位 XNOR 为 <code>1101</code>，与结果为 0，因此不相等。把四个 XOR 再做 OR，则得到“不相等”；它们的极性相反，适合不同后级逻辑。</p>
 <p>偶校验位常取数据所有位的 XOR：数据 1011 有三个 1，异或为 1，把校验位 1 附上后总共有四个 1。接收端把数据与校验位再次异或，结果为 0 是校验关系成立，不代表能证明“完全没有错误”：偶数个位翻转可能抵消。XOR 在这里实现的是一条特定数学关系，不是通用纠错功能。</p>
 <p>条件取反 <code>Y=D⊕T</code> 是另一用法。T=0 时 Y=D，T=1 时 Y=!D。在计数器或加减法结构里会遇到这种条件翻转，但一个 XOR 没有存储能力，不能自己累计状态。</p>
-<h2 id="section-4">14.4 MUX 的数据弧与选择弧要分开测</h2>
+<h2 id="section-4">15.4 MUX 的数据弧与选择弧要分开测</h2>
 <table><thead><tr><th>待观察的路径</th><th>其他输入设置</th><th>预计结果</th><th>若输出不翻转</th></tr></thead><tbody>
 <tr><td>A→Z</td><td>S=0</td><td>Z 跟随 A</td><td>先确认是否错误地选中了 B</td></tr>
 <tr><td>B→Z</td><td>S=1</td><td>Z 跟随 B</td><td>先确认选择极性与端口顺序</td></tr>
@@ -111,15 +111,21 @@
 <tr><td>S 翻转但不应改 Z</td><td>A=B</td><td>稳态输出保持相同数据</td><td>“不翻转”在这里是正确功能；瞬态仍可能有毛刺</td></tr>
 </tbody></table>
 <p>这解释了为什么选择引脚的时序性质可能是 non_unate：相同 S 边沿，在不同数据状态下让输出往不同方向变化。non_unate 不是“没有时序关系”，而是不能用一个固定正/负方向概括所有条件。</p>
-<h2 id="section-5">14.5 传输门与 TBUF 为什么不是同一个东西</h2>
+<h2 id="section-5">15.5 传输门与 TBUF 为什么不是同一个东西</h2>
 <p>传输门用并联 NMOS/PMOS 建立受控通路，开启时信号可以在两端传播；真实能力受电压范围、导通电阻与控制时序限制。它没有像 CMOS 反相输出级那样独立恢复并驱动电平。TBUF 则有指定输入与输出，开启时输出同输入、关闭时输出高阻，属于受控驱动器。TINV 在开启时还会反相。</p>
 <p>某个 MUX 可以用传输门实现，也可以用静态逻辑实现；功能表相同不代表晶体管拓扑相同。本文本地 CDL 的具体实现要对照实际电路图，不能把一个概念 TG 图贴上去就声称对应所有 MUX2_X1。</p>
-<h2 id="section-6">14.6 两只三态驱动器共享总线：把争用算出来</h2>
+<h2 id="tinv-cdl-proof">15.6 从真实 CDL 证明 TINV 的低有效使能</h2>
+<p>在 TINV_X1 的真实 CDL 中，M_i_0 与 M_i_17 组成 EN 的反相器，产生 <code>net_000=!EN</code>。输出下拉链为 <code>ZN—M_i_11—net_001—M_i_7—VSS</code>，栅分别是 net_000 和 I；上拉链为 <code>VDD—M_i_24—net_002—M_i_29—ZN</code>，栅分别是 I 和 EN。</p>
+<table><thead><tr><th>控制</th><th>下拉使能管 M_i_11（N）</th><th>上拉使能管 M_i_29（P）</th><th>结果</th></tr></thead><tbody><tr><td>EN=0，net_000=1</td><td>开</td><td>开</td><td>I 决定哪条完整电源通路导通，ZN=!I</td></tr><tr><td>EN=1，net_000=0</td><td>关</td><td>关</td><td>两条输出驱动通路都被切断，ZN 为高阻</td></tr></tbody></table>
+<p>这里 I 接的是数据晶体管的栅，不是像 TG 那样把数据从扩散端传过去。也不是“EN=0 时四只输出管全开”：两只使能管开了，数据管还由 I 决定。</p>
+<h2 id="section-6">15.7 两只三态驱动器共享总线：把争用算出来</h2>
 <p>本库 TBUF 的 EN 是<strong>低有效</strong>：EN=0 驱动，EN=1 高阻。下表使用两只 TBUF0/1，各自的数据为 A0/A1；EN0/EN1 名字容易让人误以为高有效，必须服从本库功能定义。</p>
 <table><thead><tr><th>EN0</th><th>EN1</th><th>总线状态</th><th>工程含义</th></tr></thead><tbody>
 <tr><td>0</td><td>1</td><td>由 A0 驱动</td><td>只有驱动器 0 拥有驱动权</td></tr><tr><td>1</td><td>0</td><td>由 A1 驱动</td><td>只有驱动器 1 拥有驱动权</td></tr><tr><td>1</td><td>1</td><td>两个输出都高阻</td><td>总线电压取决于其他驱动、保持结构、电荷和漏电</td></tr><tr><td>0</td><td>0</td><td>A0=A1 时可能同向驱动；A0≠A1 时争用</td><td>相反值会形成强电流通路，不能只说“逻辑 X 无所谓”</td></tr>
 </tbody></table>
 <p>即使控制逻辑保证稳态一选一，两个使能转换也可能短时重叠。释放与接管之间需要怎样的协议，取决于系统和工具流程。内部普通数据选择通常使用 MUX 更容易约束，但不要由此得出“三态永远不能用”的结论。</p>
+<h3>从稳态表走到换手时序</h3>
+<p>令 A0=0、A1=1，原来 EN0=0、EN1=1。若新驱动器先开而旧驱动器后关，中间会经过 EN0=EN1=0，形成 VDD→新驱动器→总线→旧驱动器→VSS 的争用通路。若先关旧、后开新，中间经过 11，总线暂时没人驱动；这可以避免主动争用，但后级必须等待新数据有效再采样，或按系统要求配置保持器。<strong>只有前后两个稳定状态合法，并不证明换手过程合法。</strong>使能到高阻、使能到有效输出本身也有延迟，应读对应三态时序弧。</p>
 <div class="checkpoint"><strong>练习</strong><ol><li>用 XOR2/XNOR2 和基本门分别实现四位相等与不等检测。</li><li>S↑ 时 Z 没变，一定是 MUX 故障吗？列出一个正确情况。</li><li>EN0=EN1=0、A0=0、A1=1 时，为什么问题不只是读到了错误数字？</li></ol><details><summary>答案</summary><p>① 相等为逐位 XNOR 后 AND，不等为逐位 XOR 后 OR。② 不一定，例如 A=B=1，稳态 Z 始终 1。③ 两个驱动器分别拉低和拉高，造成争用电流、中间电平与可靠性风险；不能拿仿真的未知符号替代电气分析。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="cells-compound.html">← 第 13 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-arithmetic.html">第 15 章 →</a></nav><footer>第 14 章　比较、选择、缓冲与三态单元 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="cells-compound.html">← 第 14 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-arithmetic.html">第 16 章 →</a></nav><footer>第 15 章　比较、选择、缓冲与三态单元 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

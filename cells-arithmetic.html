@@ -1,13 +1,16 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 15 章　半加器、全加器与进位链</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-select.html">← 第 14 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-latches.html">第 16 章 →</a></nav><h1>第 15 章　半加器、全加器与进位链</h1><p class="subtitle">同样几个输入，为什么会有两个输出、两组网络和不同关键路径</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 16 章　半加器、全加器与进位链</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-select.html">← 第 15 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-latches.html">第 17 章 →</a></nav><h1>第 16 章　半加器、全加器与进位链</h1><p class="subtitle">同样几个输入，为什么会有两个输出、两组网络和不同关键路径</p>
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="cells-select.html">比较、选择、缓冲与三态单元</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="cells-select.html">会算 XOR</a>；<a href="cells-basic.html">会算 AND/OR</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能用 HA/FA 算两位加法并区分 S/CO 路径。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>逐位计算一次 3+1，标出进位传播。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#arithmetic-cells">算术单元：半加器与全加器</a></li><li><a href="#section-2">从十进制的“逢十进一”换成“逢二进一”</a></li><li><a href="#section-3">一步一步搭两位加法器：3 + 1</a></li><li><a href="#section-4">把全加器分解后，再回到真实晶体管图</a></li><li><a href="#section-5">时序与版图上要关注的对象</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-2">从十进制的“逢十进一”换成“逢二进一”</a></li><li><a href="#arithmetic-cells">算术单元：半加器与全加器</a></li><li><a href="#section-3">一步一步搭两位加法器：3 + 1</a></li><li><a href="#section-4">把全加器分解后，再回到真实晶体管图</a></li><li><a href="#section-5">时序与版图上要关注的对象</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="arithmetic-cells">15.1 算术单元：半加器与全加器</h2>
+<h2 id="section-2">16.1 从十进制的“逢十进一”换成“逢二进一”</h2>
+<p>二进制从右向左的位权是 1、2、4、8，所以 <code>11₂=1×2+1=3</code>，不是十进制十一。一位二进制加法的结果可能需要两位表示：<code>1+1=10₂</code>，低位是和 S=0，高位是进位 CO=1。半加器 HA 没有进位输入，适合独立加两位；全加器 FA 多接一个 CI，可以把上一位传来的进位一并相加。CO 不是 S 的反相输出。</p>
+<p>FA 可以用整数恒等式检查：<code>A+B+CI = S + 2·CO</code>。例如 1+1+1=3，S=1、CO=1，右边也是 1+2=3。这里左边是普通整数相加；不要把它和布尔方程中用“+”表示 OR 混淆。这个检查比背八行更能发现端口抄反。</p>
+<h2 id="arithmetic-cells">16.2 算术单元：半加器与全加器</h2>
   <table>
     <thead><tr><th>单元</th><th>输入</th><th>输出</th><th>最适合的情形</th><th>不能做什么</th></tr></thead>
     <tbody>
@@ -53,21 +56,22 @@ A3,B3 ── FA ── S3，CO3 是最高位进位</code></pre>
   </div>
 
 
-<h2 id="section-2">15.2 从十进制的“逢十进一”换成“逢二进一”</h2>
-<p>一位二进制加法的结果可能需要两位表示：<code>1+1=10₂</code>，低位是和 S=0，高位是进位 CO=1。半加器 HA 没有进位输入，适合独立加两位；全加器 FA 多接一个 CI，可以把上一位传来的进位一并相加。CO 不是 S 的反相输出，二者承载不同信息。</p>
-<p>FA 可以用整数恒等式检查：<code>A+B+CI = S + 2·CO</code>。例如 1+1+1=3，S=1、CO=1，右边也是 1+2=3。这个检查对每一行都成立，比背八行更能发现自己把端口抄反了。</p>
-<h2 id="section-3">15.3 一步一步搭两位加法器：3 + 1</h2>
+<h2 id="section-3">16.3 一步一步搭两位加法器：3 + 1</h2>
 <table><thead><tr><th>位</th><th>A</th><th>B</th><th>输入进位</th><th>相加</th><th>S</th><th>输出进位</th></tr></thead><tbody>
 <tr><td>最低位 bit 0</td><td>1</td><td>1</td><td>0</td><td>1+1=2</td><td>0</td><td>1</td></tr>
 <tr><td>高位 bit 1</td><td>1</td><td>0</td><td>1（来自 bit 0）</td><td>1+0+1=2</td><td>0</td><td>1</td></tr>
 </tbody></table>
 <p>最终结果拼接为 <code>{CO1,S1,S0}=100₂=4</code>。最低位可以使用 HA，高位使用 FA；若整个加法器还要接外部 CI，最低位也需要 FA。输出宽度若只保留两位，会得到 00 并丢掉最后进位，所以功能规格还必须说明溢出/截断处理。</p>
-<h2 id="section-4">15.4 把全加器分解后，再回到真实晶体管图</h2>
+<h2 id="section-4">16.4 把全加器分解后，再回到真实晶体管图</h2>
 <p>一种便于手算的逻辑分解是 <code>P=A⊕B</code>、<code>G=A·B</code>、<code>S=P⊕CI</code>、<code>CO=G+P·CI</code>。P 表示输入进位能影响本位进位的条件，G 表示本位自己产生进位。这个分解帮助理解功能，但不是说本库 FA 必须由四个独立标准门拼在一起；真实 CDL 可共享内部网络并使用复合晶体管结构。</p>
 <table><thead><tr><th>A/B 状态</th><th>CO</th><th>如何理解</th></tr></thead><tbody><tr><td>00</td><td>0，与 CI 无关</td><td>本位不产生进位，CI 单独不足以凑成 2</td></tr><tr><td>01 或 10</td><td>等于 CI</td><td>输入进位被传播</td></tr><tr><td>11</td><td>1，与 CI 无关</td><td>本位已经产生进位</td></tr></tbody></table>
 <p>读大图时先圈出 CO 输出末级，再沿它的控制节点反推；随后单独处理 S 输出，最后把共享节点合并。每次只追一张网络表：起点、经过的器件、到达的电源、需要的输入条件。这样不用同时在脑中保存整张 FA 电路。</p>
-<h2 id="section-5">15.5 时序与版图上要关注的对象</h2>
+<h2 id="section-5">16.5 时序与版图上要关注的对象</h2>
+<p>把“进位传播”具体算出来：固定 A=1111₂、B=0000₂，把最低位 CI 从 0 改成 1。每一位 A/B 都是 10，因此 P=1、G=0，自己的 CO 跟随 CI；四级依次传递，结果由 01111₂ 变为 10000₂。反之若某位 A=B=0，该位 CO 恒为 0，来自低位的进位变化就被截住了。</p>
+<table><thead><tr><th>教学假设：每级 CI→CO 为 30 ps，忽略连线</th><th>收到新进位</th><th>输出新进位</th></tr></thead><tbody><tr><td>bit 0</td><td>0 ps</td><td>30 ps</td></tr><tr><td>bit 1</td><td>30 ps</td><td>60 ps</td></tr><tr><td>bit 2</td><td>60 ps</td><td>90 ps</td></tr><tr><td>bit 3</td><td>90 ps</td><td>120 ps</td></tr></tbody></table>
+<p>表中的 30 ps 不是 FA_X1 测量值；它只说明延迟沿依赖链累积。实际每一级的负载、slew、输入条件及 S/CO 分支不同，不能认定四级必定是同一常数相加。电路稳定之前的暂态和也不应被当成最终结果采样。</p>
+<details><summary>选学：最后进位等于所有意义下的“溢出”吗？</summary><p>不等于。四位无符号 1111+0001 超过 15，最高进位能指出截断；四位二进制补码 0111+0001=1000，表示 7+1 却得到 −8，属于有符号溢出，但最高进位为 0。单元只计算位关系，数是有符号还是无符号由上层规格决定。</p></details>
 <p>串接很多 FA 时，CI→CO 的传播可能跨过多位，形成长关键路径；A/B→S、CI→S、A/B→CO 也是不同弧。不能用一个“FA 延迟”代替所有情况。版图上两输出需要各自可接入的引脚，内部共享有利于面积，却也可能使某些网络更拥挤。面积、进位路径与和路径必须分别记录。</p>
 <div class="checkpoint"><strong>练习</strong><ol><li>用两位链计算 2+1，并写每位的 CI/CO。</li><li>FA 的 A=B=0 时切换 CI，哪个输出应变化？</li><li>用 A+B+CI=S+2CO 验证 101 这一行。</li></ol><details><summary>答案</summary><p>① 10+01：低位 0+1+0 得 S0=1、CO0=0；高位 1+0+0 得 S1=1、CO1=0，结果 011。② S 跟随 CI，CO 保持 0，所以不能以 CO 不翻转判电路坏。③ 1+0+1=2，对应 S=0、CO=1。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="cells-select.html">← 第 14 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-latches.html">第 16 章 →</a></nav><footer>第 15 章　半加器、全加器与进位链 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="cells-select.html">← 第 15 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-latches.html">第 17 章 →</a></nav><footer>第 16 章　半加器、全加器与进位链 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

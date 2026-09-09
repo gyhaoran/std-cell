@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 24 章　技术文件逐字段拆解</title>
+  <title>第 25 章　技术文件逐字段拆解</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter13.html">← 第 23 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter15.html">第 25 章 →</a></nav>
-  <h1>第 24 章　技术文件逐字段拆解</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter13.html">← 第 24 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter15.html">第 26 章 →</a></nav>
+  <h1>第 25 章　技术文件逐字段拆解</h1>
   <p class="subtitle">以 <code>examples/dummy_tech.py</code> 为真实接口，不发明不存在的配置类</p>
 
   <div class="objectives">
@@ -23,17 +23,17 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter13.html">固定版本并生成第一个单元</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="chapter7.html">能换算 PDK 尺寸</a>；<a href="chapter13.html">能定位固定版本与技术文件</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能追踪 gate_length、W、DBU 与 output_map 的消费点。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>把一个物理尺寸从 PDK 换算到生成几何。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">技术文件如何被加载</a></li><li><a href="#section-2">内部层不是 PDK 层号</a></li><li><a href="#section-3">单位链必须完整推导</a></li><li><a href="#section-4">输出模块（writer）</a></li><li><a href="#section-5">布线资源和层用途</a></li><li><a href="#section-6">单元架构和器件几何字段</a></li><li><a href="#section-7">网格字段</a></li><li><a href="#section-8">几何规则字段</a></li><li><a href="#section-9">布线成本字段</a></li><li><a href="#section-10">适配能力矩阵</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">24.1 技术文件如何被加载</h2>
+<h2 id="section-1">25.1 技术文件如何被加载</h2>
   <p><code>tech_util.load_tech_file</code> 使用 <code>SourceFileLoader</code> 执行传入的 Python 文件，然后其他模块直接访问 <code>tech.db_unit</code>、<code>tech.min_spacing</code> 等 module attributes。</p>
   <div class="callout danger"><strong>安全与接口含义：</strong><code>--tech</code> 文件具有执行任意 Python 的能力，只加载可信文件。当前代码没有 schema validator；字段拼错往往到流程深处才表现为 <code>AttributeError</code> 或错误几何。迁移项目应自行增加静态校验与单元测试。</div>
 
-  <h2 id="section-2">24.2 内部层不是 PDK 层号</h2>
+  <h2 id="section-2">25.2 内部层不是 PDK 层号</h2>
   <p><code>lclayout/layout/layers.py</code> 固定定义了一套内部语义层：</p>
   <pre><code>ndiffusion, pdiffusion, nwell, pwell, poly
 ndiff_contact, pdiff_contact, poly_contact
@@ -51,17 +51,21 @@ output_map = {
 }</code></pre>
   <p>如果目标工艺需要局部互连层（LI）、特殊栅接触栈、多种切割层、M3+、不同阈值注入层或布尔派生层，单靠 <code>output_map</code> 通常不够；要扩展内部层、通孔连接图、晶体管绘制、布线、LVS 和输出模块。</p>
 
-  <h2 id="section-3">24.3 单位链必须完整推导</h2>
+  <h2 id="section-3">25.3 单位链必须完整推导</h2>
   <pre><code># 技术文件
 db_unit = 1e-9  # 一内部整数单位 = 1 nm = 1e-9 m
 
 # 所有 unit_cell_width、spacing、via_size 等都用内部整数单位
 unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
   <p>输入 SPICE 的 W 经 KLayout netlist parser 读取后被转换到米，再除以 <code>db_unit</code> 形成内部 channel width，之后乘 <code>transistor_channel_width_sizing</code> 并夹到 NMOS/PMOS 最小 gate width。GDS writer 又把米/DBU 换为 KLayout 要求的 µm/DBU；LEF writer按自己的 <code>db_unit</code> 计算缩放。</p>
+  <h3>把 W=0.415U 真正带入单位链</h3>
+  <table><thead><tr><th>阶段</th><th>本例数值</th><th>说明</th></tr></thead><tbody><tr><td>CDL 的 W</td><td>0.415U = 0.415 µm</td><td>SPICE 的 U 是微，不是内部整数单位</td></tr><tr><td>KLayout reader 的 W 参数</td><td>0.415（µm）</td><td>本地解析代码乘 10⁻⁶，得到 4.15×10⁻⁷ m</td></tr><tr><td>除以 tech.db_unit=10⁻⁹ m</td><td>415</td><td>此时 channel_width 已用内部 DBU 表示，不能再乘一次 1000</td></tr><tr><td>sizing 与最小宽度</td><td>若 sizing=1、最小值=200，则仍为 415</td><td>这两个参数是本算例假设，不是声称目标工艺默认如此</td></tr><tr><td>写入/测量几何</td><td>415×0.001 µm=0.415 µm</td><td>KLayout 的 layout.dbu 用 µm/DBU，不是米/DBU</td></tr></tbody></table>
+  <p>如果最小宽度配置成 500 DBU，算法会把 W 抬到 0.500 µm；网表参考仍写 0.415 µm 时，就要面对尺寸等价性问题，不能认为生成器自动修尺寸所以 LVS 应当忽略。完整迁移应明确哪些参数可以优化、如何更新受控参考电路，并重新表征。</p>
+  <p>同理，最小面积 0.01 µm² 在 1 nm DBU 下是 10000 DBU²。<code>output_map</code> 中把一个图层复制到两层只是复制形状，不会自动计算 <code>Active AND NWell</code> 这类派生区域；单位正确、层号正确与物理语义正确是三个独立检查。</p>
   <div class="callout danger"><strong>L 不走相同的数据链。</strong>本 commit 的 <code>load_transistor_netlist</code> 只将 W 存入 Transistor，不保留网表 L；实际栅长由 <code>tech.gate_length</code> 决定。只改 SPICE L 不会自动改变生成栅长。固定 L 的工艺需增加一致性检查，多 L 支持则要扩展数据结构与绘图。见<a href="source-lab.html">真实源码补丁与参数测试</a>。</div>
   <div class="callout warn"><strong>迁移检查：</strong>选 INV 这样可手算的单元，从 SPICE W/L 一路打印到内部整数、GDS ruler 和 LEF SIZE/PIN 坐标。四者任一不一致就停止，不要靠“整体缩放 GDS”补救。</div>
 
-  <h2 id="section-4">24.4 输出模块（writer）</h2>
+  <h2 id="section-4">25.4 输出模块（writer）</h2>
   <pre><code>output_writers = [
     MagWriter(tech_name="scmos", scale_factor=0.1, output_map={...}),
     LefWriter(db_unit=1e-6, output_map=output_map, site="CORE"),
@@ -69,7 +73,7 @@ unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
 ]</code></pre>
   <p>输出模块列表就是实际输出能力。删除一个 writer 就不会生成对应文件；添加新格式应实现 <code>Writer</code> 接口。Magic 的层名/缩放与 GDS 映射是两个不同配置，不能假定自动同步。</p>
 
-  <h2 id="section-5">24.5 布线资源和层用途</h2>
+  <h2 id="section-5">25.5 布线资源和层用途</h2>
   <table>
     <thead><tr><th>字段</th><th>真实含义</th><th>典型风险</th></tr></thead>
     <tbody>
@@ -80,7 +84,7 @@ unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
     </tbody>
   </table>
 
-  <h2 id="section-6">24.6 单元架构和器件几何字段</h2>
+  <h2 id="section-6">25.6 单元架构和器件几何字段</h2>
   <table>
     <thead><tr><th>字段</th><th>控制对象</th></tr></thead>
     <tbody>
@@ -97,14 +101,14 @@ unit_cell_width = 400  # 400 nm，仅对这个 dummy tech 成立</code></pre>
   </table>
   <p>这些参数并非互相独立。例如 <code>transistor_offset_y</code> 必须同时容纳有源区间距与 <code>gate_extension + poly spacing/2</code>；栅中心还必须落在 x 方向布线网格上。</p>
 
-  <h2 id="section-7">24.7 网格字段</h2>
+  <h2 id="section-7">25.7 网格字段</h2>
   <pre><code>routing_grid_pitch_x = ...
 routing_grid_pitch_y = ...
 grid_offset_x = ...
 grid_offset_y = ...</code></pre>
   <p>网格节距（pitch）决定相邻候选节点的中心距，偏移（offset）决定第一列/行的位置。更密的网格提供更多候选但图更大，且不能自动使违规路径合法；更疏的网格可能让晶体管端子或引脚没有接入节点。注意 pitch/节距不同于图形边到边的 spacing/间距。每次改动都要运行布线图可视化和端点数量回归。</p>
 
-  <h2 id="section-8">24.8 几何规则字段</h2>
+  <h2 id="section-8">25.8 几何规则字段</h2>
   <table>
     <thead><tr><th>字段</th><th>结构</th><th>消费位置</th></tr></thead>
     <tbody>
@@ -120,7 +124,7 @@ grid_offset_y = ...</code></pre>
   </table>
   <p><code>min_area</code> 存面积，其他大多存长度；这是最常见的量纲错误之一。真实 PDK 的条件 spacing、密度、antenna、EOL 等并没有等价字段。</p>
 
-  <h2 id="section-9">24.9 布线成本字段</h2>
+  <h2 id="section-9">25.9 布线成本字段</h2>
   <table>
     <thead><tr><th>字段</th><th>作用</th></tr></thead>
     <tbody>
@@ -132,7 +136,7 @@ grid_offset_y = ...</code></pre>
   </table>
   <p>成本只影响合法候选之间的偏好，不替代几何规则。先确保图正确，再调成本。</p>
 
-  <h2 id="section-10">24.10 适配能力矩阵</h2>
+  <h2 id="section-10">25.10 适配能力矩阵</h2>
   <table>
     <thead><tr><th>新工艺需求</th><th>仅技术文件？</th><th>说明</th></tr></thead>
     <tbody>
@@ -161,8 +165,8 @@ grid_offset_y = ...</code></pre>
     <details><summary>参考答案</summary><p>内部通孔连接图和接触结构仍只有固定层对，简单改名不会创建缺失层。<code>min_area</code> 是面积，<code>minimum_width</code> 是长度。布线图检查验证拓扑和接入资源，外部 DRC 覆盖生成器未表达的真实制造规则。</p></details>
   </div>
 
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter13.html">← 第 23 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter15.html">第 25 章 →</a></nav>
-  <footer>第 24 章　技术文件逐字段拆解 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter13.html">← 第 24 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter15.html">第 26 章 →</a></nav>
+  <footer>第 25 章　技术文件逐字段拆解 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

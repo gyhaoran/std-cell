@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 22 章　单元内部布线</title>
+  <title>第 23 章　单元内部布线</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter11.html">← 第 21 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter13.html">第 23 章 →</a></nav>
-  <h1>第 22 章　单元内部布线</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter11.html">← 第 22 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter13.html">第 24 章 →</a></nav>
+  <h1>第 23 章　单元内部布线</h1>
   <p class="subtitle">从三维布线图到 PathFinder 协商拥塞</p>
 
   <div class="objectives">
@@ -23,13 +23,13 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter11.html">晶体管布局</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="algorithms-lab.html">会手算最短路与资源冲突</a>；<a href="chapter11.html">理解抽象布局输出</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能解释拥塞容量、历史代价和冲突集合。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>画出两个网络竞争一个资源及拆线重布过程。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">从几何空间构造布线图</a></li><li><a href="#section-2">不是所有网格边都合法</a></li><li><a href="#section-3">实际布线器由三层封装组成</a></li><li><a href="#section-4">Dijkstra 与近似 Steiner 选项</a></li><li><a href="#section-5">PathFinder 如何协商拥塞</a></li><li><a href="#section-6">从布线树画回版图</a></li><li><a href="#section-7">2003 PDF 与 LibreCell 不能混讲</a></li><li><a href="#section-8">调试布线失败的顺序</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">从几何空间构造布线图</a></li><li><a href="#section-2">不是所有网格边都合法</a></li><li><a href="#pin-access-example">为什么明明画了很大的 PIN，却没有可接入点</a></li><li><a href="#section-3">实际布线器由三层封装组成</a></li><li><a href="#section-4">Dijkstra 与近似 Steiner 选项</a></li><li><a href="#section-5">PathFinder 如何协商拥塞</a></li><li><a href="#section-6">从布线树画回版图</a></li><li><a href="#section-7">2003 PDF 与 LibreCell 不能混讲</a></li><li><a href="#section-8">调试布线失败的顺序</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">22.1 从几何空间构造布线图</h2>
+<h2 id="section-1">23.1 从几何空间构造布线图</h2>
   <p>本地 <code>routing_graph.create_routing_graph_base</code> 在每个可用于布线的层和每个网格点创建节点：</p>
   <pre><code>node = (layer, (x, y))
 
@@ -38,7 +38,7 @@
 跨层通孔边：(M1,x,y) ──via1── (M2,x,y)</code></pre>
   <p><code>routing_layers</code> 中的 <code>h</code>/<code>v</code> 决定该层允许建立哪些方向的同层边。边权由水平/垂直单位权重乘长度得到；通孔边使用 <code>via_weights</code>，并记录通孔层和 <code>multi_via</code>。</p>
 
-  <h2 id="section-2">22.2 不是所有网格边都合法</h2>
+  <h2 id="section-2">23.2 不是所有网格边都合法</h2>
   <ol class="steps">
     <li>根据 <code>min_spacing</code> 构造层间间距关系图。</li>
     <li>检查候选导线/通孔边是否与已经存在的器件和几何冲突，删除非法边。</li>
@@ -49,7 +49,13 @@
   </ol>
   <p>如果某个网络没有合法端子，代码会提示使用 <code>--debug-routing-graph</code>。这通常不是“Dijkstra 坏了”，而是网格节距/偏移、包围量、图形间距或端子几何让图上没有可接入点。</p>
 
-  <h2 id="section-3">22.3 实际布线器由三层封装组成</h2>
+  <h2 id="pin-access-example">23.3 为什么明明画了很大的 PIN，却没有可接入点</h2>
+  <p>先忘掉算法，只算几何。假设教学 M1 引脚为 x=100～200、y=100～200 nm 的正方形；通孔边长 40 nm，M1 四边包围至少 20 nm。孔中心到引脚任意边至少要留 <code>40/2+20=40 nm</code>，所以合法中心窗口收缩成 x/y=140～160 nm。</p>
+  <p>如果两方向候选中心都只取 <code>100+100k nm</code>，就没有点落入这个窗口。引脚确实存在、面积也不小，但布线资源图没有可用端子。若架构允许把轨道偏移改为 50 nm，则 (150,150) 成为候选；还必须检查 M2 包围、邻网及其他规则，不能只改轨道就宣告全局合法。</p>
+  <p>再看两条线：线宽各 60 nm、中心距 100 nm，边缘间距为 <code>100−30−30=40 nm</code>。若最小异网间距 50 nm，两条中心线虽然没有重合，仍不能同时布。这说明<strong>容量冲突不能只理解成“两个网踩同一个点”</strong>。</p>
+  <details><summary>练习：保持孔和包围不变，把引脚缩为 70×70 nm，会怎样？</summary><p>所需最小引脚宽为 40+2×20=80 nm；70 nm 连连续空间中的合法中心都没有，因此更密轨道也救不了。应先修改端口/通孔方案并重新验证几何。</p></details>
+
+  <h2 id="section-3">23.4 实际布线器由三层封装组成</h2>
   <pre><code>HVGraphRouter(
   PathFinderGraphRouter(
     DijkstraRouter()          # --signal-router dijkstra
@@ -66,11 +72,12 @@
     </tbody>
   </table>
 
-  <h2 id="section-4">22.4 Dijkstra 与近似 Steiner 选项</h2>
+  <h2 id="section-4">23.5 Dijkstra 与近似 Steiner 选项</h2>
   <p><code>DijkstraRouter</code> 的 <code>spanning_subtree</code> 从第一个端点建树，每轮从当前树的所有节点出发，寻找通向尚未连接端点的最低成本路径，再把路径加入树。源码注释称其基于 PathFinder 与 Prim 思想。</p>
+  <p>沿用<a href="chapter10.html#three-terminal-tree">A/B/C 经 O 相连</a>的例子：第一步树只有 A；连接 B 后，树包含 A、O、B。接 C 时不必再从 A 走一遍 AO，而可以直接从树上的 O 出发增加 OC。这样公共金属只算一次。“从树出发”正是多源最短路在这里的用途，不是三个输入信号合并成同一张网。</p>
   <p><code>ApproxSteinerTreeRouter</code> 把节点成本和边成本合并为图权重，再调用 NetworkX 的 Steiner 树近似算法。它可能得到更好的多端共享拓扑，但通常更慢；CLI 帮助也把 dijkstra 标为快但不稳定、steiner 标为慢但结果更好。这是当前作者对实现的说明，不是对所有输入的数学保证。</p>
 
-  <h2 id="section-5">22.5 PathFinder 如何协商拥塞</h2>
+  <h2 id="section-5">23.6 PathFinder 如何协商拥塞</h2>
   <p>第一轮每个网络都倾向于走低成本路径，可能互相争抢同一资源。PathFinder 不立即永久锁死先到者，而是迭代提高冲突位置代价：</p>
   <pre><code>按当前成本为所有网络布线
         │
@@ -88,11 +95,12 @@
     <li><strong>节点冲突（node conflict）：</strong>即使不是同一个节点，距离过近的不同层/同层节点也不能同时使用。</li>
   </ul>
   <p>最多迭代 1000 次仍冲突就抛出 <code>Failed to route</code>。成功后还会逐网络在避开其他已布网络的图上做一次优化。</p>
+  <p><strong>历史成本为什么单独保留？</strong>本轮拆掉旧走线以后，当前位置占用可能暂时变成 0；若把过去拥塞也忘掉，各网可能又一起抢回同一窄通道，反复震荡。历史项让过去总是拥挤的区域在新一轮仍偏贵，鼓励尝试其他拓扑。但若两网唯一通路都必须经过一个容量为 1 的瓶颈，再多轮惩罚也不能产生合法解，应回头改变布局、层资源或架构。</p>
 
-  <h2 id="section-6">22.6 从布线树画回版图</h2>
+  <h2 id="section-6">23.7 从布线树画回版图</h2>
   <p>每条同层边变为相应层的线段，跨层边变为通孔/切割层和必要的包围图形。绘制完成后同层多边形合并。随后流水线才进入凹槽/最小面积后处理、内部 LVS 和输出模块；这些不是一个独立的“河流式详细布线器”。</p>
 
-  <h2 id="section-7">22.7 2003 PDF 与 LibreCell 不能混讲</h2>
+  <h2 id="section-7">23.8 2003 PDF 与 LibreCell 不能混讲</h2>
   <table>
     <thead><tr><th>维度</th><th><code>std-cell-generator.pdf</code></th><th>本地 LibreCell</th></tr></thead>
     <tbody>
@@ -105,7 +113,7 @@
   </table>
   <p>LibreCell 日志中有“Start global routing”，这是类内部对多网络图布线的称呼；不要因此推断它随后一定还有传统芯片级详细布线阶段。</p>
 
-  <h2 id="section-8">22.8 调试布线失败的顺序</h2>
+  <h2 id="section-8">23.9 调试布线失败的顺序</h2>
   <ol>
     <li>先用 <code>--debug-routing-graph</code> 输出布线图，检查端子是否落在图上。</li>
     <li>核对网格节距/偏移、单元宽度/高度、晶体管偏移。</li>
@@ -131,8 +139,8 @@
   </div>
 
   <div class="source-note"><strong>阅读依据：</strong><em>VLSI Physical Design: From Graph Partitioning to Timing Closure</em> 原书第 5～6 章和 <code>EDA_routing.pdf</code>用于通用布线背景；实现描述来自 <code>routing_graph.py</code>、<code>graphrouter/</code> 和 <code>standalone.py</code>。</div>
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter11.html">← 第 21 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter13.html">第 23 章 →</a></nav>
-  <footer>第 22 章　单元内部布线 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter11.html">← 第 22 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter13.html">第 24 章 →</a></nav>
+  <footer>第 23 章　单元内部布线 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

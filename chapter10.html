@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 19 章　算法小白也能用的图论</title>
+  <title>第 20 章　算法小白也能用的图论</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="cells-physical.html">← 第 18 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="algorithms-lab.html">第 20 章 →</a></nav>
-  <h1>第 19 章　算法小白也能用的图论</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="cells-physical.html">← 第 19 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="algorithms-lab.html">第 21 章 →</a></nav>
+  <h1>第 20 章　算法小白也能用的图论</h1>
   <p class="subtitle">先把物理问题翻译成顶点、边和代价，再讨论算法</p>
 
   <div class="objectives">
@@ -23,13 +23,13 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="cells-physical.html">常量、填充、体接触与天线单元</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="chapter5.html">理解 MOS 边、网络节点和共享排序；不要求读完全部单元族</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能区分电路图、扩散图和布线资源图。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>画出 NAND 的两种图并标注顶点/边含义。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">图不是版图图片</a></li><li><a href="#section-2">必须分清的术语</a></li><li><a href="#section-3">四个看似相近、实际不同的问题</a></li><li><a href="#section-4">权重、容量与冲突</a></li><li><a href="#section-5">手工走一次 Dijkstra</a></li><li><a href="#section-6">搜索与复杂度只需先懂数量级</a></li><li><a href="#section-7">在 Python/NetworkX 中长什么样</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">图不是版图图片</a></li><li><a href="#section-2">必须分清的术语</a></li><li><a href="#section-3">四个看似相近、实际不同的问题</a></li><li><a href="#section-4">权重、容量与冲突</a></li><li><a href="#section-5">手工走一次 Dijkstra</a></li><li><a href="#three-terminal-tree">从两端路径到三端树：为什么需要分支点</a></li><li><a href="#section-6">搜索与复杂度只需先懂数量级</a></li><li><a href="#section-7">在 Python/NetworkX 中长什么样</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">19.1 图不是版图图片</h2>
+<h2 id="section-1">20.1 图不是版图图片</h2>
   <p>算法中的图写作 <code>G=(V,E)</code>：<code>V</code> 是顶点集合，<code>E</code> 是边集合。图是关系模型，不是 GDS 图形。一个物理问题可以有多种建图方式。</p>
   <table>
     <thead><tr><th>问题</th><th>顶点</th><th>边</th><th>边/点属性</th></tr></thead>
@@ -41,7 +41,7 @@
   </table>
   <p>建模时第一件事不是选 Dijkstra，而是写清楚：“我的一个顶点代表什么？一条边代表什么？合法解在图上是什么？”</p>
 
-  <h2 id="section-2">19.2 必须分清的术语</h2>
+  <h2 id="section-2">20.2 必须分清的术语</h2>
   <table>
     <thead><tr><th>术语</th><th>定义</th><th>在本教程中的例子</th></tr></thead>
     <tbody>
@@ -55,7 +55,7 @@
     </tbody>
   </table>
 
-  <h2 id="section-3">19.3 四个看似相近、实际不同的问题</h2>
+  <h2 id="section-3">20.3 四个看似相近、实际不同的问题</h2>
   <table>
     <thead><tr><th>问题</th><th>要求</th><th>标准单元用途</th></tr></thead>
     <tbody>
@@ -67,7 +67,7 @@
   </table>
   <p>Euler 关注“每条晶体管边都走一次”；Dijkstra 关注“到目标的代价”；Steiner 关注“把多个 terminal 用较小总线长连成树”。不能用一个名字代替另一个目标。</p>
 
-  <h2 id="section-4">19.4 权重、容量与冲突</h2>
+  <h2 id="section-4">20.4 权重、容量与冲突</h2>
   <p>无权图只关心有没有边；加权图给边或点附加成本。LibreCell 布线中的成本可能来自：</p>
   <ul>
     <li>水平/垂直线段长度 × 对应层的权重；</li>
@@ -78,12 +78,9 @@
   </ul>
   <p>有些布线器把资源表示为有容量的边；本地 PathFinder 实现主要通过节点占用、冲突集合和动态成本阻止不同网络同时使用不兼容资源。模型不同，但目的都是表达“这条最短路是否会和其他走线冲突”。</p>
 
-  <h2 id="section-5">19.5 手工走一次 Dijkstra</h2>
-  <pre><code>A --1-- B --2-- D
- \      |
-  4     1
-   \    |
-     C--1--D</code></pre>
+  <h2 id="section-5">20.5 手工走一次 Dijkstra</h2>
+  <p>本例只有 A、B、C、D 四个顶点。用边表避免在字符图里把同一个 D 画成两个点；以下都是无向边，可双向行走：</p>
+  <table><thead><tr><th>边</th><th>A—B</th><th>A—C</th><th>B—C</th><th>B—D</th><th>C—D</th></tr></thead><tbody><tr><td>非负代价</td><td>1</td><td>4</td><td>1</td><td>2</td><td>1</td></tr></tbody></table>
   <p>从 A 出发：</p>
   <ol>
     <li>初始 <code>dist(A)=0</code>，其他为无穷。</li>
@@ -93,7 +90,13 @@
   </ol>
   <p>Dijkstra 要求参与比较的成本非负。若给拥塞资源增加正代价，最短路径会主动绕开它；PathFinder 正是通过多轮更新代价实现协商。</p>
 
-  <h2 id="section-6">19.6 搜索与复杂度只需先懂数量级</h2>
+  <h2 id="three-terminal-tree">20.6 从两端路径到三端树：为什么需要分支点</h2>
+  <p>假设一张网络需要连接 A、B、C 三个端子，资源图中另有可用节点 O，边 AO、BO、CO 的代价各为 1。A→B 的最短路 A—O—B 花费 2，却还没接 C。再加 O—C 一段就能三端连通，整棵树代价为 3。</p>
+  <p>如果独立算 A→B 与 A→C 再把两条路径长度相加，会得到 2+2=4，因为公共 AO 被重复计费；真实金属应只画一次。O 不是单元外部端口，却成为内部共享分支点，这就是理解 Steiner 点的直觉。这里的“共享”是<strong>同一张网共享走线</strong>，不是不同网络可以短接，也不是晶体管的源漏共享。</p>
+  <p>“最小生成树”要求覆盖给定图的全部顶点；布线一般只要求指定端子连通，资源图上大多数位置不必访问。实际工具可在端子距离图上建树再展开，也可寻找带额外分支点的近似树。先明确在哪一张图上、要求覆盖哪些点，再比较算法名称。</p>
+  <details><summary>练习：若把 O—C 改为 4，连接全部端子的树代价是多少？</summary><p>在只有这三条边的图上必须全部用到，因此为 1+1+4=6。没有其他候选路径时，加大惩罚不会创造一条新路。</p></details>
+
+  <h2 id="section-6">20.7 搜索与复杂度只需先懂数量级</h2>
   <table>
     <thead><tr><th>算法/操作</th><th>典型复杂度</th><th>直觉</th></tr></thead>
     <tbody>
@@ -106,7 +109,7 @@
   </table>
   <p><code>O(...)</code> 描述输入规模变大时的增长趋势，不是精确运行秒数。对标准单元这种小图，常可以用更重的枚举换取质量；但单元复杂度提高后仍会遇到组合爆炸。</p>
 
-  <h2 id="section-7">19.7 在 Python/NetworkX 中长什么样</h2>
+  <h2 id="section-7">20.8 在 Python/NetworkX 中长什么样</h2>
   <pre><code>import networkx as nx
 
 g = nx.MultiGraph()          # 同一对网络间可有多只 MOS
@@ -130,11 +133,12 @@ degrees = dict(g.degree())</code></pre>
       <li>为什么两端最短路不能直接解决多端网络最小树？</li>
       <li>为什么枚举所有 Euler 路比找到任意一条更容易爆炸？</li>
     </ol>
+    <details><summary>参考答案</summary><p>① 晶体管图的边是一只器件，布线图的边是一段可用互连或通孔。② 两端路径不负责其余端子，也不自动选择公共分支。③ 找一条只需构造一个可行结果，枚举则要保留大量分支组合；4 个对象的排列有 24 种，8 个有 40320 种，约束可能删去部分候选，但不能假设总是很少。</p></details>
   </div>
 
   <div class="source-note"><strong>阅读依据：</strong><code>EDA_routing.pdf</code>用于布线图、全局/详细布线和约束背景；本章的具体建模以 LibreCell 的 NetworkX 数据结构为准。</div>
-  <nav class="bottom-nav" aria-label="全书导航"><a href="cells-physical.html">← 第 18 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="algorithms-lab.html">第 20 章 →</a></nav>
-  <footer>第 19 章　算法小白也能用的图论 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="cells-physical.html">← 第 19 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="algorithms-lab.html">第 21 章 →</a></nav>
+  <footer>第 20 章　算法小白也能用的图论 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

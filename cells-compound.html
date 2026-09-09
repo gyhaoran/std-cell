@@ -1,13 +1,13 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 13 章　AOI/OAI 复合门与逻辑映射</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-basic.html">← 第 12 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-select.html">第 14 章 →</a></nav><h1>第 13 章　AOI/OAI 复合门与逻辑映射</h1><p class="subtitle">用一张完整真值表、一条下拉路径和它的对偶看懂复合门</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 14 章　AOI/OAI 复合门与逻辑映射</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-basic.html">← 第 13 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-select.html">第 15 章 →</a></nav><h1>第 14 章　AOI/OAI 复合门与逻辑映射</h1><p class="subtitle">用一张完整真值表、一条下拉路径和它的对偶看懂复合门</p>
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="cells-basic.html">反相器、基本门与驱动强度</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="cells-basic.html">会从串并联推导 NAND/NOR</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能展开 AOI21/OAI21 的 8 行表及串并联网络。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>写出分组方程、敏化条件与真实应用。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#complex-gates">AOI/OAI：先算中间项，再看最后一级反相</a></li><li><a href="#section-2">不跳步骤：AOI21 与 OAI21 的八行真值表</a></li><li><a href="#section-3">从“输出何时为 0”画出下拉网络</a></li><li><a href="#section-4">同一逻辑族怎样扩展</a></li><li><a href="#section-5">为什么不同引脚不能用同一个延迟代替</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="complex-gates">13.1 AOI/OAI：先算中间项，再看最后一级反相</h2>
+<h2 id="complex-gates">14.1 AOI/OAI：先算中间项，再看最后一级反相</h2>
   <table>
     <thead><tr><th>这一类解决什么</th><th>本库成员举例</th><th>常见应用</th><th>使用价值与代价</th></tr></thead>
     <tbody>
@@ -51,14 +51,14 @@
   <table>
     <thead><tr><th>设计意图</th><th>代入本库单元</th><th>结果怎样理解</th></tr></thead>
     <tbody>
-      <tr><td>禁止或握手发生时，输出低有效阻断</td><td>AOI21：<code>A=kill, B1=valid, B2=ready</code></td><td><code>allow_n=!(kill+valid·ready)</code>；kill=1 或握手成立都会使输出为 0</td></tr>
+      <tr><td>禁止或握手发生时，输出低有效阻断</td><td>AOI21：<code>A=kill, B1=valid, B2=ready</code></td><td><code>block_n=!(kill+valid·ready)</code>；kill=1 或握手成立都会使阻断信号有效（为 0）</td></tr>
       <tr><td>两路“请求且授权”任一路成立</td><td>AOI22：<code>A1=req0, A2=gnt0, B1=req1, B2=gnt1</code></td><td><code>none_granted=!(req0·gnt0+req1·gnt1)</code></td></tr>
-      <tr><td>总使能打开且任一错误存在</td><td>OAI21：<code>A=enable, B1=err0, B2=err1</code></td><td><code>ok_n=!(enable·(err0+err1))</code>；这里变量名只是示例，应按系统极性命名</td></tr>
+      <tr><td>总使能打开且任一错误存在</td><td>OAI21：<code>A=enable, B1=err0, B2=err1</code></td><td><code>error_n=!(enable·(err0+err1))</code>；条件成立时错误指示低有效</td></tr>
       <tr><td>两个分组都至少有一个条件成立</td><td>OAI22：A 组和 B 组各接两条件</td><td><code>ZN=!((a0+a1)·(b0+b1))</code>；任一组全 0 都使 ZN=1</td></tr>
       <tr><td>三个候选通路的有效项汇总</td><td>AOI222：每个二输入组接 <code>valid_i/data_i</code></td><td>任一 <code>valid_i·data_i=1</code> 时 ZN=0，适合表达分组乘积项而非任意六输入逻辑</td></tr>
     </tbody>
   </table>
-  <p><strong>手算例子：</strong>AOI21 取 <code>kill=0, valid=1, ready=1</code>，先得 <code>valid·ready=1</code>，再得 <code>allow_n=!(0+1)=0</code>。若 ready 改为 0，则输出变为 1。这个“先算组内、再算组间、最后取反”的步骤同样适用于 AOI222/OAI33。</p>
+  <p><strong>手算例子：</strong>AOI21 取 <code>kill=0, valid=1, ready=1</code>，先得 <code>valid·ready=1</code>，再得 <code>block_n=!(0+1)=0</code>。若 ready 改为 0，则输出变为 1。这个“先算组内、再算组间、最后取反”的步骤同样适用于 AOI222/OAI33。</p>
   <div class="callout warn"><strong>映射注意：</strong>把两级离散门换成 AOI/OAI 可能减少级数，但不保证任何输入都更快。靠近输出的晶体管、串联位置、输入转换时间和负载都会改变每条 timing arc。逻辑等价输入只有在方程分组允许时才能互换，必须用该 variant 的 Liberty 数据判断。</div>
   <div class="figure-grid">
     <figure class="diagram"><a href="assets/freepdk45/aoi21_x1-layout.png"><img src="assets/freepdk45/aoi21_x1-layout.png" alt="AOI21_X1 版图"></a><figcaption>AOI21_X1 版图：三条逻辑输入 Poly，扩散排序由串并联网络和共享机会共同决定。</figcaption></figure>
@@ -68,25 +68,35 @@
   </div>
 
 
-<h2 id="section-2">13.2 不跳步骤：AOI21 与 OAI21 的八行真值表</h2>
+<h2 id="section-2">14.2 不跳步骤：AOI21 与 OAI21 的八行真值表</h2>
 <p>这里严格采用本地 CDL 命名：AOI21 为 <code>ZN=!(A+B1·B2)</code>，OAI21 为 <code>ZN=!(A·(B1+B2))</code>。两个门都是三输入，但括号位置不同，不能互换。</p>
 <table class="truth-table"><thead><tr><th>A</th><th>B1</th><th>B2</th><th>B1·B2</th><th>B1+B2</th><th>AOI21 ZN</th><th>OAI21 ZN</th></tr></thead><tbody>
 <tr><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td><td>1</td></tr><tr><td>0</td><td>0</td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td></tr><tr><td>0</td><td>1</td><td>0</td><td>0</td><td>1</td><td>1</td><td>1</td></tr><tr><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td></tr>
 <tr><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td></tr><tr><td>1</td><td>0</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr><tr><td>1</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr><tr><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0</td><td>0</td></tr>
 </tbody></table>
 <p>先独立算前五列，再检查输出，尤其关注 011 与 100：这两行把两个门区别开了。验证等价性时，只测 000 和 111 无法发现替换错误。</p>
-<h2 id="section-3">13.3 从“输出何时为 0”画出下拉网络</h2>
+<h2 id="section-3">14.3 从“输出何时为 0”画出下拉网络</h2>
 <p>AOI21 的输出为 0 条件是 <code>A 或 (B1 且 B2)</code>。因此 NMOS 有两条并联支路：一条只有 A，另一条串联 B1/B2。PUN 要在 A=0 且 B1/B2 至少一个为 0 时连通，所以 PMOS A 与 PMOS B1/B2 的并联组合串联。逐一用 011、100、000 追路径，就能核对原理图。</p>
 <p>OAI21 则把 NMOS A 与 B1/B2 的并联组合串联，PMOS A 与 B1/B2 的串联支路并联。注意 NMOS 网络的“AND/OR”表示导通条件，最终输出还取反。版图可能交换器件左右位置以增加共享，但不能改变节点关系。</p>
-<h2 id="section-4">13.4 同一逻辑族怎样扩展</h2>
+<h3>先在真实 AOI21_X1 网表中找到那两条支路</h3>
+<p>打开<a href="examples/FreePDK45/NangateOpenCellLibrary.cdl">本地 CDL</a>，定位 AOI21_X1。暂时不看 W/L，只读 D/G/S/B 四端。下面的路径写法只表达源漏连接，不改变原网表端子顺序。</p>
+<table><thead><tr><th>实际器件</th><th>源漏连接 / 栅</th><th>怎样拼成网络</th></tr></thead><tbody>
+<tr><td>NMOS M_i_0、M_i_1</td><td>ZN—net_0 / B1；net_0—VSS / B2</td><td>共用内部 net_0，形成 B1、B2 串联下拉支路</td></tr>
+<tr><td>NMOS M_i_2</td><td>VSS—ZN / A</td><td>它单独跨接 ZN/VSS，与上一支路并联</td></tr>
+<tr><td>PMOS M_i_3、M_i_4</td><td>都连接 net_1 与 ZN，栅分别 B1、B2</td><td>同一对源漏网络形成并联组</td></tr>
+<tr><td>PMOS M_i_5</td><td>VDD—net_1 / A</td><td>把电源串接到上述 PMOS 并联组</td></tr>
+</tbody></table>
+<p>以 A/B1/B2=010 为例：A 的 NMOS 关，B1 的 NMOS 开但 B2 关，因此两条下拉支路都断；A 的 PMOS 开、B2 的 PMOS 开，路径 <code>VDD → M_i_5 → net_1 → M_i_4 → ZN</code> 导通，输出为 1。把 B2 改成 1，串联 NMOS 支路完整导通，两个并联 PMOS 都关，输出变成 0。<strong>这才是从方程走到晶体管图的完整中间步骤。</strong></p>
+<p>回到版图时分别追 net_0、net_1：前者是两只 N 管之间的串联中间网，后者连接 P 管 A 与并联组。是否真的采用连续扩散共享，仍要看 Active 与接触孔/金属，不能由上表直接宣告共享。</p>
+<h2 id="section-4">14.4 同一逻辑族怎样扩展</h2>
 <table><thead><tr><th>例子</th><th>先计算的中间项</th><th>系统用途举例</th><th>不应省略的检查</th></tr></thead><tbody>
 <tr><td>AOI22</td><td>T0=A1·A2，T1=B1·B2，ZN=!(T0+T1)</td><td>两路请求各自得到授权后汇总“都没发生”</td><td>组内可逻辑互换，跨组不能随便换；实际输入弧仍要查表</td></tr>
 <tr><td>AOI211</td><td>按本库方程识别一个二输入积项与两个单输入项</td><td>一条组合触发条件，加上两个独立强制条件</td><td>先核对 pin grouping，再写代入关系</td></tr>
 <tr><td>OAI22</td><td>T0=A1+A2，T1=B1+B2，ZN=!(T0·T1)</td><td>两个条件组都获得至少一个许可时输出低有效有效量</td><td>任一组全 0 就阻断下拉路径</td></tr>
 <tr><td>AOI222 / OAI33</td><td>更多分组，而不是“任意六输入函数”</td><td>多项译码、分组许可或请求条件</td><td>扇入、堆叠、布线和每条弧的负载能力</td></tr>
 </tbody></table>
-<h2 id="section-5">13.5 为什么不同引脚不能用同一个延迟代替</h2>
+<h2 id="section-5">14.5 为什么不同引脚不能用同一个延迟代替</h2>
 <p>AOI21 的 A 可以单独建立下拉通路，B1/B2 则依赖另一串联管先导通。测 B1→ZN 必须固定 A=0、B2=1；若 A=1，输出已经被拉低，B1 不再改变输出。测 A→ZN 可取 B1=B2=0，但其他合法敏化状态的内部节点电荷可能不同。表征器要覆盖有意义的状态并按方法学归并，不是机械地把同一张 INV 表复制给所有输入。</p>
 <div class="checkpoint"><strong>练习</strong><ol><li>把 AOI21 的 A/B1 互换，举一个输入证明功能可能改变。</li><li>测 OAI21 的 B1 弧时，A/B2 应怎样设置？</li><li>为什么减少一级逻辑不保证系统路径必然更快？</li></ol><details><summary>答案</summary><p>① 原输入 A=1、B1=0、B2=0，原输出 0；互换后 A=0、B1=1、B2=0，输出 1。② A=1、B2=0，使 B1 决定 B1+B2。③ 复合门串联、电容、输入到达时间和负载都可能改变，须比较实际映射与 Liberty/PEX 时序。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="cells-basic.html">← 第 12 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-select.html">第 14 章 →</a></nav><footer>第 13 章　AOI/OAI 复合门与逻辑映射 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="cells-basic.html">← 第 13 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-select.html">第 15 章 →</a></nav><footer>第 14 章　AOI/OAI 复合门与逻辑映射 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

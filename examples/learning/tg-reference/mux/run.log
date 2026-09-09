@@ -1,0 +1,41 @@
+
+Note: No compatibility mode selected!
+
+
+Circuit: * edu_mux2: all eight (s, a, b) combinations
+
+Doing analysis at TEMP = 25.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+vdd                                        1.8
+s                                            0
+a                                            0
+b                                            0
+xu.sn                                      1.8
+z                                  2.38923e-09
+vb#branch                          1.80733e-12
+va#branch                            5.422e-12
+vs#branch                                    0
+vdd#branch                        -9.03667e-12
+
+
+No. of Data Rows : 4850
+
+  Measurements for Transient Analysis
+
+z_000               =  2.389227e-09
+z_001               =  2.389227e-09
+z_010               =  1.800000e+00
+z_011               =  1.800000e+00
+z_100               =  2.389227e-09
+z_101               =  1.800000e+00
+z_110               =  2.389227e-09
+z_111               =  1.800000e+00
+
+ngspice-42 done

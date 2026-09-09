@@ -1,31 +1,35 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 20 章　亲手运行 Euler 与最短路</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="chapter10.html">← 第 19 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter11.html">第 21 章 →</a></nav><h1>第 20 章　亲手运行 Euler 与最短路</h1><p class="subtitle">把图、路径、代价、冲突变成纸上能算和程序能断言的对象</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 21 章　亲手运行 Euler 与最短路</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="chapter10.html">← 第 20 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter11.html">第 22 章 →</a></nav><h1>第 21 章　亲手运行 Euler 与最短路</h1><p class="subtitle">把图、路径、代价、冲突变成纸上能算和程序能断言的对象</p>
 <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter10.html">算法小白也能用的图论</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="chapter10.html">理解图、权重与路径</a>；<a href="tools.html">会运行 Python 脚本</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能手算代价并解释最短边数不一定最小代价。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>重现脚本断言，并写出每步最短路松弛。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">同一只 NAND，可以画两种完全不同的图</a></li><li><a href="#section-2">两条 Euler 路如何给出上下行共同栅顺序</a></li><li><a href="#section-3">Dijkstra 不会选边数最少而代价更大的路</a></li><li><a href="#section-4">5×5 网格：两根网分别最短，合起来却冲突</a></li><li><a href="#section-5">运行、修改和解释断言</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">20.1 同一只 NAND，可以画两种完全不同的图</h2>
+<h2 id="section-1">21.1 同一只 NAND，可以画两种完全不同的图</h2>
 <p><strong>扩散图</strong>把电气网络作为顶点、MOS 作为带栅名标签的边，关注相邻器件能否共享扩散。<strong>布线资源图</strong>把层上的可用位置作为顶点、合法走线或通孔作为边，关注一根网能走到哪里。前者的顶点 Y 是一整张电气网络，后者的一个顶点只是一处物理资源；把二者混在一起就无法理解布局与布线的分工。</p>
-<h2 id="section-2">20.2 两条 Euler 路如何给出上下行共同栅顺序</h2>
+<h2 id="section-2">21.2 两条 Euler 路如何给出上下行共同栅顺序</h2>
 <table><thead><tr><th>行</th><th>器件边</th><th>一条合法遍历</th><th>栅顺序</th></tr></thead><tbody><tr><td>NMOS</td><td>A 连接 VSS/X，B 连接 X/Y</td><td>VSS —A— X —B— Y</td><td>A，B</td></tr><tr><td>PMOS</td><td>A 与 B 分别连接 VDD/Y</td><td>VDD —A— Y —B— VDD</td><td>A，B</td></tr></tbody></table>
 <p>Euler 路的目标是每条<strong>器件边</strong>恰好经过一次，允许重复经过顶点。PMOS 两条边虽然端点相同，仍是不同器件，必须在程序里保留各自 ID；用不支持平行边的简单图可能错误地把它们合成一条。两行都取 A/B 顺序，可把两个栅列上下对齐，并在每行内部共享中间扩散。</p>
 <p>这只是候选布局，不证明井、接触孔、不同 W、引脚接入和全部 DRC 都合法。若没有共同顺序，可以接受某些扩散断开、改变分区或用另一布局算法。入门时先明确约束，再谈“最优”。</p>
-<h2 id="section-3">20.3 Dijkstra 不会选边数最少而代价更大的路</h2>
+<h2 id="section-3">21.3 Dijkstra 不会选边数最少而代价更大的路</h2>
 <p>有向教学图有 S→A 代价 1、A→T 代价 9、S→B 代价 3、B→C 代价 1、C→T 代价 1。两条候选分别是 S-A-T（两条边，总代价 10）和 S-B-C-T（三条边，总代价 5）。权重可代表线长、通孔或拥塞惩罚，不总等于一条边一次计数。</p>
 <table><thead><tr><th>取出最小暂定距离顶点</th><th>新确定/更新</th><th>为什么</th></tr></thead><tbody><tr><td>S，0</td><td>A=1，B=3</td><td>先放入起点的出边</td></tr><tr><td>A，1</td><td>T=10</td><td>经过 A 到 T 为 1+9</td></tr><tr><td>B，3</td><td>C=4</td><td>经过 B 为 3+1</td></tr><tr><td>C，4</td><td>T 从 10 改成 5</td><td>发现更便宜的前驱，称为松弛</td></tr><tr><td>T，5</td><td>结束并沿前驱回溯</td><td>非负权重下，取出的最短距离已确定</td></tr></tbody></table>
 <p>不是第一次“发现 T”就停止，而是 T 作为当前最小距离被正式取出才停止。代码用最小堆 <code>heapq</code> 高效取最小项；若堆中存在旧的 T=10 项，靠距离比较跳过。普通 Dijkstra 不适用于负权重，别把奖励直接设成负边而不更换算法。</p>
-<h2 id="section-4">20.4 5×5 网格：两根网分别最短，合起来却冲突</h2>
+<h2 id="section-4">21.4 5×5 网格：两根网分别最短，合起来却冲突</h2>
 <figure class="diagram"><img src="assets/routing-lab.svg" alt="5乘5网格中两根网初始竞争三个节点，给占用资源加代价后其中一根绕行"></figure>
 <p>坐标 x/y 均取 0～4，移除障碍 (2,0)，相邻水平/垂直点之间每步代价 1。A 从 (0,1) 到 (4,1)，B 从 (1,0) 到 (3,0)。初始单独求路：A 沿 y=1，长度 4；B 绕开障碍，也经过 (1,1)、(2,1)、(3,1)，长度 4。三个节点的占用数都是 2，而教学容量是 1，所以不能一起交付。</p>
 <p>保留 B，给 B 占用的每个节点增加 10 的代价，再求 A。A 选择经 y=2 的六步绕路，不再和 B 共用节点；线长增加了 2，但组合结果满足本例容量限制。这展示了“先允许竞争、再让冲突资源变贵”的直觉。</p>
 <div class="callout warn">这不是 LibreCell PathFinder 的逐行复刻。真实布线还需考虑不同层、线宽/间距冲突、通孔、端子接入、历史代价和多轮拆线重布。此例把容量简化为节点互斥，不能据此把一条画在中心线上的路判为 DRC clean。</div>
-<h2 id="section-5">20.5 运行、修改和解释断言</h2>
+<h2 id="section-5">21.5 运行、修改和解释断言</h2>
+<h3>看不懂 Python 时，先把变量翻译成纸上的表</h3>
+<p>在<a href="examples/learning/algorithms.py">实验源码</a>中，<code>graph['S']={'A':1,'B':3}</code> 表示 S 可到 A/B，代价分别为 1/3。字典的键是对象名、值是关联数据；<code>distance={'S':0}</code> 是暂定最短距离表，不是物理坐标。</p>
+<table><thead><tr><th>代码对象</th><th>在纸上相当于什么</th><th>本例更新</th></tr></thead><tbody><tr><td>distance</td><td>到各点目前发现的最便宜代价</td><td>找到 S-B-C-T 后，T 从 10 改成 5</td></tr><tr><td>previous</td><td>当前最优路线中，这个点的前一个点</td><td>T 的前驱从 A 改为 C</td></tr><tr><td>heap</td><td>按候选总代价排序的待办队列</td><td>(5,T) 会早于旧的 (10,T) 被取出</td></tr><tr><td>path</td><td>用前驱表倒着找出的路线</td><td>T、C、B、S，再反转成 S、B、C、T</td></tr></tbody></table>
+<p>核心判断 <code>candidate &lt; distance.get(neighbor, float('inf'))</code> 就是“这次绕到邻点的花费，是否比此前更便宜？”没见过的邻点按无穷大处理。成立才改距离和前驱，不是每遇到一条边就无条件覆盖。<code>assert cost == 5</code> 是自动验收：若条件不成立就停止并报 AssertionError；它不是要求算法想办法把 cost 强行写成 5。</p>
 <pre><code>cd /home/jasper/code/docs/std-cell
 python examples/learning/algorithms.py</code></pre>
 <p>仅依赖 Python 标准库。脚本打印所有路径，断言共同栅顺序 A/B、最小代价 5、初始三个冲突点、重布后无共用节点，以及 A/B/新 A 的代价 4/4/6。改图时先预测输出，再改代码；断言失败是在提醒你的预期需要核对，不要直接删掉。</p>
 <div class="checkpoint"><strong>练习</strong><ol><li>若 A→T 的权重改成 2，最短路变成什么？</li><li>给冲突节点增加代价后，为什么“总线长更大”不代表优化失败？</li><li>把两条并联 PMOS 合成一条无 ID 边，会破坏哪个不变量？</li></ol><details><summary>答案</summary><p>① S-A-T，总代价 3。② 单根线长不是唯一目标，必须先满足所有网同时可布、无非法占用。③ 每个物理晶体管恰好安排一次；少了一条边就是丢器件，不是算法变聪明。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="chapter10.html">← 第 19 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter11.html">第 21 章 →</a></nav><footer>第 20 章　亲手运行 Euler 与最短路 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="chapter10.html">← 第 20 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter11.html">第 22 章 →</a></nav><footer>第 21 章　亲手运行 Euler 与最短路 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

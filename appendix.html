@@ -8,13 +8,13 @@
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter17.html">← 第 31 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a></nav>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter17.html">← 第 32 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a></nav>
   <h1>附录　术语、排错树、清单与延伸资源</h1>
   <p class="subtitle">查术语、找源码、定位失败和复核项目交付</p>
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter17.html">表征故障排查、签核与库级回归</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="tutorial_index.html">按问题查阅，不需要先读完所有章节</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能准确使用全文术语并找到一手资料。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>用资源索引补齐自己的最弱环节。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">版图与器件术语</a></li><li><a href="#section-2">库与验证术语</a></li><li><a href="#section-3">算法术语</a></li><li><a href="#section-4">本地 LibreCell 源码地图</a></li><li><a href="#section-5">CLI 速查（提交 f708e3a）</a></li><li><a href="#section-6">排错决策树</a></li><li><a href="#section-7">最常见的错误认知</a></li><li><a href="#section-8">推荐阅读路线</a></li><li><a href="#section-9">开放在线资源</a></li><li><a href="#section-10">项目最终清单</a></li></ol></details>
@@ -49,6 +49,9 @@
       <tr><td>PDK</td><td>工艺设计套件：规则、层、器件、模型、deck、工具配置和参考资料的集合。</td></tr>
       <tr><td>DRM</td><td>设计规则手册，用于理解 rule intent/condition；不等同于签核 deck。</td></tr>
       <tr><td>DBU</td><td>database unit，版图整数坐标的物理长度。</td></tr>
+      <tr><td>Manufacturing grid / 制造网格</td><td>工艺要求图形边界遵守的离散步进；能存入 DBU 不代表已落制造网格，见<a href="chapter7.html#four-grids">四种网格的算例</a>。</td></tr>
+      <tr><td>Routing pitch / offset</td><td>布线轨道的周期与起始偏移；决定候选中心位置，仍需检查展开线宽和通孔后的几何。</td></tr>
+      <tr><td>Site / row</td><td>芯片级标准单元布局的基本站点与行组织；与器件沟道长度、制造网格不是同一概念。</td></tr>
       <tr><td>GDS/OASIS</td><td>保存制造相关层几何和层次的版图交换格式。</td></tr>
       <tr><td>LEF</td><td>给 P&amp;R 的物理抽象：boundary/size、site、pin port、OBS 等。</td></tr>
       <tr><td>CDL/SPICE</td><td>晶体管/器件网表，包含端子、模型和参数。</td></tr>
@@ -77,6 +80,8 @@
       <tr><td>Filler</td><td>填补空站点并保持 well/implant/power 等连续的物理单元。</td></tr>
       <tr><td>Endcap</td><td>处理 row/井/implant 边缘规则的物理单元。</td></tr>
       <tr><td>Tap cell</td><td>在 tapless 架构中周期性提供 well/substrate 连接的单元。</td></tr>
+      <tr><td>Latch / latch-up / race-through</td><td>分别是锁存器、寄生闩锁可靠性问题、透明窗口导致数据连续穿级；三者不可因名字相似混用。</td></tr>
+      <tr><td>Setup/hold；recovery/removal</td><td>前者约束数据相对采样/关闭事件，后者约束异步控制释放相对时钟；见<a href="cells-sequential.html#section-3">带数字的时间窗口练习</a>。</td></tr>
     </tbody>
   </table>
 
@@ -204,7 +209,7 @@
     <article class="card"><h3>库</h3><ul><li>GDS/LEF/CDL/Verilog/Liberty</li><li>视图一致性</li><li>引脚可接入性/P&amp;R/STA</li><li>交付清单与已知限制</li></ul></article>
   </div>
 
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter17.html">← 第 31 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a></nav>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter17.html">← 第 32 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a></nav>
   <footer>附录　术语、排错树、清单与延伸资源 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>

@@ -1,0 +1,27 @@
+{
+  "book_chapters": 32,
+  "appendices": 1,
+  "source_parser_tests": 6,
+  "simulation_points": 9,
+  "nldm_values": 36,
+  "tg_cases": 4,
+  "tg_voltage_checks": 25,
+  "tg_overwrite_refusal": "passed, prior evidence unchanged",
+  "liberty_parser": "passed",
+  "interpolation_ns": 0.0269221975,
+  "invalid_stimulus": "no measured cell_fall, failure log retained",
+  "drc_markers": {
+    "Well.1": 1,
+    "Active.1": 1,
+    "Poly.1": 1,
+    "Contact.1": 2,
+    "Metal1.1": 1,
+    "Metal1.2": 1
+  },
+  "cdl_cells": 135,
+  "cdl_families_mentioned": 51,
+  "scope": "teaching tests, not full generation or signoff",
+  "command": "python scripts/verify_learning.py",
+  "evidence_directory": "/tmp/stdcell-learning-check-gtq1ug2v",
+  "note": "Snapshot after inserting the transmission-gate chapter; see README for rerun instructions. Temporary evidence may be removed by the system."
+}

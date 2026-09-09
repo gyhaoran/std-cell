@@ -1,32 +1,34 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 28 章　工艺迁移小实验与证据分级</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="chapter16.html">← 第 27 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="simulation.html">第 29 章 →</a></nav><h1>第 28 章　工艺迁移小实验与证据分级</h1><p class="subtitle">先改变一条规则并证明后果，再逐步扩大到器件和全库</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 29 章　工艺迁移小实验与证据分级</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="chapter16.html">← 第 28 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="simulation.html">第 30 章 →</a></nav><h1>第 29 章　工艺迁移小实验与证据分级</h1><p class="subtitle">先改变一条规则并证明后果，再逐步扩大到器件和全库</p>
 <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter16.html">新工艺迁移毕业项目</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="chapter16.html">理解能力矩阵与证据分级</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能证明几何改动前后哪些规则改善、哪些未覆盖。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>重现接触孔包围修复并填写未验证项。先做题，再展开答案；只读过不算完成。</p>
 <details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">为什么迁移不能从“把所有尺寸乘二”开始</a></li><li><a href="#section-2">先算出必须修改的几何</a></li><li><a href="#section-3">运行前后对照，不覆盖原证据</a></li><li><a href="#section-4">把小实验映射回 LibreCell 的接口</a></li><li><a href="#section-5">毕业项目用四种证据等级报告</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">28.1 为什么迁移不能从“把所有尺寸乘二”开始</h2>
+<h2 id="section-1">29.1 为什么迁移不能从“把所有尺寸乘二”开始</h2>
 <p>DBU、制造网格、栅长、接触孔尺寸、金属宽度、轨距与井包围是不同约束。它们可能变化比例不同，也可能新增条件规则。旧布局简单放大后，即使部分间距变大，仍可能使用错误模型、错误层号、不支持的栅长或非法引脚形状。</p>
 <p>下面使用一个<strong>自拟教学工艺</strong> EDU_CONTACT，不是 FreePDK45 DRC 的完整实现。选择孤立方接触孔，是为了让你能手算、看 GDS、跑自动检查三者相互核对。规则取接触孔边长 65 nm、金属最小宽度 100 nm、金属四边包围 35 nm，层号沿用 10/0 与 11/0 便于用现有配色打开，但层号相同不代表工艺相同。</p>
-<h2 id="section-2">28.2 先算出必须修改的几何</h2>
+<h2 id="section-2">29.2 先算出必须修改的几何</h2>
 <p>接触孔从 (100,100) 到 (165,165)，单位 nm。原金属只包围 5 nm，所以金属宽 <code>65+2×5=75 nm</code>：既小于最小宽度 100 nm，也不满足 35 nm 包围。正确修复不是仅把金属宽改成 100 nm，因为那只有 (100-65)/2=17.5 nm 包围，仍不足。</p>
 <table><thead><tr><th>状态</th><th>金属边界，nm</th><th>宽度</th><th>包围量</th><th>两项检查</th></tr></thead><tbody><tr><td>修改前</td><td>(95,95)～(170,170)</td><td>75 nm</td><td>5 nm</td><td>均失败</td></tr><tr><td>只满足宽度的中间方案</td><td>以同中心做 100 nm 方形</td><td>100 nm</td><td>17.5 nm</td><td>包围仍失败；还要检查整数网格</td></tr><tr><td>本例修改后</td><td>(65,65)～(200,200)</td><td>135 nm</td><td>35 nm</td><td>此孤立结构的两项检查通过</td></tr></tbody></table>
-<h2 id="section-3">28.3 运行前后对照，不覆盖原证据</h2>
+<h2 id="section-3">29.3 运行前后对照，不覆盖原证据</h2>
 <pre><code>cd /home/jasper/code/docs/std-cell
 TUTORIAL_GEOM_OUT=$(mktemp -d /tmp/stdcell-geometry.XXXXXX)
 python examples/learning/geometry_lab.py --output "$TUTORIAL_GEOM_OUT"
 klayout -l examples/FreePDK45/freepdk45.lyp "$TUTORIAL_GEOM_OUT/before.gds"
 klayout -l examples/FreePDK45/freepdk45.lyp "$TUTORIAL_GEOM_OUT/after.gds"</code></pre>
 <p>Python 脚本使用 <code>layout.dbu=0.001 μm</code>，即 1 nm/DBU。宽度用 KLayout Region 检查；包围用本孤立方孔的 <code>cut.sized(35)-metal</code> 是否为空判断：非空说明要求覆盖的区域仍有缺口。这是一个清楚的几何断言，不是通用 EOL/方向性 enclosure deck。</p>
+<p>把这行集合运算展开：<code>cut.sized(35)</code> 将方孔四周向外扩 35 DBU，得到必须被金属覆盖的方形 (65,65)～(200,200)；再减去实际 metal，就剩“应该有金属却没有”的区域。结果为空只证明这个包围条件，不证明 metal 没有碰到邻网。</p>
+<details><summary>带邻居的反例：为什么 135 nm 修复不能直接推广？</summary><p>假设右侧异网金属左边界 x=250 nm，且要求间距至少 60 nm。旧金属右边 x=170，间距 80 nm；修复后右边 x=200，间距降为 50 nm，产生新违规。应重新安排接触孔/邻线/槽位并验证，而不是把新间距门槛降到 50。这是手算反例，现有孤立 fixture 没有生成该邻居，不能声称脚本已检查这一项。</p></details>
 <p>本机已跑通，参考 <a href="examples/learning/geometry-reference/results.json">前后检查结果</a>，以及 <a href="examples/learning/geometry-reference/before.gds">修改前 GDS</a>、<a href="examples/learning/geometry-reference/after.gds">修改后 GDS</a>。你应能用标尺复核尺寸，而不仅是重现脚本输出。</p>
-<h2 id="section-4">28.4 把小实验映射回 LibreCell 的接口</h2>
+<h2 id="section-4">29.4 把小实验映射回 LibreCell 的接口</h2>
 <table><thead><tr><th>你改变的需求</th><th>可能影响的生成器对象</th><th>回归不变量</th></tr></thead><tbody><tr><td>接触孔尺寸/包围</td><td>via/contact 尺寸、enclosure、端子可接入位置</td><td>连接仍为原网；包围满足；邻近金属未短接</td></tr><tr><td>更宽金属</td><td>wire width、资源图冲突范围、引脚几何</td><td>中心线合法不够，实际图形间距也合法</td></tr><tr><td>更大轨距</td><td>routing grid、offset、端子嵌入和单元宽高</td><td>每个必须接入的端子仍能到达合法资源</td></tr><tr><td>层号变化</td><td>内部语义层到输出层的 map、提取器层映射</td><td>不能只改颜色；DRC/LVS 看到正确层</td></tr></tbody></table>
 <p>在真实单元里扩大金属可能造成相邻不同网 spacing 失败；扩大接触孔又可能放不进 diffusion；增大 Active 会改变 W 与器件电容。这就是迁移要按依赖关系走，而不是“每发现一个 DRC 就单独加大那块矩形”。</p>
-<h2 id="section-5">28.5 毕业项目用四种证据等级报告</h2>
+<h2 id="section-5">29.5 毕业项目用四种证据等级报告</h2>
 <table><thead><tr><th>等级</th><th>可以说什么</th><th>不能说什么</th></tr></thead><tbody><tr><td>推导</td><td>我能手算并指出源码消费点</td><td>工具已生成成功</td></tr><tr><td>教学验证</td><td>此 fixture 的这些断言/测量已通过</td><td>真实 PDK 全部规则通过</td></tr><tr><td>目标工艺回归</td><td>指定版本/角点/deck 下的单元集通过列明检查</td><td>没有覆盖的角点、单元、方向也可用</td></tr><tr><td>发布验收</td><td>库视图一致、签核、表征与下游回归均满足项目准入标准</td><td>用教学模型和空 Liberty 项代替未完成工作</td></tr></tbody></table>
 <p>迁移记录要包含失败项。比如“tap 单元只有空 CDL”“原始 SPICE L 未保存”“PEX 可运行但未确认模型角点”“时序单元表征未实现”都是明确风险，不应藏在“后续完善”的一句话里。</p>
 <div class="checkpoint"><strong>练习</strong><p>若接触孔仍为 65 nm，包围改成 40 nm，金属最小宽度仍为 100 nm，最小方形金属应该多宽？在真实版图中还需重查什么？</p><details><summary>答案</summary><p>至少 145 nm，取 max(100,65+2×40)。还需确认网格量化、相邻金属间距、孔到栅/扩散边界距离、可接入性、网络未变及目标 deck 中其他条件规则。145 nm 只是这个孤立正方形的算术下界。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="chapter16.html">← 第 27 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="simulation.html">第 29 章 →</a></nav><footer>第 28 章　工艺迁移小实验与证据分级 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="chapter16.html">← 第 28 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="simulation.html">第 30 章 →</a></nav><footer>第 29 章　工艺迁移小实验与证据分级 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

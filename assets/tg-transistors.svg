@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 580" role="img" aria-labelledby="title desc">
+  <title id="title">传输门四端晶体管电路：数据端 X Y 并联，栅极独立，体端各接电源</title>
+  <desc id="desc">左边 MP 的栅是 ENB、体是 VDD；右边 MN 的栅是 EN、体是 VSS。两管的源端接上方 X 网络，漏端接下方 Y 网络，对应正文 MN Y EN X VSS 和 MP Y ENB X VDD。体端箭头区分 P 与 N，不表示数据流向。</desc>
+  <style>text{font-family:Arial,"Noto Sans CJK SC",sans-serif;fill:#17243b;font-size:23px}.small{font-size:20px}.wire{stroke:#334155;stroke-width:3;fill:none;stroke-linecap:square}.body{stroke:#64748b;stroke-width:2.5;fill:none}</style>
+  <rect width="1040" height="580" fill="white"/>
+  <text x="35" y="40" font-size="27" font-weight="bold">TG 晶体管电路：信号通路是 X ↔ Y，不是 VDD ↔ VSS</text>
+  <path d="M130 120H720V198H680M375 120V198H335M130 400H720V268H680M375 400V268H335" class="wire"/>
+  <circle cx="375" cy="120" r="5" fill="#334155"/><circle cx="375" cy="400" r="5" fill="#334155"/>
+  <text x="90" y="128" font-size="23">X</text><text x="90" y="408" font-size="23">Y</text>
+  <path d="M335 188V208M335 223V243M335 258V278M315 188V278M680 188V208M680 223V243M680 258V278M660 188V278" class="wire"/>
+  <path d="M170 233H294M545 233H660" class="wire"/>
+  <circle cx="304" cy="233" r="10" fill="white" stroke="#334155" stroke-width="3"/>
+  <text x="170" y="216" font-size="23">ENB</text><text x="545" y="216" font-size="23">EN</text>
+  <path d="M335 233H410M680 233H765" class="body"/>
+  <path d="M362 226L376 233L362 240Z" fill="#64748b"/>
+  <path d="M710 226L696 233L710 240Z" fill="#64748b"/>
+  <text x="420" y="241" class="small" font-size="20">B=VDD</text><text x="780" y="241" class="small" font-size="20">B=VSS</text>
+  <text x="388" y="173" class="small" font-size="20">S=X</text><text x="732" y="173" class="small" font-size="20">S=X</text>
+  <text x="388" y="308" class="small" font-size="20">D=Y</text><text x="732" y="308" class="small" font-size="20">D=Y</text>
+  <text x="180" y="330" font-weight="bold" font-size="23">MP / PMOS</text><text x="525" y="330" font-weight="bold" font-size="23">MN / NMOS</text>
+  <rect x="40" y="444" width="960" height="106" rx="10" fill="#eff6ff"/>
+  <text x="65" y="477" class="small" font-size="20">D、S 标注与本网表一致；实际传输方向由哪一侧驱动、哪一侧接负载决定。</text>
+  <text x="65" y="508" class="small" font-size="20">体端 B 的箭头不是数据流向。ENB 旁的小圆圈表示 PMOS 的低电平使能特性。</text>
+  <text x="65" y="537" class="small" font-size="20">控制与数据限制在电源轨范围内；两只 MOS 的体端不能省略或接错。</text>
+</svg>

@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 25 章　沿源码走完整流水线</title>
+  <title>第 26 章　沿源码走完整流水线</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter14.html">← 第 24 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="source-lab.html">第 26 章 →</a></nav>
-  <h1>第 25 章　沿源码走完整流水线</h1>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter14.html">← 第 25 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="source-lab.html">第 27 章 →</a></nav>
+  <h1>第 26 章　沿源码走完整流水线</h1>
   <p class="subtitle">知道每个中间状态在哪里，才有能力修改而不靠猜</p>
 
   <div class="objectives">
@@ -28,13 +28,18 @@
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="chapter14.html">技术文件逐字段拆解</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="chapter14.html">知道技术字段的物理含义</a>；<a href="algorithms-lab.html">理解程序中的图与路径</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能指出模型解析、布线、后处理与 writer 的边界。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>为需求选择修改模块与对应回归范围。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">入口：standalone.main</a></li><li><a href="#section-2">00–01：校验技术与读取网表</a></li><li><a href="#section-3">02–03：内部版图与抽象布局</a></li><li><a href="#section-4">04–05：画晶体管和单元模板</a></li><li><a href="#section-5">06–08：构图、布线和绘制</a></li><li><a href="#section-6">09：有限的后处理</a></li><li><a href="#section-7">内部 LVS 与输出模块</a></li><li><a href="#section-8">从需求判断修改落点</a></li><li><a href="#section-9">一次安全的源码修改流程</a></li><li><a href="#section-10">高效导航源码</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#source-reading-bridge">先认识代码里的“对象”，再读流水线</a></li><li><a href="#section-1">入口：standalone.main</a></li><li><a href="#section-2">00–01：校验技术与读取网表</a></li><li><a href="#section-3">02–03：内部版图与抽象布局</a></li><li><a href="#section-4">04–05：画晶体管和单元模板</a></li><li><a href="#section-5">06–08：构图、布线和绘制</a></li><li><a href="#section-6">09：有限的后处理</a></li><li><a href="#section-7">内部 LVS 与输出模块</a></li><li><a href="#section-8">从需求判断修改落点</a></li><li><a href="#section-9">一次安全的源码修改流程</a></li><li><a href="#section-10">高效导航源码</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="section-1">25.1 入口：<code>standalone.main</code></h2>
+<h2 id="source-reading-bridge">26.1 先认识代码里的“对象”，再读流水线</h2>
+<p>第一次读源码，不需要同时掌握所有 Python 语法。<code>def</code> 声明函数，调用函数才执行其工作；<code>class</code> 定义一类对象，实例保存一次任务的状态；<code>self.tech</code> 是当前实例持有的技术配置，<code>t.channel_width</code> 是当前晶体管对象的一项数据。名字叫 width 还不够，必须问此处单位是米还是 DBU。</p>
+<table><thead><tr><th>流水线传递的对象</th><th>已经知道什么</th><th>还不知道什么</th></tr></thead><tbody><tr><td>Transistor 列表</td><td>管名、类型、G/S/D 网络、已保留的尺寸参数</td><td>还没决定槽位和金属走法；本版本不完整保留原网表所有元数据</td></tr><tr><td>抽象单元布局</td><td>上下行、顺序、翻转与空槽</td><td>还不等于全层合法多边形</td></tr><tr><td>端子与布线图</td><td>端子几何、候选可走节点/边与冲突</td><td>还没为全部网络选出兼容的走线</td></tr><tr><td>每网布线树</td><td>每条网使用哪些节点和边</td><td>还要展开线宽、通孔、合并和后处理</td></tr><tr><td>内部版图与输出视图</td><td>可写入 GDS/LEF 的几何和元数据</td><td>不自动获得未执行的外部签核、PEX 与时序保证</td></tr></tbody></table>
+<p>推荐只追一只 INV 的 N 管和一张输出网：记录“解析后 W 是多少 → 布局在哪一槽 → 哪块 Active 属于它 → 输出扩散对应哪些端子节点 → 哪些边把输出端连到 PIN → writer 写到了哪层”。某一步出现错误时，在该步入口和出口对比对象，比从最终 GDS 倒猜所有算法有效。</p>
+<details><summary>练习：解析时 W 正确，生成时却变大，先查哪一段？</summary><p>先查米到 DBU 的换算、sizing 与最小宽度夹取，再查折指/绘制；不要先去改 Dijkstra。若内部几何正确、导出层号错，才优先查 output_map 和 writer。这是在按数据变化定位责任边界。</p></details>
+<h2 id="section-1">26.2 入口：<code>standalone.main</code></h2>
   <ol class="steps">
     <li><code>argparse</code> 解析真实 CLI，按 <code>-v/-q/--log</code> 配置日志。</li>
     <li><code>load_tech_file</code> 执行 Python 技术文件。</li>
@@ -45,7 +50,7 @@
   </ol>
   <p>源码入口：<code>librecell-layout/lclayout/standalone.py</code>。第一次阅读不要从文件顶部逐行滚动，先找 <code>main</code>、<code>create_cell_layout</code> 和编号方法。</p>
 
-  <h2 id="section-2">25.2 00–01：校验技术与读取网表</h2>
+  <h2 id="section-2">26.3 00–01：校验技术与读取网表</h2>
   <p><code>_00_00_check_tech</code> 当前只做很少的检查，例如 <code>multi_via</code> 层对顺序；<code>_00_01_prepare_tech</code> 把间距字典变成无向图。</p>
   <p><code>_01_load_netlist</code>：</p>
   <ul>
@@ -56,7 +61,7 @@
   </ul>
   <p>这里是新工艺模型名、器件参数和 body 语义最早需要扩展的位置。建议把“模型名→ChannelType”从隐式字符串规则改为技术文件中的显式 mapping/callback，并为未知模型报错。</p>
 
-  <h2 id="section-3">25.3 02–03：内部版图与抽象布局</h2>
+  <h2 id="section-3">26.4 02–03：内部版图与抽象布局</h2>
   <p><code>_02_setup_layout</code> 创建顶层单元，并按固定内部 <code>layermap</code> 为每个语义层建立图形容器。开启布线图调试时还会创建调试用途层。</p>
   <p><code>_03_place_transistors</code> 调用选定布局器，得到两行槽位单元。若传入布局文件路径：</p>
   <ul>
@@ -65,7 +70,7 @@
   </ul>
   <p>这是保证 A/B 实验可比的接口，也意味着过期布局文件会绕过新布局器。</p>
 
-  <h2 id="section-4">25.4 04–05：画晶体管和单元模板</h2>
+  <h2 id="section-4">26.5 04–05：画晶体管和单元模板</h2>
   <p><code>DefaultTransistorLayout</code> 用抽象槽位与技术参数生成：</p>
   <ul>
     <li>NMOS/PMOS 对应的 diffusion；</li>
@@ -75,7 +80,7 @@
   </ul>
   <p><code>_05_draw_cell_template</code> 计算单元宽度，绘制模板、VDD/VSS 电源轨和电源引脚图形。若新工艺需要注入层、阱/衬底接触、特殊栅切割或鳍数离散化，仅调整 GDS 映射无法解决，应在晶体管/模板抽象层增加显式生成逻辑。</p>
 
-  <h2 id="section-5">25.5 06–08：构图、布线和绘制</h2>
+  <h2 id="section-5">26.6 06–08：构图、布线和绘制</h2>
   <p><code>_06_route</code> 包含了构图和实际多网络布线：</p>
   <ol>
     <li>创建 <code>Grid2D</code> 与基础 layer-coordinate graph；</li>
@@ -86,7 +91,7 @@
   </ol>
   <p><code>_08_draw_routes</code> 把布线树画成导线/通孔并合并同层多边形。没有另一个河流式布线方法。</p>
 
-  <h2 id="section-6">25.6 09：有限的后处理</h2>
+  <h2 id="section-6">26.7 09：有限的后处理</h2>
   <p><code>_09_post_process</code> 的核心工作：</p>
   <ul>
     <li>对配置了 <code>minimum_notch</code> 的层填凹槽，连续做两次；</li>
@@ -96,7 +101,7 @@
   </ul>
   <div class="callout danger"><strong>它不是完整 DRC 修复器。</strong>它不保证修复所有 width/space/EOL/density/antenna/implant/well 规则，也不能宣称会普遍“平滑扩散”或“自动扩 N-Well”。结果必须运行外部 deck。</div>
 
-  <h2 id="section-7">25.7 内部 LVS 与输出模块</h2>
+  <h2 id="section-7">26.8 内部 LVS 与输出模块</h2>
   <p><code>create_cell_layout</code> 返回后，<code>main</code> 才读取参考网表、把四端 MOS 转为三端 MOS、从版图提取网表并比较。失败且未使用调试选项/<code>--ignore-lvs</code> 时退出，不写最终文件。</p>
   <p>通过后依次调用输出模块：</p>
   <ul>
@@ -105,7 +110,7 @@
     <li>Magic writer：按自己的层名和缩放因子写 <code>.mag</code>。</li>
   </ul>
 
-  <h2 id="section-8">25.8 从需求判断修改落点</h2>
+  <h2 id="section-8">26.9 从需求判断修改落点</h2>
   <table>
     <thead><tr><th>需求</th><th>首要修改点</th><th>必须联动的验证</th></tr></thead>
     <tbody>
@@ -119,7 +124,7 @@
     </tbody>
   </table>
 
-  <h2 id="section-9">25.9 一次安全的源码修改流程</h2>
+  <h2 id="section-9">26.10 一次安全的源码修改流程</h2>
   <ol class="steps">
     <li><strong>写需求和不变量：</strong>例如“未知模型必须报错，原 nmos/pmos 行为不变”。</li>
     <li><strong>先写最小测试：</strong>一个正例、一个边界例、一个失败例。</li>
@@ -130,7 +135,7 @@
     <li><strong>记录差异：</strong>输出哈希、面积、导线/通孔、违规分类、时序/功耗。</li>
   </ol>
 
-  <h2 id="section-10">25.10 高效导航源码</h2>
+  <h2 id="section-10">26.11 高效导航源码</h2>
   <pre><code>cd /home/jasper/code/github/librecell
 
 rg -n "def create_cell_layout|def _0[0-9]_" librecell-layout/lclayout
@@ -155,8 +160,8 @@ rg -n "class .*Writer|write_layout" librecell-layout/lclayout/writer</code></pre
     <details><summary>参考答案</summary><p>LVS 在输出模块之前。M3 影响内部层/通孔连接图、布线、几何绘制、提取和输出。不同网络的金属图形若被全局填凹槽合并会短路，只有 nwell 等明确列入 <code>connectable_layers</code> 的层才允许这样处理。</p></details>
   </div>
 
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter14.html">← 第 24 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="source-lab.html">第 26 章 →</a></nav>
-  <footer>第 25 章　沿源码走完整流水线 · 实验状态见总目录</footer>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter14.html">← 第 25 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="source-lab.html">第 27 章 →</a></nav>
+  <footer>第 26 章　沿源码走完整流水线 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

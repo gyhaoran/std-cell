@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 510" role="img" aria-labelledby="title desc">
+  <title id="title">两个互斥传输门构成非反相二选一 MUX</title>
+  <desc id="desc">A 通过 TGA 连接 Z，TGA 的 NMOS 栅接 SN，PMOS 栅接 S。B 通过 TGB 连接 Z，TGB 的 NMOS 栅接 S，PMOS 栅接 SN。一个反相器由 S 生成 SN；图中无输出反相器。</desc>
+  <style>text{font-family:Arial,"Noto Sans CJK SC",sans-serif;fill:#17243b;font-size:23px}.small{font-size:21px}.wire{stroke:#334155;stroke-width:4;fill:none}.box{fill:#eff6ff;stroke:#2563eb;stroke-width:3}</style>
+  <rect width="1040" height="510" fill="white"/>
+  <text x="35" y="40" font-size="27" font-weight="bold">TG-MUX：先选通一路，再把该路电压传到 Z</text>
+  <path d="M140 165H300M600 165H750V335H600M750 250H875M140 335H300" class="wire"/>
+  <circle cx="750" cy="250" r="6" fill="#334155"/>
+  <text x="91" y="173" font-size="23">A</text><text x="91" y="343" font-size="23">B</text><text x="895" y="259" font-size="23">Z</text>
+  <rect x="300" y="108" width="300" height="113" rx="10" class="box"/>
+  <text x="450" y="140" text-anchor="middle" font-weight="bold" font-size="23">TGA（S=0 时使能）</text>
+  <text x="450" y="175" text-anchor="middle" class="small" font-size="21">NMOS 栅 = SN</text>
+  <text x="450" y="203" text-anchor="middle" class="small" font-size="21">PMOS 栅 = S</text>
+  <rect x="300" y="278" width="300" height="113" rx="10" class="box"/>
+  <text x="450" y="310" text-anchor="middle" font-weight="bold" font-size="23">TGB（S=1 时使能）</text>
+  <text x="450" y="345" text-anchor="middle" class="small" font-size="21">NMOS 栅 = S</text>
+  <text x="450" y="373" text-anchor="middle" class="small" font-size="21">PMOS 栅 = SN</text>
+  <path d="M115 460H175M175 429L175 491L235 460Z" class="wire"/>
+  <circle cx="243" cy="460" r="8" fill="white" stroke="#334155" stroke-width="3"/>
+  <path d="M251 460H300" class="wire"/>
+  <text x="79" y="468" font-size="23">S</text><text x="315" y="468" font-size="23">SN = NOT(S)</text>
+  <text x="640" y="432" class="small" font-size="21">2 个 TG：4 只 MOS</text>
+  <text x="640" y="463" class="small" font-size="21">控制反相器：2 只 MOS</text>
+  <text x="640" y="494" class="small" font-size="21">共 6 只；无输出缓冲级</text>
+</svg>

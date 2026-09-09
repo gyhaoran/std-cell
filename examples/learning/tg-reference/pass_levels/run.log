@@ -1,0 +1,39 @@
+
+Note: No compatibility mode selected!
+
+
+Circuit: * single mos versus cmos transmission gate
+
+Doing analysis at TEMP = 25.000000 and TNOM = 27.000000
+
+Using SPARSE 1.3 as Direct Linear Solver
+
+Initial Transient Solution
+--------------------------
+
+Node                                   Voltage
+----                                   -------
+vdd                                        1.8
+din                                          0
+yn                                           0
+yp                                    0.452697
+ytg                                1.19461e-09
+yrev                               1.19461e-09
+vin#branch                         1.03913e-11
+vdd#branch                        -1.03913e-11
+
+
+No. of Data Rows : 2820
+
+  Measurements for Transient Analysis
+
+n_high              =  1.341048e+00
+p_high              =  1.800000e+00
+tg_high             =  1.800000e+00
+rev_high            =  1.800000e+00
+n_low               =  1.191251e-163
+p_low               =  4.595552e-01
+tg_low              =  1.194614e-09
+rev_low             =  1.194614e-09
+
+ngspice-42 done

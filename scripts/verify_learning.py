@@ -29,9 +29,34 @@ def main():
     logs = {}
     logs['book'] = run([sys.executable,'scripts/book.py','--check'])
     logs['algorithms'] = run([sys.executable,'examples/learning/algorithms.py'])
+    logs['concepts'] = run([sys.executable,'examples/learning/concept_checks.py'])
     logs['source'] = run([sys.executable,'examples/learning/source_lab.py','--librecell-root','/home/jasper/code/github/librecell','--output',str(out/'source')])
     logs['geometry'] = run([sys.executable,'examples/learning/geometry_lab.py','--output',str(out/'geometry')])
     logs['simulation'] = run([sys.executable,'examples/learning/characterize.py','--output',str(out/'simulation')])
+    tg_out = out/'transmission-gates'
+    logs['transmission_gates'] = run([sys.executable,'examples/learning/transmission_gate_lab.py','--output',str(tg_out)])
+    tg_results = json.loads((tg_out/'measurements.json').read_text())
+    assert set(tg_results) == {'pass_levels','isolation','mux','latch'}
+    assert sum(map(len,tg_results.values())) == 25
+    for case in tg_results.values():
+        for record in case.values():
+            value = record['voltage_V']
+            low, high = record['accepted_range_V']
+            assert math.isfinite(value) and low <= value <= high
+    for s in (0,1):
+        for a in (0,1):
+            for b in (0,1):
+                assert abs(tg_results['mux'][f'z_{s}{a}{b}']['voltage_V']-1.8*(b if s else a)) < 0.01
+    for svg in tg_out.glob('*.svg'):
+        ET.parse(svg)
+    for svg in (ROOT/'examples/learning/tg-reference').glob('*.svg'):
+        ET.parse(svg)
+    # Safety negative case: rerunning into prior evidence must fail without edits.
+    before = {p.relative_to(tg_out):p.read_bytes() for p in tg_out.rglob('*') if p.is_file()}
+    refused = subprocess.run([sys.executable,'examples/learning/transmission_gate_lab.py','--output',str(tg_out)],cwd=ROOT,text=True,capture_output=True)
+    assert refused.returncode != 0 and 'refusing to overwrite' in refused.stderr
+    after = {p.relative_to(tg_out):p.read_bytes() for p in tg_out.rglob('*') if p.is_file()}
+    assert before == after
     sim = out/'simulation'
     measurements = json.loads((sim/'measurements.json').read_text())
     lib = parse_liberty((sim/'edu_inv.lib').read_text())
@@ -47,6 +72,8 @@ def main():
     values = timing.get_group('cell_rise').get_array('values')
     interpolation = sum(values[r,c] for r in [0,1] for c in [0,1])/4
     assert abs(interpolation - 0.0269221975) < 1e-7
+    off_center = sum(w*values[r,c] for w,r,c in [(0.15,0,0),(0.60,0,1),(0.05,1,0),(0.20,1,1)])
+    assert abs(off_center - 0.027822983) < 1e-7
     # A deliberately invalid stimulus never reaches the 50% trigger voltage.
     module_path = ROOT/'examples/learning/characterize.py'
     spec = importlib.util.spec_from_file_location('tutorial_characterizer',module_path)
@@ -79,7 +106,8 @@ def main():
     assert len(names) == 135 and len(families) == 51
     for family in families:
         assert family in atlas, family
-    summary = {'book_chapters':31,'appendices':1,'source_parser_tests':6,'simulation_points':9,'nldm_values':36,'liberty_parser':'passed','interpolation_ns':interpolation,'invalid_stimulus':'no measured cell_fall, failure log retained','drc_markers':categories,'cdl_cells':len(names),'cdl_families_mentioned':len(families),'scope':'teaching tests, not full generation or signoff'}
+    summary = {'book_chapters':sum(name != 'appendix.html' for name,*_ in BOOK),'appendices':1,'source_parser_tests':6,'simulation_points':9,'nldm_values':36,'tg_cases':len(tg_results),'tg_voltage_checks':sum(map(len,tg_results.values())),'tg_overwrite_refusal':'passed, prior evidence unchanged','liberty_parser':'passed','interpolation_ns':interpolation,'invalid_stimulus':'no measured cell_fall, failure log retained','drc_markers':categories,'cdl_cells':len(names),'cdl_families_mentioned':len(families),'scope':'teaching tests, not full generation or signoff'}
+    summary.update({'cdl_concept_cases':16, 'off_center_interpolation_ns':off_center})
     (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     (out/'logs.json').write_text(json.dumps(logs,indent=2)+'\n')
     print(json.dumps(summary,indent=2))

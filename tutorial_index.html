@@ -48,7 +48,7 @@
   <section>
     <h2>建议学习方式</h2>
     <ol class="steps">
-      <li><strong>从零自学按下面的 31 章顺序。</strong>章首自测能独立完成时，可跳到下一章；遇到术语障碍及时回到电学基础或工具上手。不要求所有人用相同速度学习。</li>
+      <li><strong>从零自学按下面的 32 章顺序。</strong>章首自测能独立完成时，可跳到下一章；遇到术语障碍及时回到电学基础或工具上手。不要求所有人用相同速度学习。</li>
       <li><strong>每章都做检查点。</strong>答案折叠在页面中；先自己画、自己追线，再展开核对。</li>
       <li><strong>算法先在纸上走一遍。</strong>图的顶点、边、代价和容量都能说清楚后，再读 Python 实现。</li>
       <li><strong>生成结果必须外部验证。</strong>新工艺迁移以 foundry/PDK 的 DRC、LVS、PEX deck 为准，而不是以教程中的示意规则为准。</li>
@@ -57,9 +57,11 @@
 
   <section id="learning-routes">
     <h2>按你的背景选择深度</h2>
+    <p><strong>已读完前 7 章：</strong>直接从<a href="transmission-gates.html">第 8 章传输门</a>继续即可。本次衔接修订保留前 7 章内容和现有章序；第 9 章以后补入逐步算例与真实网表追踪，不要求回头重读。图谱入口的跨章综合题已标为后续选学；章首“前置知识”按实际依赖链接，不再机械等同于上一章。</p>
     <table><thead><tr><th>现在的基础</th><th>推荐路线</th><th>不要跳过的验收</th></tr></thead><tbody>
       <tr><td>电路、版图、算法都刚入门</td><td>从总目录顺序学习；先读正文例子，再独立做题，最后核对答案</td><td>电压与逻辑 → INV 四端读图 → 状态表 → 算法路径 → 实测波形 → 修改证据</td></tr>
       <tr><td>懂数字逻辑，但没画过版图</td><td><a href="chapter3.html">版图结构</a> → <a href="tools.html">KLayout</a> → <a href="chapter4.html">INV 读图</a> → 规则与单元图谱</td><td>说出每个 MOS 的网络和 W/L，证明共享，而不是只认颜色</td></tr>
+      <tr><td>已经看懂 NAND/NOR，初次接触开关与存储</td><td><a href="transmission-gates.html">传输门完整基础单元</a> → <a href="cells-select.html">真实选择单元</a> → <a href="cells-latches.html">真实锁存器</a></td><td>数据与控制分开追踪，区别全摆幅与电平恢复，推导写入和保持</td></tr>
       <tr><td>懂版图，准备修改生成器</td><td><a href="chapter10.html">图论</a> → <a href="algorithms-lab.html">算法实算</a> → 布局布线 → 源码与迁移实验</td><td>真实 parser 补丁、负例测试、技术字段到几何的完整追踪</td></tr>
       <tr><td>正在排查刻库失败</td><td><a href="simulation.html">正常 SPICE 单点</a> → <a href="liberty.html">Liberty 正常表</a> → <a href="chapter17.html#failed-transition">翻转失败排查</a></td><td>指出所属 pin、related_pin、旧状态、敏化条件、阈值与第一个失败测点</td></tr>
     </tbody></table>
@@ -72,8 +74,10 @@
       <tr><td>FreePDK45 真实 GDS/CDL/LEF 识图</td><td>已有截图；新增 INV 分层与驱动变体 SVG 直接读取 GDS 几何</td><td>不是制造工艺剖面；TAP 等缺少视图的对象逐项说明</td></tr>
       <tr><td>KLayout 教学 DRC fixture</td><td>实测得到 7 个指定标记</td><td>只覆盖选定规则子集，不是全套 Calibre 签核</td></tr>
       <tr><td>ngspice 教学表征</td><td>ngspice 42；9 测点、36 个 NLDM 值及输入 slew 验证</td><td>自拟 Level-1 模型，无 PEX、功耗、输入电容及顺序约束表征</td></tr>
+      <tr><td><a href="transmission-gates.html#run-lab">传输门基础实验</a></td><td>单管/TG 对照、关断隔离、MUX 八种输入、锁存保持；4 组波形、25 个电压测点</td><td>自拟 Level-1 瞬态功能实验；不是 TG 工艺版图、DRC/LVS 或全角点表征</td></tr>
       <tr><td>模型名解析补丁</td><td>真实源码副本 6 项测试通过；保留 diff</td><td>未自动接入主 CLI/tech API，原 LibreCell 仓库未修改</td></tr>
       <tr><td>算法与迁移几何小实验</td><td>Euler、Dijkstra、资源冲突及几何前后断言均已运行</td><td>教学抽象，不冒充 LibreCell 全算法或目标 PDK deck</td></tr>
+      <tr><td>新增正文推导核对</td><td>AOI21/TINV/DLH 的 16 种输入条件、16 管分组覆盖；网格、包围、进位与非中点插值算术检查</td><td>CDL 理想开关稳态检查，不等于模拟稳定性、SPICE 表征或 LVS</td></tr>
       <tr><td>完整 lclayout / 工业发布闭环</td><td>当前环境缺 z3/pysmt，网络受限，未跑通完整生成</td><td>不宣称全库 DRC/LVS/PEX、商业表征或 P&amp;R 签核已完成</td></tr>
     </tbody></table>
     <p>实测记录与重跑说明见 <a href="examples/learning/README.md">学习实验说明</a>。对新工艺独立工作的目标，是能建立、修改并验收完整流程；本书的教学通过项不能替代你目标工艺的发布证据。</p>
@@ -87,37 +91,38 @@
 <li><a href="chapter3.html"><strong>第 4 章　版图如何变成晶体管</strong><small>写出一只 MOS 的四端证据表</small></a></li>
 <li><a href="tools.html"><strong>第 5 章　终端、文件与 KLayout 上手实验</strong><small>交付 INV_X1 的分层截图、坐标与尺寸记录</small></a></li>
 <li><a href="chapter4.html"><strong>第 6 章　反相器完整读图实验</strong><small>交付 A、ZN、VDD、VSS 的逐网核对表</small></a></li>
-<li><a href="chapter5.html"><strong>第 7 章　NAND、NOR、传输门与源漏共享</strong><small>手算 OR2 的共享顺序并解释 TG 两相控制</small></a></li>
-<li><a href="chapter6.html"><strong>第 8 章　一个库要交付哪些视图</strong><small>建立跨视图引脚名和单位一致性表</small></a></li>
+<li><a href="chapter5.html"><strong>第 7 章　NAND、NOR、源漏共享与 Euler 排序</strong><small>手算 NOR2 两行 Euler 顺序，标出共享区并解释排序目的</small></a></li>
+<li><a href="transmission-gates.html"><strong>第 8 章　传输门基础：从单管传输到 MUX 与锁存器</strong><small>完成两相控制与状态推导，重现 4 组 TG 仿真和 25 个电压测点</small></a></li>
+<li><a href="chapter6.html"><strong>第 9 章　一个库要交付哪些视图</strong><small>建立跨视图引脚名和单位一致性表</small></a></li>
 </ul></section>
 <section class="toc-part"><h2>工艺规则与真实单元</h2><ul class="toc-list">
-<li><a href="chapter7.html"><strong>第 9 章　读懂 PDK 与设计规则</strong><small>填写一个目标工艺的规则来源与换算表</small></a></li>
-<li><a href="chapter8.html"><strong>第 10 章　DRC、LVS 与 PEX 可执行实验</strong><small>重现 7 个教学 DRC 标记，逐类记录修复方案</small></a></li>
-<li><a href="chapter9.html"><strong>第 11 章　FreePDK45 图谱入口与 MOS 识读</strong><small>选一个单元完成器件、网络、尺寸、体端证据表</small></a></li>
-<li><a href="cells-basic.html"><strong>第 12 章　反相器、基本门与驱动强度</strong><small>完成 INV_X1/X4 和 NAND/NOR 的对照练习</small></a></li>
-<li><a href="cells-compound.html"><strong>第 13 章　AOI/OAI 复合门与逻辑映射</strong><small>写出分组方程、敏化条件与真实应用</small></a></li>
-<li><a href="cells-select.html"><strong>第 14 章　比较、选择、缓冲与三态单元</strong><small>完成选择信号敏化和双驱动总线状态题</small></a></li>
-<li><a href="cells-arithmetic.html"><strong>第 15 章　半加器、全加器与进位链</strong><small>逐位计算一次 3+1，标出进位传播</small></a></li>
-<li><a href="cells-latches.html"><strong>第 16 章　锁存器、反馈与透明窗口</strong><small>完成带时间顺序的 DLH/DLL 状态表</small></a></li>
-<li><a href="cells-sequential.html"><strong>第 17 章　触发器、扫描链与时钟门控</strong><small>完成三拍扫描移位和一段门控时序题</small></a></li>
-<li><a href="cells-physical.html"><strong>第 18 章　常量、填充、体接触与天线单元</strong><small>建立 row 拼接与 tap/antenna 验收清单</small></a></li>
+<li><a href="chapter7.html"><strong>第 10 章　读懂 PDK 与设计规则</strong><small>填写一个目标工艺的规则来源与换算表</small></a></li>
+<li><a href="chapter8.html"><strong>第 11 章　DRC 实验与 LVS、PEX 入门</strong><small>重现 7 个教学 DRC 标记，逐类记录修复方案</small></a></li>
+<li><a href="chapter9.html"><strong>第 12 章　FreePDK45 图谱入口与 MOS 识读</strong><small>选一个单元完成器件、网络、尺寸、体端证据表</small></a></li>
+<li><a href="cells-basic.html"><strong>第 13 章　反相器、基本门与驱动强度</strong><small>完成 INV_X1/X4 和 NAND/NOR 的对照练习</small></a></li>
+<li><a href="cells-compound.html"><strong>第 14 章　AOI/OAI 复合门与逻辑映射</strong><small>写出分组方程、敏化条件与真实应用</small></a></li>
+<li><a href="cells-select.html"><strong>第 15 章　比较、选择、缓冲与三态单元</strong><small>完成选择信号敏化和双驱动总线状态题</small></a></li>
+<li><a href="cells-arithmetic.html"><strong>第 16 章　半加器、全加器与进位链</strong><small>逐位计算一次 3+1，标出进位传播</small></a></li>
+<li><a href="cells-latches.html"><strong>第 17 章　锁存器、反馈与透明窗口</strong><small>完成带时间顺序的 DLH/DLL 状态表</small></a></li>
+<li><a href="cells-sequential.html"><strong>第 18 章　触发器、扫描链与时钟门控</strong><small>完成三拍扫描移位和一段门控时序题</small></a></li>
+<li><a href="cells-physical.html"><strong>第 19 章　常量、填充、体接触与天线单元</strong><small>建立 row 拼接与 tap/antenna 验收清单</small></a></li>
 </ul></section>
 <section class="toc-part"><h2>算法与程序实现</h2><ul class="toc-list">
-<li><a href="chapter10.html"><strong>第 19 章　算法小白也能用的图论</strong><small>画出 NAND 的两种图并标注顶点/边含义</small></a></li>
-<li><a href="algorithms-lab.html"><strong>第 20 章　亲手运行 Euler 与最短路</strong><small>重现脚本断言，并写出每步最短路松弛</small></a></li>
-<li><a href="chapter11.html"><strong>第 21 章　晶体管布局</strong><small>比较两个候选排列的断开、宽度和可布线性</small></a></li>
-<li><a href="chapter12.html"><strong>第 22 章　单元内部布线</strong><small>画出两个网络竞争一个资源及拆线重布过程</small></a></li>
-<li><a href="chapter13.html"><strong>第 23 章　固定版本并生成第一个单元</strong><small>保存真实运行清单；缺依赖时记录阻塞点而不伪造结果</small></a></li>
-<li><a href="chapter14.html"><strong>第 24 章　技术文件逐字段拆解</strong><small>把一个物理尺寸从 PDK 换算到生成几何</small></a></li>
-<li><a href="chapter15.html"><strong>第 25 章　沿源码走完整流水线</strong><small>为需求选择修改模块与对应回归范围</small></a></li>
-<li><a href="source-lab.html"><strong>第 26 章　真实源码补丁：显式 MOS 模型映射</strong><small>跑通 6 项解析测试并审查生成的统一 diff</small></a></li>
+<li><a href="chapter10.html"><strong>第 20 章　算法小白也能用的图论</strong><small>画出 NAND 的两种图并标注顶点/边含义</small></a></li>
+<li><a href="algorithms-lab.html"><strong>第 21 章　亲手运行 Euler 与最短路</strong><small>重现脚本断言，并写出每步最短路松弛</small></a></li>
+<li><a href="chapter11.html"><strong>第 22 章　晶体管布局</strong><small>比较两个候选排列的断开、宽度和可布线性</small></a></li>
+<li><a href="chapter12.html"><strong>第 23 章　单元内部布线</strong><small>画出两个网络竞争一个资源及拆线重布过程</small></a></li>
+<li><a href="chapter13.html"><strong>第 24 章　固定版本并生成第一个单元</strong><small>保存真实运行清单；缺依赖时记录阻塞点而不伪造结果</small></a></li>
+<li><a href="chapter14.html"><strong>第 25 章　技术文件逐字段拆解</strong><small>把一个物理尺寸从 PDK 换算到生成几何</small></a></li>
+<li><a href="chapter15.html"><strong>第 26 章　沿源码走完整流水线</strong><small>为需求选择修改模块与对应回归范围</small></a></li>
+<li><a href="source-lab.html"><strong>第 27 章　真实源码补丁：显式 MOS 模型映射</strong><small>跑通 6 项解析测试并审查生成的统一 diff</small></a></li>
 </ul></section>
 <section class="toc-part"><h2>迁移、表征与验收</h2><ul class="toc-list">
-<li><a href="chapter16.html"><strong>第 27 章　新工艺迁移毕业项目</strong><small>完成分阶段准入标准，而不只列工具名称</small></a></li>
-<li><a href="porting-lab.html"><strong>第 28 章　工艺迁移小实验与证据分级</strong><small>重现接触孔包围修复并填写未验证项</small></a></li>
-<li><a href="simulation.html"><strong>第 29 章　从 SPICE deck 到实测翻转波形</strong><small>重现 EDU_INV 的 9 个负载/转换时间测点</small></a></li>
-<li><a href="liberty.html"><strong>第 30 章　从正常测量读懂完整 Liberty 层次</strong><small>定位真实测点并计算中间点，列出模型遗漏项</small></a></li>
-<li><a href="chapter17.html"><strong>第 31 章　表征故障排查、签核与库级回归</strong><small>交付一个失败点的日志、激励、阈值与根因证据</small></a></li>
+<li><a href="chapter16.html"><strong>第 28 章　新工艺迁移毕业项目</strong><small>完成分阶段准入标准，而不只列工具名称</small></a></li>
+<li><a href="porting-lab.html"><strong>第 29 章　工艺迁移小实验与证据分级</strong><small>重现接触孔包围修复并填写未验证项</small></a></li>
+<li><a href="simulation.html"><strong>第 30 章　从 SPICE deck 到实测翻转波形</strong><small>重现 EDU_INV 的 9 个负载/转换时间测点</small></a></li>
+<li><a href="liberty.html"><strong>第 31 章　从正常测量读懂完整 Liberty 层次</strong><small>定位真实测点并计算中间点，列出模型遗漏项</small></a></li>
+<li><a href="chapter17.html"><strong>第 32 章　表征故障排查、签核与库级回归</strong><small>交付一个失败点的日志、激励、阈值与根因证据</small></a></li>
 </ul></section>
 <section class="toc-part"><h2>附录</h2><ul class="toc-list">
 <li><a href="appendix.html"><strong>附录　术语、排错树、清单与延伸资源</strong><small>用资源索引补齐自己的最弱环节</small></a></li>

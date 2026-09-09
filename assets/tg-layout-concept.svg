@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 730" role="img" aria-labelledby="title desc">
+  <title id="title">传输门的概念版图：上下源漏用金属并联，栅分别控制</title>
+  <desc id="desc">上方 N 阱内为 PMOS 有源区，下方为 NMOS 有源区。左侧蓝色 M1 把两只管的 X 端连接，右侧 M1 把 Y 端连接。上方 Poly 接 ENB，下方 Poly 接 EN，中间留有断开。体接触及注入层未绘出，不能作为制造版图。</desc>
+  <style>text{font-family:Arial,"Noto Sans CJK SC",sans-serif;fill:#17243b;font-size:23px}.small{font-size:20px}.wire{fill:#bfdbfe;stroke:#2563eb;stroke-width:3}.poly{fill:#fecaca;stroke:#b91c1c;stroke-width:3}.contact{fill:#17243b}.note{fill:#475569}</style>
+  <rect width="1040" height="730" fill="white"/>
+  <text x="35" y="40" font-size="27" font-weight="bold">从两条并联支路，到两个分开的有源区</text>
+  <rect x="155" y="108" width="650" height="213" rx="12" fill="#fdf2f8" stroke="#be185d" stroke-width="2" stroke-dasharray="8 5"/>
+  <text x="180" y="142" font-size="23">N-well（PMOS 的体所在区域）</text>
+  <rect x="260" y="186" width="440" height="80" fill="#bbf7d0" stroke="#15803d" stroke-width="3"/>
+  <rect x="260" y="468" width="440" height="80" fill="#bbf7d0" stroke="#15803d" stroke-width="3"/>
+  <text x="830" y="224" class="small" font-size="20">P+ Active</text>
+  <text x="830" y="506" class="small" font-size="20">N+ Active</text>
+  <rect x="460" y="160" width="40" height="175" class="poly"/>
+  <rect x="460" y="425" width="40" height="152" class="poly"/>
+  <text x="526" y="306" font-size="23">栅：ENB</text>
+  <text x="526" y="444" font-size="23">栅：EN</text>
+  <path d="M480 345V410" stroke="#64748b" stroke-width="2" stroke-dasharray="5 5"/>
+  <text x="520" y="379" class="small" font-size="20">Poly 断开</text>
+  <rect x="280" y="201" width="40" height="333" class="wire"/>
+  <rect x="640" y="201" width="40" height="333" class="wire"/>
+  <rect x="289" y="215" width="22" height="22" class="contact"/>
+  <rect x="289" y="497" width="22" height="22" class="contact"/>
+  <rect x="649" y="215" width="22" height="22" class="contact"/>
+  <rect x="649" y="497" width="22" height="22" class="contact"/>
+  <text x="220" y="370" font-weight="bold" font-size="23">X</text>
+  <text x="695" y="370" font-weight="bold" font-size="23">Y</text>
+  <text x="348" y="231" class="small" font-size="20">X 扩散</text>
+  <text x="533" y="231" class="small" font-size="20">Y 扩散</text>
+  <text x="348" y="514" class="small" font-size="20">X 扩散</text>
+  <text x="533" y="514" class="small" font-size="20">Y 扩散</text>
+  <text x="58" y="227" font-size="23">PMOS</text>
+  <text x="58" y="509" font-size="23">NMOS</text>
+  <rect x="45" y="609" width="23" height="23" class="wire"/><text x="82" y="630" class="small" font-size="20">M1</text>
+  <rect x="165" y="609" width="23" height="23" class="poly"/><text x="202" y="630" class="small" font-size="20">Poly</text>
+  <rect x="305" y="609" width="23" height="23" fill="#bbf7d0" stroke="#15803d"/><text x="342" y="630" class="small" font-size="20">Active</text>
+  <rect x="455" y="609" width="23" height="23" class="contact"/><text x="492" y="630" class="small" font-size="20">Contact（此图仅画源漏接触孔）</text>
+  <text x="40" y="675" class="small note" font-size="20">概念连接图，不按比例；未绘体接触、注入层、控制引脚接触孔及完整隔离结构。</text>
+  <text x="40" y="706" class="small note" font-size="20">体端仍须连接：PMOS B → VDD，NMOS B → VSS。此图不是 FreePDK45 GDS 或 DRC 证据。</text>
+</svg>

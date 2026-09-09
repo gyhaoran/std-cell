@@ -75,7 +75,7 @@
   <p>Contact 的作用是建立垂直连接：把下方扩散或 Poly 接到上方金属。它不会把一条 Active 切成两个互相绝缘的区域。要让相邻晶体管无缝共享扩散，连接条件必须本来就满足：</p>
   <pre><code>左边晶体管的右侧网络 == 右边晶体管的左侧网络</code></pre>
   <p>如果两侧应属于不同网络，常见做法是分开 Active、调整晶体管顺序，或依照 PDK 使用专门的 diffusion break 结构；绝不是“放一个 contact 把它切开”。</p>
-  <p>本章只解决“看到连续 Active 时怎样识别共享扩散”。第 7 章会进一步用 <code>Mname D G S B</code> 网表判断共享机会，分析完整 OR2 的连续扩散序列，并说明传输门中哪些端子能共享、哪些绝对不能共享。</p>
+  <p>本章只解决“看到连续 Active 时怎样识别共享扩散”。<a href="chapter5.html">NAND/NOR 与源漏共享章节</a>会进一步用 <code>Mname D G S B</code> 网表判断共享机会，并在选读部分分析完整 OR2 的连续扩散序列；随后<a href="transmission-gates.html#layout">传输门基础章节</a>说明电气并联与扩散共享为什么不能混为一谈。</p>
 
   <div class="callout danger"><strong>另外两个常见误判：</strong>两个不同金属层的矩形上下重叠但没有通孔，电气上不连接；一个引脚标签压在金属附近，也必须确认引脚用途层和端口图形的定义，不能仅凭文字位置判定连接。</div>
 

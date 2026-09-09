@@ -3,31 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>第 7 章　NAND、NOR、传输门与源漏共享</title>
+  <title>第 7 章　NAND、NOR、源漏共享与 Euler 排序</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="page">
-  <nav class="top-nav" aria-label="全书导航"><a href="chapter4.html">← 第 6 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter6.html">第 8 章 →</a></nav>
-  <h1>第 7 章　NAND、NOR、传输门与源漏共享</h1>
-  <p class="subtitle">从串并联网络、双向开关走到扩散排列与 Euler 路</p>
+  <nav class="top-nav" aria-label="全书导航"><a href="chapter4.html">← 第 6 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="transmission-gates.html">第 8 章 →</a></nav>
+  <h1>第 7 章　NAND、NOR、源漏共享与 Euler 排序</h1>
+  <p class="subtitle">从串并联网络走到源漏共享、扩散排列与 Euler 路</p>
 
   <div class="objectives">
     <strong>本章目标</strong>
     <ul>
       <li>独立推导 NAND2、NOR2 的 PUN/PDN 和正确晶体管网表。</li>
       <li>从 SPICE 的 D/G/S/B 端子判断源漏共享机会，并理解网表不能证明版图已经共享。</li>
-      <li>理解 CMOS 传输门的互补控制、全摆幅原因、版图结构和使用风险。</li>
-      <li>理解为什么把网络当顶点、晶体管当边会得到 Euler 布局问题。</li>
+      <li>识别本章静态互补门与下一章“信号开关”任务的区别，为学习传输门做准备。</li>
+      <li>先解释晶体管为什么要排序，再用 NOR2 手算 Euler 顺序，区分排列路线与实际电流路径。</li>
     </ul>
   </div>
 
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
 <p><strong>前置知识：</strong><a href="chapter4.html">反相器完整读图实验</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
-<p><strong>快速跳过条件：</strong>能区分共享机会、真实共享、TG 与三态反相器。不能独立完成时，请按正文顺序学。</p>
-<p><strong>本章验收：</strong>手算 OR2 的共享顺序并解释 TG 两相控制。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">NAND2：先设计下拉网络</a></li><li><a href="#section-2">NOR2：把串并联互换</a></li><li><a href="#section-3">共享扩散的唯一拓扑条件</a></li><li><a href="#section-4">把晶体管网络转换为图</a></li><li><a href="#section-5">找不到共同 Euler 路怎么办</a></li><li><a href="#section-6">从 NAND/NOR 走向复杂门</a></li><li><a href="#section-7">传输门：互补控制的双向开关</a></li></ol></details>
+<p><strong>快速跳过条件：</strong>能解释 Euler 排序目的，并区分电气连接、共享机会与真实共享。不能独立完成时，请按正文顺序学。</p>
+<p><strong>本章验收：</strong>手算 NOR2 两行 Euler 顺序，标出共享区并解释排序目的。先做题，再展开答案；只读过不算完成。</p>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-1">NAND2：先设计下拉网络</a></li><li><a href="#section-2">NOR2：把串并联互换</a></li><li><a href="#section-3">源漏共享的条件与扩散区断开</a></li><li><a href="#section-4">为什么找 Euler 路：从源漏共享到晶体管排序</a></li><li><a href="#section-5">找不到共同 Euler 路怎么办</a></li><li><a href="#section-6">从 NAND/NOR 走向复杂门</a></li><li><a href="#section-7">下一步：从电源通路走向信号通路</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
 <h2 id="section-1">7.1 NAND2：先设计下拉网络</h2>
@@ -59,11 +59,11 @@ MNB  Y B VSS VSS nmos W=0.5u L=0.15u
 .ends NOR2X1</code></pre>
   <div class="callout danger"><strong>不要把 AND2 画成四只晶体管。</strong>四管静态 CMOS 网络直接得到 NAND2。普通静态 CMOS AND2 通常是 NAND2 后接反相器，共 6 只晶体管；OR2 同理通常由 NOR2+INV 构成。</div>
 
-  <h2 id="section-3">7.3 共享扩散的唯一拓扑条件</h2>
-  <p>若把晶体管排成一行，左管右端与右管左端必须属于同一网络，才能消除中间 diffusion break。以 NAND2 为例：</p>
+  <h2 id="section-3">7.3 源漏共享的条件与扩散区断开</h2>
+  <p>若把晶体管排成一行，要让左管右端与右管左端共享一块源漏扩散区，这两个端子必须属于同一网络。这是共享所需的电路连接条件；是否符合器件与工艺要求，还要继续检查。以 NAND2 为例：</p>
   <figure class="diagram">
     <img src="assets/nand2-diffusion.svg" alt="NAND2 的 PMOS 并联与 NMOS 串联扩散序列">
-    <figcaption>Poly 将连续 Active 划分为多个受控的 S/D 片段。接触孔只负责把片段接到金属，不负责切断 Active。</figcaption>
+    <figcaption>Poly 跨过 Active 形成栅控制的沟道区域，沟道两侧是源漏扩散片段。接触孔只负责建立到金属的连接，不负责切断 Active。</figcaption>
   </figure>
 
   <ul>
@@ -73,14 +73,26 @@ MNB  Y B VSS VSS nmos W=0.5u L=0.15u
   <p>这也说明“连续 Active 上所有位置都属于同一网络”不成立：每个 gate 下方是受控制的沟道，gate 两侧的扩散片段可以是不同网络。</p>
 
   <h3>“源漏共享”实际共享了什么</h3>
-  <p>“源漏共享”是初学者常用说法，更准确的名称是<strong>源/漏扩散区共享</strong>：两只相邻、同类型 MOS 的接触端属于同一个电气网络，因此可以用同一块物理扩散区作为两只器件的公共端子。共享的是一个扩散片段，不是整只晶体管，也不是栅。</p>
-  <p>“接触端网络相同”只是必要的<strong>拓扑条件</strong>。真正合并前还要确认两只器件的井/体偏置、注入层、Vt/电压类型、器件方向和目标 PDK 隔离规则兼容；即使都是 PMOS，不同电压域或不同器件选项也未必允许共享。</p>
-  <div class="callout warn"><strong>网表只能证明“可以共享”，GDS 才能证明“已经共享”。</strong>SPICE 只描述网络连接，没有 Active 是否连续、晶体管是否相邻以及中间是否存在 diffusion break 等几何信息。</div>
+  <p>“源漏共享”是初学者常用说法，更准确的名称是<strong>源/漏扩散区共享</strong>：两只相邻、同类型 MOS 的相接端属于同一个电气网络，并且器件与工艺条件允许时，可以用同一块物理扩散区作为两只器件的公共端子。共享的是一个扩散片段，不是整只晶体管，也不是栅；共享区域不一定需要 Contact。</p>
+  <p>“相接端网络相同”只是必要的<strong>拓扑条件</strong>。真正合并前还要确认两只器件的阱/体偏置、注入层、Vt/电压类型、器件方向和目标 PDK 隔离规则兼容；即使都是 PMOS，不同电压域或不同器件选项也未必允许共享。</p>
+  <div class="callout warn"><strong>网表能帮助判断共享机会，是否已经共享要看版图。</strong>普通 SPICE 电路网表描述器件、网络连接及 W、L 等参数，但不提供足以确定器件相邻、Active 连续和扩散区断开的完整几何信息。即使附带部分坐标注释，也不能代替实际版图检查。</div>
+
+  <h3>diffusion break：Active 在这里断开了</h3>
+  <p>在本章的平面 MOS 版图语境中，<strong>diffusion break（扩散区断开）</strong>就是两只器件之间的 Active 不连续，分成两块有源区。版图上是有源区之间的间隔，实际工艺中对应隔离区域，不是硅片上留了一个空洞。</p>
+  <ul>
+    <li><strong>共享扩散：</strong>相邻两只 MOS 共用中间的一块源漏扩散区；该区域有无 Contact 都不影响“共享”的判断。</li>
+    <li><strong>扩散断开但电气相连：</strong>两块分开的扩散区也可以各自通过 Contact 接到同一条 M1。这是金属互连，不是源漏共享。</li>
+    <li><strong>Poly 跨过 Active：</strong>形成 MOS 的栅控制区域，不属于 diffusion break。栅下沟道是否导电取决于偏置，不能把晶体管关断等同于 Active 几何上断开。</li>
+  </ul>
+  <p>所以，<strong>电路上连接同一个网络，不等于版图中一定画成一块连续扩散区</strong>。同一个电路可以有不同的版图实现。</p>
 
   <h3>从 SPICE 网表判断共享机会</h3>
   <p>常见 MOS 实例顺序是 <code>Mname D G S B model</code>。先忽略“左边一定是源、右边一定是漏”的想法，把 D 和 S 当作两个源漏端；如果两只同类型 MOS 能翻转到：</p>
   <pre><code>左管的右端网络 == 右管的左端网络</code></pre>
-  <p>它们就具备共享条件。以下是一个 OR2（NOR2 后接反相器）中的片段：</p>
+  <p>它们就满足了共享的网络条件；还需满足前述工艺条件。下一节先用较简单的 NOR2 解释如何寻找整行顺序。下面保留 OR2 的拓展例子，第一次阅读可以先跳过。</p>
+  <details>
+    <summary>选读：从 OR2 网表找共享机会，再排成完整扩散序列</summary>
+  <p>以下是一个 OR2（NOR2 后接反相器）中的片段：</p>
   <pre><code>M_i_2 ZN_neg A1 VSS    VSS NMOS_VTL
 M_i_3 VSS    A2 ZN_neg VSS NMOS_VTL
 M_i_4 net_0  A1 ZN_neg VDD PMOS_VTL
@@ -98,33 +110,89 @@ M_i_5 VDD    A2 net_0  VDD PMOS_VTL</code></pre>
 
 PMOS：ZN-[ZN_neg]-VDD-[A2]-net_0-[A1]-ZN_neg
                      ↑共享 VDD       ↑共享 net_0</code></pre>
+  <p>这两条序列各自满足相邻源漏网络相同，但栅顺序分别是 <code>ZN_neg、A1、A2</code> 与 <code>ZN_neg、A2、A1</code>，并未直接得到上下对齐的共同顺序。下一节会解释这两个目标的区别。</p>
+  </details>
   <p>即使 NMOS 与 PMOS 都连接 <code>ZN</code>，它们也不能共享同一块扩散区：两者掺杂类型和井结构不同，必须各自形成扩散区，再用金属连接同名网络。NMOS 与 PMOS 的栅可以对齐或用 Poly/金属相连，但那也不叫源漏共享。</p>
 
-  <h2 id="section-4">7.4 把晶体管网络转换为图</h2>
-  <p>为了自动寻找共享顺序，定义一个无向多重图：</p>
+  <h2 id="section-4">7.4 为什么找 Euler 路：从源漏共享到晶体管排序</h2>
+  <div class="callout good"><strong>先记住目的：</strong>找 Euler 路，是为了给晶体管安排顺序和朝向，让相邻器件尽量共享源漏扩散区。它不是寻找实际电流路径，也不是寻找最短布线路径。</div>
+
+  <h3>第一步：先问版图设计者想解决什么</h3>
+  <p>上一节回答了“两只管能不能共享”。现在问题扩大了：<strong>给你一组同类型晶体管，怎样把它们排成一行，让相邻端子都能接得上？</strong>先假设器件与工艺允许共享，暂时只考虑网络连接。我们希望：</p>
+  <ol>
+    <li><strong>不漏：</strong>每只晶体管都要排进去，否则电路缺了器件。</li>
+    <li><strong>不多：</strong>每只晶体管只安排一次，不能为了接得上就凭空多画一只。</li>
+    <li><strong>接得上：</strong>前一只的右端与后一只的左端属于同一网络，中间才有机会共用一块扩散区。</li>
+  </ol>
+  <p>如果找到这样的顺序，就得到一条<strong>不需要在相邻器件之间插入扩散断点的拓扑候选</strong>。这通常有利于减少为分开的扩散端预留的空间和部分接触、互连开销，但实际收益仍要检查工艺规则和完成后的版图。</p>
+  <p>NAND2、NOR2 只有几只管，人很容易看出顺序。器件更多时，顺序和朝向的选择会增多，程序就需要一种系统的寻找方法。Euler 路正好把上面三个要求表达出来。</p>
+
+  <h3>第二步：把排序问题翻译成“点和边”</h3>
+  <p>PMOS 和 NMOS 分别建立自己的图。这里的图不是直接照抄原理图符号，而是只提取源漏连接关系：</p>
+  <table>
+    <thead><tr><th>电路或布局中的东西</th><th>图论中的表示</th><th>为什么这样表示</th></tr></thead>
+    <tbody>
+      <tr><td>源漏端连接的网络，如 VDD、VSS、Y、X</td><td>顶点，也就是“点”</td><td>相接端网络相同，就是两条边能在同一个点衔接</td></tr>
+      <tr><td>一只 MOS 的两个源漏端</td><td>一条连接两个点的边</td><td>经过这条边，就表示在排列中使用这只 MOS 一次</td></tr>
+      <tr><td>MOS 的栅信号，如 A、B</td><td>边上的标签</td><td>记录这只管应由哪个信号控制，供上下行对齐时使用</td></tr>
+    </tbody>
+  </table>
+  <p>两只并联 MOS 会连接同一对点，但它们仍是两条不同的边，这叫<strong>多重图</strong>。同一个栅信号也可以控制多只 MOS，因此不能只靠栅标签判断是不是同一条边，还要保留器件身份。</p>
+  <p>在允许交换源漏朝向的简化排列问题里，用<strong>无向图</strong>表示：沿边从哪端走到哪端，对应把该器件哪端朝左、哪端朝右。实际器件如果不允许交换源漏，还必须额外保留方向约束。</p>
+  <p>现在，布局的三个要求就变成了：<strong>连续经过全部边，而且每条边恰好经过一次</strong>。这种路线叫 <strong>Euler trail（欧拉迹）</strong>，本教程也沿用常见说法“Euler 路”或“Euler 路径”。它并不是额外强加给电路的规则，而是对连续扩散排列问题的数学表达。</p>
+
+  <h3>第三步：用已经看懂的 NOR2，亲手走一遍</h3>
+  <p>沿用 7.2 节网表中的名字：输入 A、B，输出 Y，PMOS 内部节点 X。若你手头单元的引脚叫 A1/A2、输出叫 ZN，先按实际连接对应名字即可；本节不依赖某一种命名方式。</p>
+  <table>
+    <thead><tr><th>器件</th><th>栅标签</th><th>连接的两个源漏网络</th><th>电路关系</th></tr></thead>
+    <tbody>
+      <tr><td>MPA</td><td>A</td><td>VDD ↔ X</td><td rowspan="2">通过 X 串联</td></tr>
+      <tr><td>MPB</td><td>B</td><td>X ↔ Y</td></tr>
+      <tr><td>MNA</td><td>A</td><td>VSS ↔ Y</td><td rowspan="2">两条支路并联</td></tr>
+      <tr><td>MNB</td><td>B</td><td>VSS ↔ Y</td></tr>
+    </tbody>
+  </table>
+  <p>PMOS 可以从 VDD 出发：经过 MPA 到 X，再经过 MPB 到 Y。两条边都只使用一次，而且在 X 接得上，所以得到：</p>
+  <pre><code>VDD --[MPA，栅 A]-- X --[MPB，栅 B]-- Y</code></pre>
+  <p>翻译回版图：左管右端是 X，右管左端也是 X，因此中间可以共享 X 扩散区。这个内部节点不一定需要 Contact，直接共用扩散区就能建立两管之间的连接。</p>
+  <p>NMOS 可以从 VSS 出发：经过 MNA 到 Y，再经过另一条边 MNB 回到 VSS：</p>
+  <pre><code>VSS --[MNA，栅 A]-- Y --[MNB，栅 B]-- VSS</code></pre>
+  <p>翻译回版图：两只 NMOS 可以共享中间的 Y 扩散区。<strong>VSS 出现两次并没有违反要求：允许重复经过同一个点，不允许重复使用同一条边。</strong>这里使用的是 MNA、MNB 两只不同器件，不是同一只管走了两遍。</p>
+  <div class="callout warn"><strong>画成一行，不代表电路变成串联。</strong>两只 NMOS 仍然各自连接 Y 与 VSS，所以仍是并联。版图左右两端的 VSS 还需要接到同一个电源网络；Euler 排列并没有替你完成这些金属互连，也不要求把 Active 弯成一个环。</div>
+  <p>这里的“走一遍”只是在整理连接与排列，<strong>不是给输入赋值后追踪实际电流</strong>。找顺序时不会先要求这些晶体管同时导通；判断 NOR 的功能仍然要按照输入电平分析上下拉网络。</p>
+
+  <h3>第四步：为什么还希望上下两行有“共同顺序”</h3>
+  <p>把刚才两行只保留网络和栅标签，按未来版图从左到右的方向写出来：</p>
+  <pre><code>PMOS: VDD --[A]-- X --[B]-- Y
+NMOS: VSS --[A]-- Y --[B]-- VSS</code></pre>
+  <p>方括号表示栅跨过有源区的位置，整段文字只是排列示意，不表示实际尺寸。两行的栅标签都是 <code>A、B</code>：上方 A 与下方 A 可以对齐，上方 B 与下方 B 也可以对齐，便于在规则允许时用同一列 Poly 连接。</p>
   <ul>
-    <li>每个扩散网络是一个<strong>顶点</strong>，如 Y、X、VSS；</li>
-    <li>每只 MOS 是一条<strong>边</strong>，连接其两个 S/D 网络；</li>
-    <li>边标签是栅网络 A、B；同一对顶点之间允许多条边，因此是多重图。</li>
+    <li><strong>横向目标：</strong>同一行相邻器件尽量共享扩散区。</li>
+    <li><strong>纵向目标：</strong>上下两行相同信号的栅尽量对齐，减少栅信号绕线。</li>
   </ul>
-  <p>沿一条边走过，相当于在版图中从晶体管一侧扩散跨过 gate 到另一侧。若一条路径恰好使用每条边一次，它就是 Euler trail；它给出一个不重复使用晶体管的连续扩散顺序。</p>
+  <p>因此“共同 Euler 顺序”是指 PMOS 图和 NMOS 图分别选出的路线，具有相同的<strong>栅标签顺序</strong>；不是说它们经过相同的源漏网络，更不是让 PMOS 与 NMOS 共享扩散区。各自存在 Euler 路，并不保证两行一定找得到共同顺序。</p>
 
-  <div class="callout good">
-    <strong>Euler 路存在条件：</strong>忽略孤立顶点后图必须连通，并且奇数度顶点只能有 0 个或 2 个。0 个时可以形成首尾相接的 Euler circuit；2 个时路径从一个奇点开始，在另一个奇点结束。
-  </div>
-
-  <p>对 CMOS 门还多一个实际约束：PMOS 行与 NMOS 行最好找到<strong>相同或可对齐的栅标签顺序</strong>，这样 A、B 的 Poly 可以垂直贯穿上下两行，减少绕线。各自存在 Euler 路不代表一定存在共同顺序。</p>
+  <details>
+    <summary>选读：什么时候存在 Euler 路？先理解用途，再看这个判据</summary>
+    <p>顶点的<strong>度</strong>是连接到这个点的边的数量；平行边分别计数，自环计两次。对至少有一条边的无向图，忽略孤立顶点后，图必须连通，而且奇数度顶点只能有 0 个或 2 个。</p>
+    <ul>
+      <li><strong>2 个奇数度顶点：</strong>路线从一个奇点开始，在另一个奇点结束。上面 PMOS 图的 VDD、Y 度为 1，X 度为 2，符合这个情况。</li>
+      <li><strong>0 个奇数度顶点：</strong>可以回到起点，叫 Euler circuit（欧拉回路）。上面 NMOS 图中，VSS、Y 都连接两条边，度都为 2。</li>
+    </ul>
+    <p>这只是源漏连接图的判据，不保证工艺规则、上下栅对齐或布线全部可满足。本章先会解释“为什么找”，更完整的图论与算法练习见<a href="chapter10.html">图论基础</a>和<a href="algorithms-lab.html">Euler 与最短路实验</a>。</p>
+  </details>
+  <div class="callout good"><strong>把这条因果链说出来就抓住了重点：</strong>希望相邻器件共享扩散区 → 需要合适的器件顺序和朝向 → 每只管恰好一次、相邻端子网络一致 → 转成图后就是寻找 Euler 路。</div>
 
   <h2 id="section-5">7.5 找不到共同 Euler 路怎么办</h2>
-  <p>不能为了保持一条 Active 而改变网络。可选策略包括：</p>
+  <p><strong>没有合适的共同 Euler 顺序，并不等于电路不能画。</strong>它是一种布局优化方法，不是电路正确的必要条件。不能为了保持一条 Active 而改变网络。可选策略包括：</p>
   <ol>
-    <li>交换可交换的输入顺序，枚举另一条 Euler trail；</li>
-    <li>翻转某只 MOS 的源漏方向；</li>
+    <li>在保持每只器件连接不变的前提下，换起点、改变器件排列或枚举另一条 Euler 路；不是直接把 A、B 的接线换掉；</li>
+    <li>在器件与工艺允许时，翻转某只 MOS 的源漏朝向；</li>
     <li>在一行中引入 diffusion break；</li>
-    <li>折叠宽晶体管并重新排列 finger；</li>
+    <li>按原电路要求把宽晶体管折成多个并联 finger，保留相应尺寸与端子关系，再对这些物理器件重新建图和排列；不能无条件复制一只原尺寸晶体管来凑路线；</li>
     <li>接受多一段局部互连，以换取更好的引脚可接入性、规则裕量和更低拥塞。</li>
   </ol>
-  <p>最少 diffusion break 不是唯一目标。一个更窄却无法布线或 pin 无法从上层访问的单元并不是更好的单元。</p>
+  <p>最少 diffusion break 不是唯一目标。断开扩散后用 Contact 和金属连接相同网络，是正常的版图实现方法。一个更窄却无法布线或 pin 无法从上层访问的单元并不是更好的单元；Euler 路也不保证面积、寄生、功耗或时序全局最优。</p>
 
   <h2 id="section-6">7.6 从 NAND/NOR 走向复杂门</h2>
   <p>例如 AOI21：</p>
@@ -134,71 +202,26 @@ PDN：A 与 B 串联，这一支再与 C 并联
 PUN：对偶网络——A 与 B 并联，这一组再与 C 串联</code></pre>
   <p>先在逻辑层构造 PDN，再做对偶得到 PUN；随后给每个内部网络命名，转换为图，寻找共同栅顺序。这个过程可推广到 AOI/OAI 等复杂组合门。</p>
 
-  <h2 id="section-7">7.7 传输门：互补控制的双向开关</h2>
-  <p>传输门（transmission gate，TG）把一只 NMOS 和一只 PMOS 并联在同一对信号端 <code>X</code>、<code>Y</code> 之间。NMOS 栅接 <code>EN</code>，PMOS 栅接互补信号 <code>ENB = NOT(EN)</code>：</p>
-  <figure class="diagram">
-    <img src="assets/transmission-gate.svg" alt="NMOS 与 PMOS 并联构成的 CMOS 传输门">
-    <figcaption>这是双向信号通路，不是从 VDD/VSS 主动恢复逻辑电平的反相器。X、Y 哪边是输入取决于当时的驱动关系。</figcaption>
-  </figure>
-  <pre><code>.subckt TG X Y EN ENB VDD VSS
-MN Y EN  X VSS NMOS W=0.5u L=0.15u
-MP Y ENB X VDD PMOS W=1.0u L=0.15u
-.ends TG</code></pre>
-  <table>
-    <thead><tr><th>EN</th><th>ENB</th><th>导通情况</th><th>含义</th></tr></thead>
-    <tbody>
-      <tr><td>0</td><td>1</td><td>NMOS、PMOS 都关断</td><td>X 与 Y 隔离；若 Y 没有其他驱动，可能浮空</td></tr>
-      <tr><td>1</td><td>0</td><td>NMOS、PMOS 都导通</td><td>X 与 Y 双向连通</td></tr>
-      <tr><td>0</td><td>0</td><td>只有 PMOS 导通</td><td>不是正常互补控制状态</td></tr>
-      <tr><td>1</td><td>1</td><td>只有 NMOS 导通</td><td>不是正常互补控制状态</td></tr>
-    </tbody>
-  </table>
-
-  <h3>为什么不用一只 NMOS 代替</h3>
-  <p>单独 NMOS 擅长传低电平，但传高电平时会在接近 <code>VDD−Vtn</code> 时逐渐失去栅源过驱动；单独 PMOS 的情况相反，擅长传高电平而不擅长把节点强力拉到 VSS。两者并联后互补工作，可以在正常负载和合法电压范围内传递更接近全摆幅的 0 和 1。精确压降、导通电阻和速度仍需用 PDK 模型仿真，不能只靠“强 0/强 1”口诀定尺寸。</p>
-
-  <h3>传输门怎样构成 2:1 MUX</h3>
-  <pre><code>SN = NOT(S)
-
-D0 -- TG(EN=SN, ENB=S)  --+
-                            +-- Y -- 可选恢复/驱动反相器
-D1 -- TG(EN=S,  ENB=SN) --+
-
-S=0：D0 通路打开
-S=1：D1 通路打开</code></pre>
-  <p>传输门常用于 MUX、锁存器、扫描结构和某些 XOR/XNOR。它本身没有静态 CMOS 反相器那样的电压增益和电平恢复能力；关断后的内部节点可能浮空，两个通路控制交叠还可能造成驱动冲突。因此功能、时序、泄漏和控制时序都必须验证。</p>
-
-  <h3>怎样从版图识别传输门</h3>
-  <ol>
-    <li>找到一只 NMOS 和一只 PMOS，它们的两个源漏端都分别连接同一对网络 X、Y。</li>
-    <li>确认 NMOS 栅是 EN、PMOS 栅是 ENB，并在逻辑上证明 ENB 是 EN 的反相。</li>
-    <li>确认 NMOS body 接 VSS、PMOS body 接 VDD 或目标工艺规定的体偏置网络。</li>
-    <li>沿金属确认上下两种扩散的 X 端相连、Y 端相连；不要因为图形上下对齐就假定已经导通。</li>
-  </ol>
-  <div class="callout danger"><strong>同一只传输门的 NMOS 与 PMOS 不能共享一块扩散。</strong>它们只是电气上并联，N 型扩散与 P 型扩散必须分开。只有同一行中相邻、同类型 MOS 的接触端网络相同，才可能继续做源/漏扩散共享。</div>
-
-  <h3>LibreCell 当前版本的传输门边界</h3>
-  <p>本地提交 <code>f708e3a</code> 并非完全忽略传输门：<code>place/eulertours.py</code> 遇到不连通晶体管图时会记录“假定存在传输门”，并尝试处理候选图。但源码同时留下“多个传输门可能无法扩展”的 TODO；<code>lccommon/net_util.py</code> 的 <code>get_cell_inputs()</code> 也明确注明其“只连接栅的网络才是输入”的启发式不适用于传输门，因为 TG 的数据输入直接连接 D/S。</p>
-  <p>因此“能读取 TG SPICE”不能直接推出“布局质量、输入识别和整套库模型都正确”。迁移项目至少要加入 TG、传输门 MUX 和锁存器样例，分别检查布局、外部 LVS、浮空状态、控制条件、时序弧和 Liberty/Verilog 一致性；第 21 章会从布局器源码角度再次说明。</p>
+  <h2 id="section-7">7.7 下一步：从电源通路走向信号通路</h2>
+  <p>本章 NAND/NOR 的输入接在栅上，控制输出与 VDD/VSS 之间的通路。下一章换一个问题：如果想把已经存在的数据 X，按控制条件传到 Y，该怎样连接 MOS？这就是传输门要解决的任务。</p>
+  <p><strong>传输门基础现已独立成章：</strong><a href="transmission-gates.html">从单管传输到 MUX 与锁存器</a>。从 NMOS 为什么传弱 1、PMOS 为什么传弱 0 开始，再逐项读四端网表和概念版图，搭出 MUX 与反馈锁存器，并运行四组波形实验。本节保留原有锚点，方便旧书签继续找到入口。</p>
+  <p>暂时记住一个区别即可：静态 NAND/NOR 的数据通常进入 MOS 栅；TG 的数据经过源漏端，栅上接的是使能控制。源漏共享的判断方法仍可使用，但不能把 N/P 器件电气并联误认为它们共享了一块扩散。</p>
 
   <div class="lab">
     <strong>纸上实验 A：为 NOR2 排扩散</strong>
     <ol>
       <li>根据本章 NOR2 网表，列出 PMOS 图和 NMOS 图的顶点、边。</li>
       <li>写出一个连续 PMOS 扩散序列和一个连续 NMOS 扩散序列。</li>
-      <li>检查两行的栅标签能否对齐。</li>
+      <li>圈出每行的共享扩散网络，再检查两行的栅标签能否对齐。</li>
+      <li>NMOS 序列中同一个网络出现两次，是否违反“每条边只经过一次”？这些不同位置的同名扩散区还需要怎样连接？</li>
+      <li>用自己的话解释：为什么我们找的是晶体管排列路线，而不是实际电流路径？</li>
     </ol>
-    <details><summary>一种答案</summary><p>PMOS 串联可取 <code>VDD-[A]-X-[B]-Y</code>。NMOS 两条并联边可取 <code>VSS-[A]-Y-[B]-VSS</code>，栅顺序均为 A、B。若翻转整行或交换输入，也会有等价序列。</p></details>
-  </div>
-
-  <div class="lab">
-    <strong>纸上实验 B：传输门与共享扩散</strong>
-    <ol>
-      <li>给上面的 TG 网表逐项标出 D/G/S/B，并说明为什么 X、Y 都可能成为信号流入端。</li>
-      <li>画出两个 TG 组成的 2:1 MUX，写出 S=0、S=1 时导通的 NMOS/PMOS。</li>
-      <li>解释为什么同一 TG 的 NMOS/PMOS 不能共享扩散，但两个相邻 NMOS 仍可能共享。</li>
-    </ol>
-    <details><summary>参考答案</summary><p>MOS 沟道近似双向，信号方向由外部驱动和瞬时电位决定。S=0 时 D0 支路的 NMOS/PMOS 同时打开，S=1 时 D1 支路同时打开。TG 的 N/P 器件处于不同掺杂区和井中，只能用金属连接；同类型相邻器件若接触端网络相同，仍满足扩散共享条件。</p></details>
+    <details><summary>一种答案与逐项检查</summary>
+      <p>PMOS 图有 VDD、X、Y 三个顶点，MPA、MPB 两条边；NMOS 图有 VSS、Y 两个顶点，MNA、MNB 两条平行边。可取 <code>VDD-[A]-X-[B]-Y</code> 与 <code>VSS-[A]-Y-[B]-VSS</code>。共享区分别对应 X、Y，两行栅顺序均为 A、B。</p>
+      <p>NMOS 的 VSS 出现两次，是同一个顶点被再次访问；MNA、MNB 各使用一次，没有重复使用边。两端 VSS 扩散区仍需接到同一个电源网络，例如都通过 Contact 接到 VSS 金属轨。</p>
+      <p>找排列时不先给 A、B 赋值，也不要求相关晶体管同时导通；它只规定器件顺序、朝向和公共端子。实际电流路径取决于偏置和输入状态，不能把两者混为一谈。</p>
+      <p>还可以反向阅读两条序列，得到 <code>Y-[B]-X-[A]-VDD</code> 与 <code>VSS-[B]-Y-[A]-VSS</code>，共同栅顺序变成 B、A。这里改变的是排列方向，器件原有的栅和源漏网络连接并没有改变。</p>
+    </details>
   </div>
 
   <div class="checkpoint">
@@ -206,16 +229,28 @@ S=1：D1 通路打开</code></pre>
     <ol>
       <li>两个 PMOS 共享一块扩散，是否一定串联？为什么？</li>
       <li>为什么网表只能判断共享机会，不能证明版图已经共享？</li>
-      <li>为什么传输门需要 EN/ENB 两个互补控制信号？</li>
-      <li>图中的顶点、边、边标签分别对应什么版图对象？</li>
+      <li>Active 断开后，两个端子还能属于同一网络吗？Poly 跨过 Active 是不是 diffusion break？</li>
+      <li>下一章的 TG 与本章 NAND/NOR，数据进入的 MOS 端子有什么不同？</li>
+      <li>不用背公式，先说出找 Euler 顺序想解决哪三个排列要求，再说明顶点、边和边标签分别对应什么。</li>
+      <li>为什么 Euler 路允许 VSS 出现两次，却不允许把同一只 MOS 无条件使用两次？</li>
       <li>共同 Euler 顺序能优化什么，又不能保证什么？</li>
     </ol>
-    <details><summary>参考答案</summary><p>不一定，串并联由两端网络拓扑决定。网表没有器件相邻、Active 连续或 diffusion break 等几何信息。EN=1/ENB=0 时 N/P 两管同时打开，反向控制时同时关闭，并互补改善高低电平传输。晶体管图的顶点是扩散网络，边是 MOS，标签是栅网络。共同顺序有利于扩散连续和上下栅对齐，但不能保证 DRC、最小面积、内部布线、引脚可接入性、寄生或时序最优。</p></details>
+    <details><summary>参考答案</summary>
+      <ol>
+        <li>不一定，串并联由两端网络拓扑决定，不能根据版图排成一行就认定串联。</li>
+        <li>普通网表有器件、连接及 W/L 等参数，但没有确定器件相邻和 Active 连续性的完整版图几何。</li>
+        <li>可以，分开的扩散区可通过 Contact 与金属相连。Poly 跨过 Active 形成栅控制区域，不是扩散区几何断开。</li>
+        <li>NAND/NOR 的数据输入通常接栅，控制电源到输出的通路；TG 的数据进入源漏，栅接使能控制，具体原因和应用在下一章展开。</li>
+        <li>每只管都排进去、每只只用一次、相邻管的相接端网络一致。顶点是源漏网络，边是 MOS，边标签是栅网络。</li>
+        <li>网络顶点可以重复访问；器件边恰好一次，防止漏掉或额外使用器件。若主动做了合法折指，必须先按新的物理器件集合重新建图。</li>
+        <li>共同顺序有利于扩散连续和上下栅对齐，但不能保证 DRC、最小面积、内部布线、引脚可接入性、寄生或时序最优。找不到共同顺序仍可以分段布局并用金属连接。</li>
+      </ol>
+    </details>
   </div>
 
-  <div class="source-note"><strong>阅读依据：</strong>静态 CMOS 与传输门基础参考 Baker 的 <em>CMOS: Circuit Design, Layout, and Simulation</em>；Euler 版图直觉参考 Uehara 与 vanCleemput 的经典 CMOS functional array 方法，以及《CMOS版图设计基础》的 Euler/stick diagram 示例。LibreCell 边界来自本地 <code>net_util.py</code> 与 <code>place/eulertours.py</code>，第 21 章将再从布局器角度说明。</div>
-  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter4.html">← 第 6 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="chapter6.html">第 8 章 →</a></nav>
-  <footer>第 7 章　NAND、NOR、传输门与源漏共享 · 实验状态见总目录</footer>
+  <div class="source-note"><strong>阅读依据：</strong>静态 CMOS 基础参考 Baker 的 <em>CMOS: Circuit Design, Layout, and Simulation</em>；Euler 版图直觉参考 Uehara 与 vanCleemput 的经典 CMOS functional array 方法，以及《CMOS版图设计基础》的 Euler/stick diagram 示例。<a href="chapter11.html">晶体管布局章节</a>将从 LibreCell 布局器源码角度进一步说明 Euler 方法与适用边界。</div>
+  <nav class="bottom-nav" aria-label="全书导航"><a href="chapter4.html">← 第 6 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="transmission-gates.html">第 8 章 →</a></nav>
+  <footer>第 7 章　NAND、NOR、源漏共享与 Euler 排序 · 实验状态见总目录</footer>
 <!-- chapter-references-migrated -->
 </main>
 </body>

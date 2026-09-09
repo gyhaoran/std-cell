@@ -1,13 +1,25 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 17 章　触发器、扫描链与时钟门控</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-latches.html">← 第 16 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-physical.html">第 18 章 →</a></nav><h1>第 17 章　触发器、扫描链与时钟门控</h1><p class="subtitle">先分析一个时钟周期，再读一张复杂晶体管图</p>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 18 章　触发器、扫描链与时钟门控</title><link rel="stylesheet" href="styles.css"></head><body><main class="page"><nav class="top-nav" aria-label="全书导航"><a href="cells-latches.html">← 第 17 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-physical.html">第 19 章 →</a></nav><h1>第 18 章　触发器、扫描链与时钟门控</h1><p class="subtitle">先分析一个时钟周期，再读一张复杂晶体管图</p>
   <!-- learning-guide:start -->
 <aside class="learning-guide" aria-label="分层学习指南">
-<p><strong>前置知识：</strong><a href="cells-latches.html">锁存器、反馈与透明窗口</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
+<p><strong>前置知识：</strong><a href="cells-latches.html">能按时间顺序判断锁存器状态</a>；<a href="cells-select.html">理解 MUX 选择</a>。若遇到电压/电容/逻辑符号障碍，返回<a href="foundations.html">电学与电路图基础</a>；工具操作不熟，返回<a href="tools.html">工具上手</a>。</p>
 <p><strong>快速跳过条件：</strong>能区分采样、异步控制、扫描与时钟门控检查。不能独立完成时，请按正文顺序学。</p>
 <p><strong>本章验收：</strong>完成三拍扫描移位和一段门控时序题。先做题，再展开答案；只读过不算完成。</p>
-<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#sequential-cells">触发器、扫描与时钟门</a></li><li><a href="#section-2">从两个相反透明窗口理解上升沿 DFF</a></li><li><a href="#section-3">把三类检查放在同一个例子中</a></li><li><a href="#section-4">扫描链不是同一拍串行穿过所有寄存器</a></li><li><a href="#section-5">ICG 为什么能保住完整脉冲</a></li></ol></details>
+<details><summary>本章导航 · 已熟悉的内容可以直接跳过</summary><ol><li><a href="#section-2">从两个相反透明窗口理解上升沿 DFF</a></li><li><a href="#sequential-cells">触发器、扫描与时钟门</a></li><li><a href="#section-3">把三类检查放在同一个例子中</a></li><li><a href="#section-4">扫描链不是同一拍串行穿过所有寄存器</a></li><li><a href="#section-5">ICG 为什么能保住完整脉冲</a></li></ol></details>
 </aside>
 <!-- learning-guide:end -->
-<h2 id="sequential-cells">17.1 触发器、扫描与时钟门</h2>
+<h2 id="section-2">18.1 从两个相反透明窗口理解上升沿 DFF</h2>
+<p>上一章锁存器在一整段窗口内跟随输入。现在想要的是：<strong>只在时钟上升沿附近接收一次数据，其余时间隔离 D 与 Q</strong>。一种典型主从结构，把低电平透明的主锁存器和高电平透明的从锁存器串接。下面用 M 表示主级逻辑输出，忽略概念方框内部反相；真实节点极性仍需对照本库电路。</p>
+<figure class="diagram"><img src="assets/sequential-phases.svg" alt="主从触发器在时钟低高两相的透明与保持关系，以及集成时钟门的使能锁存结构"><figcaption>概念分组图，不是本库 DFF/CLKGATE 的逐晶体管还原；用于指导在真实图中寻找各功能块。</figcaption></figure>
+<table><thead><tr><th>阶段（已合法初始化 Q=0）</th><th>主级</th><th>从级</th><th>D/M/Q 的变化</th></tr></thead><tbody>
+<tr><td>CK=0，先让 D=1 稳定</td><td>透明</td><td>保持</td><td>M 跟随到 1；Q 仍为 0</td></tr>
+<tr><td>CK↑</td><td>关闭</td><td>打开</td><td>主级保存 1；Q 经内部传播后变成 1</td></tr>
+<tr><td>CK=1，D 改成 0</td><td>保持</td><td>透明</td><td>M 仍为 1，从级看到的仍是 1，所以 Q 不改</td></tr>
+<tr><td>CK↓，D 维持 0</td><td>打开</td><td>关闭</td><td>M 接收 0；Q 保存上一拍的 1</td></tr>
+<tr><td>下一次 CK↑</td><td>关闭</td><td>打开</td><td>Q 才更新为 0</td></tr>
+</tbody></table>
+<p>于是外部看到的是上升沿采样，而不是高电平持续透明。Q 不会在边沿零延迟改变：需要 clock-to-Q 传播时间；D 还需满足 setup/hold 才能保证采对。实际时钟反相链有延迟，内部开关也不是同时瞬变，不能由这个理想相位表推出真实器件没有竞争或时序要求。更多原理可读 <a href="https://www.cmosvlsi.com/lect10.pdf">Harris 的 Sequential Circuits 课程</a>，本章数值时序题是另设的教学例子。</p>
+<h2 id="sequential-cells">18.2 触发器、扫描与时钟门</h2>
+  <p>以下压缩表的 X 表示该输入可为 0 或 1、对该行无影响；不是数字仿真中“未知 X”的完整传播规则。先保证控制电平合法、状态已初始化，再使用这些状态表。</p>
   <table>
     <thead><tr><th>需求</th><th>本库可选单元</th><th>典型应用</th><th>关键控制</th></tr></thead>
     <tbody>
@@ -65,24 +77,27 @@
   </div>
 
 
-<h2 id="section-2">17.2 从两个相反透明窗口理解上升沿 DFF</h2>
-<p>一种典型上升沿主从结构用低电平透明的主锁存器和高电平透明的从锁存器串接。CK=0 时主级跟随 D、从级保持 Q；CK 上升时主级关门保存刚才的 D，从级开门接收主级结果；CK=1 期间即使 D 再变化，也不能越过已关闭的主级到 Q。真实晶体管实现及内部反相节点应按本库图确认，方框图只是阅读分组方法。</p>
-<figure class="diagram"><img src="assets/sequential-phases.svg" alt="主从触发器在时钟低高两相的透明与保持关系，以及集成时钟门的使能锁存结构"><figcaption>概念分组图，不是本库 DFF/CLKGATE 的逐晶体管还原；用于指导在真实图中寻找各功能块。</figcaption></figure>
-<p>因此“上升沿采样”不等于 Q 在边沿零延迟改变。CK 触发内部开关以后，电荷还要经过内部级传播，得到 clock-to-Q 延迟；D 又必须满足 setup/hold 才能保证采对数据。状态表描述逻辑，时序表描述这些时间条件。</p>
-<h2 id="section-3">17.3 把三类检查放在同一个例子中</h2>
+<h2 id="section-3">18.3 把三类检查放在同一个例子中</h2>
 <table><thead><tr><th>检查</th><th>关注什么</th><th>如何激励</th><th>失败时可能看到什么</th></tr></thead><tbody>
 <tr><td>Clock-to-Q</td><td>合法采样后 Q 多久翻转</td><td>先让 D 稳定，保证旧 Q 与新 D 相反，再施加有效 CK 边沿</td><td>Q 不变、太迟跨阈值、波形不完整</td></tr>
 <tr><td>Setup / hold</td><td>D 相对 CK 的允许时间窗口</td><td>逐步移动 D 的翻转时刻，按既定判据搜索边界</td><td>采错、clock-to-Q 明显恶化、亚稳态</td></tr>
 <tr><td>Recovery / removal</td><td>异步复位/置位释放相对 CK 的要求</td><td>控制 RN/SN 的撤销时刻，而不只是让 D 翻转</td><td>释放后状态不可靠或恢复很慢</td></tr>
 </tbody></table>
 <p>例如先存 Q=0，再把 D=1 稳定好，给上升沿，应测到 Q↑。若 Q 原来就是 1，D 也为 1，这一拍 Q 保持 1 完全正确；用它去测上升延迟就会找不到 crossing。这正是表征排错时需要问“旧状态是什么”的原因。</p>
-<h2 id="section-4">17.4 扫描链不是同一拍串行穿过所有寄存器</h2>
+<h3>亲手算边沿前后各自限制谁</h3>
+<p>假设相关 CK↑ 在 10 ns，教学 setup=0.2 ns、hold=0.1 ns、clock-to-Q=0.15 ns，则 D 至少应在 9.8～10.1 ns 保持本次采样值；合法采到与旧 Q 相反的新值时，Q 的测量阈值约在 10.15 ns 被跨过。不要把 0.15 ns 当成 D 需要稳定的时间。</p>
+<table><thead><tr><th>操作</th><th>按本例要求检查</th><th>结论</th></tr></thead><tbody><tr><td>D 在 9.7 ns 到达，10.2 ns 才再次变化</td><td>覆盖 9.8～10.1 ns</td><td>满足本例数据窗口</td></tr><tr><td>D 在 9.9 ns 才到达</td><td>晚于最迟 9.8 ns</td><td>建立时间不满足</td></tr><tr><td>D 在 10.05 ns 就再次变化</td><td>早于允许的 10.1 ns</td><td>保持时间不满足；降低时钟频率不自动把这个近沿变化移走</td></tr></tbody></table>
+<p>再假设低有效 RN 的 recovery=0.3 ns、removal=0.1 ns：若打算在 10 ns 这一沿开始正常工作，RN 应按本例至少提前到 9.7 ns 释放；若该沿仍保持复位，则不要在紧随其后的 0.1 ns 保护区内释放，且要满足下一有效沿的恢复要求。这里检查的是 RN 从 0 到 1 的<strong>撤销事件</strong>，不是 D，也不是 RN 从 1 到 0 的复位断言。实际约束可以含负值、条件及不同阈值，必须查目标库；违反要求代表不再有正确性保证，不代表每次都必定采错。</p>
+<h2 id="section-4">18.4 扫描链不是同一拍串行穿过所有寄存器</h2>
 <p>设三个 SDFF 共用 CK/SE，连接 Q0→SI1、Q1→SI2，链头 SI0 输入数据，初始 Q0/Q1/Q2=000。令 SE=1，依次输入 1、0、1：</p>
 <table><thead><tr><th>采样边沿</th><th>SI0</th><th>Q0(next)</th><th>Q1(next)</th><th>Q2(next)</th></tr></thead><tbody><tr><td>第 1 拍</td><td>1</td><td>1</td><td>0</td><td>0</td></tr><tr><td>第 2 拍</td><td>0</td><td>0</td><td>1</td><td>0</td></tr><tr><td>第 3 拍</td><td>1</td><td>1</td><td>0</td><td>1</td></tr></tbody></table>
 <p>每一拍后级采到的是前级这一拍之前已稳定的旧 Q，不是前级刚更新的新 Q；真实电路仍要满足扫描链保持时间。SE 返回 0 后切回各自功能输入 D，切换本身也需要满足方法学和时序约束。</p>
-<h2 id="section-5">17.5 ICG 为什么能保住完整脉冲</h2>
+<h2 id="section-5">18.5 ICG 为什么能保住完整脉冲</h2>
+<p>举一个带时间的关钟请求：CK 的高相为 5～10 ns、15～20 ns；E 最初为 1，在 7 ns 改为 0，并一直保持。忽略传播延迟，假设满足门控检查：</p>
+<table><thead><tr><th>时刻</th><th>CK / E</th><th>普通 CK AND E</th><th>低透明锁存器 + AND 的 ICG</th></tr></thead><tbody><tr><td>5 ns 上升沿</td><td>1 / 1</td><td>升为 1</td><td>E_latched=1，GCK 升为 1</td></tr><tr><td>7 ns 关闭请求</td><td>1 / 0</td><td>立刻降为 0，把 5 ns 高脉冲截成 2 ns</td><td>锁存器已关闭，E_latched 仍为 1，GCK 保持高</td></tr><tr><td>10 ns 下降沿后</td><td>0 / 0</td><td>保持 0</td><td>GCK 正常下降；低相允许 E_latched 更新为 0</td></tr><tr><td>15 ns 下一上升沿</td><td>1 / 0</td><td>保持 0</td><td>E_latched=0，因此整个新脉冲被阻止</td></tr></tbody></table>
+<p>关闭时钟不是把正在进行的高脉冲从中间砍掉，而是在允许的时刻决定<strong>是否传递下一整个脉冲</strong>。如果 E 恰在锁存关闭边界附近变化，这个理想表不足以保证结果，仍需门控 setup/hold。</p>
 <p>直接 AND 时钟时，CK=1 期间 E 从 1 降为 0 会马上截短 GCK。低电平透明使能锁存器把 E 保存在 <code>E_latched</code>：CK=0 时允许更新，此时 GCK 本来就是 0；CK=1 时不允许 E_latched 改变，因此当前高脉冲保持完整。这个结论依赖使能满足门控时序检查，不是“只要用了 ICG 永远不会有毛刺”。</p>
 <p>测试使能 SE 通常用于让功能关闭的时钟域在扫描测试时仍可获得时钟。本库 CLKGATETST 先对 E/SE 做 OR，再锁存；不应假设任意时刻改变 SE 都完全安全。ICG 节省的是停止翻转的时钟与受控寄存器相关动态功耗，不等于对整个模块断电。</p>
 <div class="checkpoint"><strong>练习</strong><ol><li>D=1、Q 旧值=1，测 clock-to-Q rise 为什么可能失败？应如何预置？</li><li>RN=0 时不断打时钟，却期望 DFFR 输出随 D 翻转，哪里不对？</li><li>CK 高期间 E 从 1 降 0，普通 AND 与合法 ICG 分别会怎样？</li></ol><details><summary>答案</summary><p>① 没有输出上升事件；先合法写 Q=0，再稳定 D=1，给有效边沿。② 低有效异步复位持续压住 Q=0，应先按要求释放。③ AND 截短当前高脉冲；ICG 的已锁存使能不变，当前脉冲完整，在后续安全窗口接受关闭请求。</p></details></div>
-<nav class="bottom-nav" aria-label="全书导航"><a href="cells-latches.html">← 第 16 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-physical.html">第 18 章 →</a></nav><footer>第 17 章　触发器、扫描链与时钟门控 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
+<nav class="bottom-nav" aria-label="全书导航"><a href="cells-latches.html">← 第 17 章</a> · <a href="tutorial_index.html">总目录 / 学习路线</a> · <a href="cells-physical.html">第 19 章 →</a></nav><footer>第 18 章　触发器、扫描链与时钟门控 · 实验状态见总目录</footer><!-- chapter-references-migrated -->
 </main></body></html>

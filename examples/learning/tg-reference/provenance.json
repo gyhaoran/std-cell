@@ -1,0 +1,12 @@
+{
+  "simulator": "******\n** ngspice-42 : Circuit level simulation program\n** Compiled with KLU Direct Linear Solver\n** The U. C. Berkeley CAD Group\n** Copyright 1985-1994, Regents of the University of California.\n** Copyright 2001-2023, The ngspice team.\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\n** Creation Date: Sun Mar 31 20:15:14 UTC 2024\n******",
+  "simulator_path": "/usr/bin/ngspice",
+  "source_sha256": {
+    "edu_inv.sp": "971551f473ad03fd17a1017896ca170d7e171ea7dfe61a9c1d3e433183d300a4",
+    "edu_tg.sp": "af02d85e4148574eedd7e7f0d9ebb0d571fa4fcf741f571e2a6ea0a15b0d0f29",
+    "transmission_gate_lab.py": "d7bcf305ff40526334e90d7ab20a3a883ed30f96009a5f7158802922ee764da5"
+  },
+  "scope": "educational Level-1 transient checks; NOT PDK, PEX, power, timing characterization or signoff",
+  "cases": 4,
+  "voltage_checks": 25
+}
